@@ -5,6 +5,7 @@ import pytest
 from jogador import Jogador
 from Guerreiro import Guerreiro
 from Mago import Mago
+from Ladrao import Ladrao
 
 def test_jogador_e_abstrata():
     with pytest.raises(TypeError):
@@ -35,3 +36,17 @@ def test_mago_dano_minimo_sem_mana():
     hp_antes = alvo.get_hp()
     m.atacar(alvo)
     assert alvo.get_hp() == hp_antes - 5    # dano base mínimo = 5
+
+def test_ladrao_dano_normal_sem_critico():
+    l = Ladrao("Kael", agilidade=10, chance_critico=0.0)  # nunca critico
+    alvo = Guerreiro("Dummy")
+    hp_antes = alvo.get_hp()
+    l.atacar(alvo)
+    assert alvo.get_hp() == hp_antes - 10  # int(10 * 1.0) = 10
+
+def test_ladrao_dano_critico():
+    l = Ladrao("Kael", agilidade=10, chance_critico=1.0)  # sempre critico
+    alvo = Guerreiro("Dummy")
+    hp_antes = alvo.get_hp()
+    l.atacar(alvo)
+    assert alvo.get_hp() == hp_antes - 30  # int(10 * 3.0) = 30
