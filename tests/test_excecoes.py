@@ -94,3 +94,39 @@ def test_mago_sem_mana_lanca_excecao():
     alvo = Guerreiro("Alvo", hp_maximo=500)
     with pytest.raises(ManaInsuficienteError):
         mago.atacar(alvo)
+
+
+from Paladino import Paladino
+
+
+def test_paladino_e_subclasse_de_guerreiro():
+    from Guerreiro import Guerreiro
+    assert issubclass(Paladino, Guerreiro)
+
+
+def test_paladino_ataca_com_fe_e_se_cura():
+    paladino = Paladino("Arthur", hp_maximo=150, forca=20, fe=20)
+    alvo = Guerreiro("Alvo", hp_maximo=500)
+    paladino.receber_dano(30)
+    hp_apos_dano = paladino.get_hp()
+    paladino.atacar(alvo)
+    assert paladino.get_hp() > hp_apos_dano
+
+
+def test_paladino_ataca_sem_fe_nao_se_cura():
+    paladino = Paladino("Arthur", hp_maximo=150, forca=20, fe=0)
+    alvo = Guerreiro("Alvo", hp_maximo=500)
+    paladino.receber_dano(30)
+    hp_apos_dano = paladino.get_hp()
+    paladino.atacar(alvo)
+    assert paladino.get_hp() == hp_apos_dano
+
+
+def test_paladino_exibir_status_inclui_fe():
+    import io, sys
+    paladino = Paladino("Arthur", fe=15)
+    output = io.StringIO()
+    sys.stdout = output
+    paladino.exibir_status()
+    sys.stdout = sys.__stdout__
+    assert "15" in output.getvalue()
