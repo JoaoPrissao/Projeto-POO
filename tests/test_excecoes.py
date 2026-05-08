@@ -77,3 +77,20 @@ def test_set_hp_maximo_invalido_lanca_excecao():
     g = Guerreiro("Teste")
     with pytest.raises(ValueError):
         g.set_hp_maximo(0)
+
+
+from Mago import Mago, CUSTO_MANA
+
+
+def test_mago_ataca_com_mana_suficiente():
+    mago = Mago("Selene", mana=50, inteligencia=10)
+    alvo = Guerreiro("Alvo", hp_maximo=500)
+    mago.atacar(alvo)
+    assert alvo.get_hp() < 500
+
+
+def test_mago_sem_mana_lanca_excecao():
+    mago = Mago("Selene", mana=0, inteligencia=10)
+    alvo = Guerreiro("Alvo", hp_maximo=500)
+    with pytest.raises(ManaInsuficienteError):
+        mago.atacar(alvo)

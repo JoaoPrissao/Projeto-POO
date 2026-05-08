@@ -1,4 +1,5 @@
 from jogador import Jogador
+from excecoes import ManaInsuficienteError
 
 CUSTO_MANA = 10
 DANO_BASE_MINIMO = 5
@@ -25,11 +26,9 @@ class Mago(Jogador):
         print("========================================")
 
     def atacar(self, alvo: Jogador) -> None:
-        if self.__mana >= CUSTO_MANA:
-            self.__mana -= CUSTO_MANA
-            dano = int(self.__inteligencia * 2.0)
-            print(f"  {self._nome} conjura magia! Dano: {dano} (mana: {self.__mana})")
-        else:
-            dano = DANO_BASE_MINIMO
-            print(f"  {self._nome} não tem mana suficiente! Dano base: {dano}")
+        if self.__mana < CUSTO_MANA:
+            raise ManaInsuficienteError(self._nome, self.__mana, CUSTO_MANA)
+        self.__mana -= CUSTO_MANA
+        dano = int(self.__inteligencia * 2.0)
+        print(f"  {self._nome} conjura magia! Dano: {dano} (mana: {self.__mana})")
         alvo.receber_dano(dano)
