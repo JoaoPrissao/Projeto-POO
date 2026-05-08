@@ -37,3 +37,43 @@ def test_mana_insuficiente_mensagem():
 def test_ataque_invalido_mensagem():
     err = AtaqueInvalidoError(-5)
     assert "-5" in str(err)
+
+
+from Guerreiro import Guerreiro
+
+
+def test_receber_dano_invalido_lanca_excecao():
+    g = Guerreiro("Teste")
+    with pytest.raises(AtaqueInvalidoError):
+        g.receber_dano(0)
+
+
+def test_receber_dano_negativo_lanca_excecao():
+    g = Guerreiro("Teste")
+    with pytest.raises(AtaqueInvalidoError):
+        g.receber_dano(-10)
+
+
+def test_atacar_jogador_morto_lanca_excecao():
+    alvo = Guerreiro("Alvo", hp_maximo=1)
+    alvo.receber_dano(1)
+    with pytest.raises(JogadorMortoError):
+        alvo.receber_dano(5)
+
+
+def test_set_nome_vazio_lanca_excecao():
+    g = Guerreiro("Teste")
+    with pytest.raises(ValueError):
+        g.set_nome("   ")
+
+
+def test_set_nivel_invalido_lanca_excecao():
+    g = Guerreiro("Teste")
+    with pytest.raises(ValueError):
+        g.set_nivel(0)
+
+
+def test_set_hp_maximo_invalido_lanca_excecao():
+    g = Guerreiro("Teste")
+    with pytest.raises(ValueError):
+        g.set_hp_maximo(0)

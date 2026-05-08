@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+from excecoes import JogadorMortoError, AtaqueInvalidoError
 
 
 class Jogador(ABC):
@@ -48,22 +49,19 @@ class Jogador(ABC):
 
     def set_nome(self, nome: str) -> None:
         if not nome.strip():
-            print("  [ERRO] Nome não pode ser vazio.")
-            return
+            raise ValueError("Nome não pode ser vazio.")
         self._nome = nome
         print(f"  Nome alterado para: {self._nome}")
 
     def set_nivel(self, nivel: int) -> None:
         if nivel < 1:
-            print("  [ERRO] Nível deve ser no mínimo 1.")
-            return
+            raise ValueError("Nível deve ser no mínimo 1.")
         self._nivel = nivel
         print(f"  {self._nome} agora é nível {self._nivel}.")
 
     def set_hp_maximo(self, hp_maximo: int) -> None:
         if hp_maximo <= 0:
-            print("  [ERRO] HP máximo deve ser maior que zero.")
-            return
+            raise ValueError("HP máximo deve ser maior que zero.")
         self._hp_maximo = hp_maximo
         if self._hp > self._hp_maximo:
             self._hp = self._hp_maximo
@@ -84,10 +82,9 @@ class Jogador(ABC):
 
     def receber_dano(self, dano: int) -> None:
         if dano <= 0:
-            return
+            raise AtaqueInvalidoError(dano)
         if not self.esta_vivo():
-            print(f"  {self._nome} já está morto.")
-            return
+            raise JogadorMortoError(self._nome)
         self._hp -= dano
         if self._hp < 0:
             self._hp = 0
