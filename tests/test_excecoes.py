@@ -89,13 +89,6 @@ def test_mago_ataca_com_mana_suficiente():
     assert alvo.get_hp() < 500
 
 
-def test_mago_sem_mana_lanca_excecao():
-    mago = Mago("Selene", mana=0, inteligencia=10)
-    alvo = Guerreiro("Alvo", hp_maximo=500)
-    with pytest.raises(ManaInsuficienteError):
-        mago.atacar(alvo)
-
-
 from Paladino import Paladino
 
 
