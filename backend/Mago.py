@@ -18,6 +18,11 @@ class Mago(Jogador):
     def get_inteligencia(self) -> int:
         return self.__inteligencia
 
+    def restaurar_mana(self, quantidade: int) -> None:
+        if quantidade > 0:
+            self.__mana += quantidade
+            print(f"  {self._nome} restaurou {quantidade} de mana. Mana: {self.__mana}")
+
     def exibir_status(self) -> None:
         super().exibir_status()
         print(f"  Mana       : {self.__mana}")

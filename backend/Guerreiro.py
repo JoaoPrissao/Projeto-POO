@@ -11,6 +11,11 @@ class Guerreiro(Jogador):
     def get_forca(self) -> int:
         return self.__forca
 
+    def aumentar_forca(self, quantidade: int) -> None:
+        if quantidade > 0:
+            self.__forca += quantidade
+            print(f"  {self._nome} ganhou +{quantidade} de força. Força: {self.__forca}")
+
     def exibir_status(self) -> None:
         super().exibir_status()
         print(f"  Força      : {self.__forca}")
