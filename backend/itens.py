@@ -1,7 +1,7 @@
 from excecoes import ItemIncompativelError
 
 # Itens nesta fase são RPG-genéricos e NEUTROS de tema: as classes não citam
-# nada concreto (espada/poção). O catálogo concreto vive na ItemFactory.
+# nada concreto (pedal/energético). O catálogo concreto vive na ItemFactory.
 # Identidade do item = `nome` (usado como id pelo Inventario).
 
 
@@ -81,8 +81,8 @@ class Equipavel(Item):
 class Consumivel(Item):
     """Efeito de uso único. Consumido ao usar.
 
-    `efeito`: "cura" usa Jogador.curar(); "mana" usa restaurar_mana() (Mago).
-    O efeito de mana é resolvido por duck typing — quem não tiver mana recebe
+    `efeito`: "cura" usa Musico.curar(); "folego" usa restaurar_folego() (Vocalista).
+    O efeito de fôlego é resolvido por duck typing — quem não tiver fôlego recebe
     ItemIncompativelError.
     """
 
@@ -96,11 +96,11 @@ class Consumivel(Item):
     def usar(self, alvo) -> None:
         if self.efeito == "cura":
             alvo.curar(self.valor)
-        elif self.efeito == "mana":
-            restaurar = getattr(alvo, "restaurar_mana", None)
+        elif self.efeito == "folego":
+            restaurar = getattr(alvo, "restaurar_folego", None)
             if restaurar is None:
                 raise ItemIncompativelError(
-                    f"{type(alvo).__name__} não tem mana para restaurar com '{self.nome}'."
+                    f"{type(alvo).__name__} não tem fôlego para restaurar com '{self.nome}'."
                 )
             restaurar(self.valor)
         else:

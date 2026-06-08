@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
 import sys
 
-from jogador import Jogador
-from Guerreiro import Guerreiro
-from Mago import Mago, CUSTO_MANA, DANO_BASE_MINIMO
-from Ladrao import Ladrao
-from Paladino import Paladino
+from musico import Musico
+from Guitarrista import Guitarrista
+from Vocalista import Vocalista, CUSTO_FOLEGO, DANO_BASE_MINIMO
+from Baterista import Baterista
+from Baixista import Baixista
 from gerenciador import GerenciadorJogo
 from show import Show, Inimigo
 from excecoes import ManaInsuficienteError, JogadorMortoError, JogoError
@@ -16,29 +16,29 @@ if sys.platform == "win32":
 
 def demo_polimorfismo():
     # ── Criação dos personagens ───────────────────────────────────
-    print("── Criando personagens ──────────────────────────")
-    guerreiro = Guerreiro("Aldric",  nivel=5, hp_maximo=150, forca=20)
-    mago      = Mago("Selene",       nivel=3, hp_maximo=80,  inteligencia=15, mana=60)
-    ladrao    = Ladrao("Kael",       nivel=4, hp_maximo=110, agilidade=12, chance_critico=0.4)
-    paladino  = Paladino("Arthur",   nivel=4, hp_maximo=130, forca=18, fe=20)
+    print("── Criando músicos ──────────────────────────────")
+    guitarrista = Guitarrista("Aldric",  nivel=5, hp_maximo=150, forca=20)
+    vocalista   = Vocalista("Selene",    nivel=3, hp_maximo=80,  inteligencia=15, folego=60)
+    baterista   = Baterista("Kael",      nivel=4, hp_maximo=110, agilidade=12, chance_critico=0.4)
+    baixista    = Baixista("Arthur",     nivel=4, hp_maximo=130, forca=18, fe=20)
 
-    alvo = Guerreiro("Boneco de Treino", hp_maximo=500, forca=1)
+    alvo = Guitarrista("Boneco de Treino", hp_maximo=500, forca=1)
 
     # ── Status inicial ────────────────────────────────────────────
     print("\n── Status inicial ───────────────────────────────")
-    for j in [guerreiro, mago, ladrao, paladino]:
-        j.exibir_status()
+    for m in [guitarrista, vocalista, baterista, baixista]:
+        m.exibir_status()
 
     # ── Demonstração de polimorfismo dinâmico ─────────────────────
     print("\n── Rodada de combate (polimorfismo dinâmico) ────")
-    jogadores: list[Jogador] = [guerreiro, mago, ladrao, paladino]
+    musicos: list[Musico] = [guitarrista, vocalista, baterista, baixista]
 
-    for jogador in jogadores:
+    for musico in musicos:
         try:
-            jogador.atacar(alvo)
+            musico.atacar(alvo)
         except ManaInsuficienteError as e:
             print(f"  [EXCEÇÃO capturada] {e}")
-            print(f"  {jogador.get_nome()} usa ataque físico fraco. Dano: {DANO_BASE_MINIMO}")
+            print(f"  {musico.get_nome()} usa ataque físico fraco. Dano: {DANO_BASE_MINIMO}")
             alvo.receber_dano(DANO_BASE_MINIMO)
 
     # ── Status do alvo após o combate ─────────────────────────────
@@ -47,7 +47,7 @@ def demo_polimorfismo():
 
     # ── Demonstração de JogadorMortoError ────────────────────────
     print("\n── Demonstração de JogadorMortoError ────────────")
-    cobaia = Guerreiro("Cobaia", hp_maximo=1)
+    cobaia = Guitarrista("Cobaia", hp_maximo=1)
     cobaia.receber_dano(1)
     try:
         cobaia.receber_dano(10)
@@ -56,9 +56,9 @@ def demo_polimorfismo():
 
     # ── Demonstração de ManaInsuficienteError ─────────────────────
     print("\n── Demonstração de ManaInsuficienteError ────────")
-    mago_sem_mana = Mago("Merlin Broke", mana=0, inteligencia=10)
+    vocalista_sem_folego = Vocalista("Merlin Broke", folego=0, inteligencia=10)
     try:
-        mago_sem_mana.atacar(alvo)
+        vocalista_sem_folego.atacar(alvo)
     except ManaInsuficienteError as e:
         print(f"  [EXCEÇÃO capturada] {e}")
 
@@ -71,9 +71,9 @@ def jogar():
     GerenciadorJogo.resetar()
     gerenciador = GerenciadorJogo.get_instancia()
     gerenciador.criar_banda([
-        {"tipo": "guerreiro", "nome": "Aldric", "forca": 15},
-        {"tipo": "mago",      "nome": "Selene", "mana": 50, "inteligencia": 12},
-        {"tipo": "ladrao",    "nome": "Kael",   "agilidade": 10, "chance_critico": 0.3},
+        {"tipo": "guitarrista", "nome": "Aldric", "forca": 15},
+        {"tipo": "vocalista",   "nome": "Selene", "folego": 50, "inteligencia": 12},
+        {"tipo": "baterista",   "nome": "Kael",   "agilidade": 10, "chance_critico": 0.3},
     ])
     banda = gerenciador.listar_jogadores()
     inimigo = Inimigo("O Empresário", hp=120, dano=18)

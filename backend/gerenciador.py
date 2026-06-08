@@ -1,11 +1,11 @@
-from fabricas import JogadorFactory
+from fabricas import MusicoFactory
 import persistencia
 
 
 class GerenciadorJogo:
     """Singleton detentor central do estado do jogo (a banda/party).
 
-    Amarra a JogadorFactory (criação) e o módulo persistencia (save/load) —
+    Amarra a MusicoFactory (criação) e o módulo persistencia (save/load) —
     nenhum dos dois é reimplementado aqui, apenas orquestrado.
 
     O padrão é implementado com `__new__` (instância única em `_instancia`) +
@@ -44,7 +44,7 @@ class GerenciadorJogo:
     # ── Banda / party ─────────────────────────────────────────────
 
     def adicionar_jogador(self, tipo: str, **kwargs):
-        jogador = JogadorFactory.criar(tipo, **kwargs)
+        jogador = MusicoFactory.criar(tipo, **kwargs)
         self._banda.append(jogador)
         return jogador
 

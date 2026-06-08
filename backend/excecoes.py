@@ -4,13 +4,13 @@ class JogoError(Exception):
 
 class JogadorMortoError(JogoError):
     def __init__(self, nome: str):
-        super().__init__(f"{nome} já está morto e não pode realizar esta ação.")
+        super().__init__(f"{nome} está nocauteado e não pode realizar esta ação.")
 
 
 class ManaInsuficienteError(JogoError):
     def __init__(self, nome: str, mana_atual: int, custo: int):
         super().__init__(
-            f"{nome} não tem mana suficiente (tem {mana_atual}, precisa de {custo})."
+            f"{nome} não tem fôlego suficiente (tem {mana_atual}, precisa de {custo})."
         )
 
 
@@ -55,4 +55,4 @@ class SaveCorrompidoError(PersistenciaError):
 
 class TipoInvalidoError(JogoError):
     def __init__(self, tipo: str):
-        super().__init__(f"Tipo de jogador inválido: '{tipo}'.")
+        super().__init__(f"Tipo de músico inválido: '{tipo}'.")

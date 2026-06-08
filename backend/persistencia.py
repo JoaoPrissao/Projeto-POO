@@ -1,7 +1,7 @@
 import json
 import os
 
-from jogador import Jogador
+from musico import Musico
 from excecoes import SaveNaoEncontradoError, SaveCorrompidoError, TipoInvalidoError
 
 # Único módulo que toca o disco. Saves ficam em <raiz>/saves/<slot>.json.
@@ -28,7 +28,7 @@ def carregar_jogo(slot: str, pasta: str = None) -> list:
     try:
         with open(caminho, encoding="utf-8") as arquivo:
             dados = json.load(arquivo)
-        return [Jogador.from_dict(d) for d in dados]
+        return [Musico.from_dict(d) for d in dados]
     except (json.JSONDecodeError, KeyError, TypeError, AttributeError, TipoInvalidoError) as erro:
         raise SaveCorrompidoError(f"Save '{slot}' inválido ou incompatível: {erro}") from erro
 

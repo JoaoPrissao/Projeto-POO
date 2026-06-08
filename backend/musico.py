@@ -5,7 +5,7 @@ from inventario import Inventario
 CAPACIDADE_INVENTARIO_PADRAO = 20
 
 
-class Jogador(ABC):
+class Musico(ABC):
     XP_BASE = 100
     TIPO = None  # discriminador de serialização; cada subclasse define o seu
 
@@ -16,18 +16,18 @@ class Jogador(ABC):
         self._hp               = hp_maximo
         self._xp               = xp
         self._xp_proximo_nivel = nivel * self.XP_BASE
-        print(f"  [+] Jogador '{self._nome}' criado (nível {self._nivel}).")
+        print(f"  [+] Músico '{self._nome}' criado (nível {self._nivel}).")
 
     @classmethod
-    def iniciante(cls, nome: str) -> "Jogador":
+    def iniciante(cls, nome: str) -> "Musico":
         return cls(nome)
 
     @classmethod
-    def do_save(cls, nome: str, nivel: int, hp_maximo: int, xp: int) -> "Jogador":
+    def do_save(cls, nome: str, nivel: int, hp_maximo: int, xp: int) -> "Musico":
         return cls(nome, nivel, hp_maximo, xp)
 
     def __del__(self):
-        print(f"  [-] Jogador '{self._nome}' removido da memória.")
+        print(f"  [-] Músico '{self._nome}' removido da memória.")
 
     # ── Getters ───────────────────────────────────────────────────
 
@@ -94,13 +94,13 @@ class Jogador(ABC):
             self._hp = 0
         print(f"  {self._nome} recebeu {dano} de dano. HP: {self._hp}/{self._hp_maximo}")
         if not self.esta_vivo():
-            print(f"  {self._nome} foi derrotado!")
+            print(f"  {self._nome} foi nocauteado!")
 
     def curar(self, cura: int) -> None:
         if cura <= 0:
             return
         if not self.esta_vivo():
-            print(f"  {self._nome} está morto e não pode ser curado.")
+            print(f"  {self._nome} está nocauteado e não pode ser curado.")
             return
         self._hp = min(self._hp + cura, self._hp_maximo)
         print(f"  {self._nome} curou {cura} de HP. HP: {self._hp}/{self._hp_maximo}")
@@ -124,7 +124,9 @@ class Jogador(ABC):
               f"HP máximo: {self._hp_maximo} (+{bonus_hp})")
 
     @abstractmethod
-    def atacar(self, alvo: "Jogador") -> None:
+    def atacar(self) -> int:
+        """Retorna o dano base sem aplicá-lo (D2). O Show aplica modificadores
+        e chama alvo.receber_dano(dano_final)."""
         pass
 
     # ── Inventário ────────────────────────────────────────────────
@@ -152,8 +154,8 @@ class Jogador(ABC):
         }
 
     @classmethod
-    def from_dict(cls, dados: dict) -> "Jogador":
-        from fabricas import JogadorFactory
+    def from_dict(cls, dados: dict) -> "Musico":
+        from fabricas import MusicoFactory
         from itens import item_from_dict
 
         dados = dict(dados)
@@ -161,14 +163,12 @@ class Jogador(ABC):
         hp_atual = dados.pop("hp")
         inv_dados = dados.pop("inventario", None)
 
-        # o restante (nome, nivel, hp_maximo, xp, + atributos da subclasse)
-        # casa exatamente com os parâmetros do construtor de cada subclasse
-        jogador = JogadorFactory.criar(tipo, **dados)
-        jogador._hp = hp_atual
+        musico = MusicoFactory.criar(tipo, **dados)
+        musico._hp = hp_atual
 
         if inv_dados:
-            inv = jogador.get_inventario()
+            inv = musico.get_inventario()
             inv.capacidade = inv_dados.get("capacidade", inv.capacidade)
             for item_d in inv_dados.get("itens", []):
                 inv.adicionar(item_from_dict(item_d))
-        return jogador
+        return musico

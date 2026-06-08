@@ -24,7 +24,7 @@ def test_ataque_invalido_error_e_jogo_error():
 def test_jogador_morto_mensagem():
     err = JogadorMortoError("Aldric")
     assert "Aldric" in str(err)
-    assert "morto" in str(err)
+    assert "nocauteado" in str(err)
 
 
 def test_mana_insuficiente_mensagem():
@@ -39,87 +39,84 @@ def test_ataque_invalido_mensagem():
     assert "-5" in str(err)
 
 
-from Guerreiro import Guerreiro
+from Guitarrista import Guitarrista
 
 
 def test_receber_dano_invalido_lanca_excecao():
-    g = Guerreiro("Teste")
+    g = Guitarrista("Teste")
     with pytest.raises(AtaqueInvalidoError):
         g.receber_dano(0)
 
 
 def test_receber_dano_negativo_lanca_excecao():
-    g = Guerreiro("Teste")
+    g = Guitarrista("Teste")
     with pytest.raises(AtaqueInvalidoError):
         g.receber_dano(-10)
 
 
 def test_atacar_jogador_morto_lanca_excecao():
-    alvo = Guerreiro("Alvo", hp_maximo=1)
+    alvo = Guitarrista("Alvo", hp_maximo=1)
     alvo.receber_dano(1)
     with pytest.raises(JogadorMortoError):
         alvo.receber_dano(5)
 
 
 def test_set_nome_vazio_lanca_excecao():
-    g = Guerreiro("Teste")
+    g = Guitarrista("Teste")
     with pytest.raises(ValueError):
         g.set_nome("   ")
 
 
 def test_set_nivel_invalido_lanca_excecao():
-    g = Guerreiro("Teste")
+    g = Guitarrista("Teste")
     with pytest.raises(ValueError):
         g.set_nivel(0)
 
 
 def test_set_hp_maximo_invalido_lanca_excecao():
-    g = Guerreiro("Teste")
+    g = Guitarrista("Teste")
     with pytest.raises(ValueError):
         g.set_hp_maximo(0)
 
 
-from Mago import Mago, CUSTO_MANA
+from Vocalista import Vocalista, CUSTO_FOLEGO
 
 
-def test_mago_ataca_com_mana_suficiente():
-    mago = Mago("Selene", mana=50, inteligencia=10)
-    alvo = Guerreiro("Alvo", hp_maximo=500)
-    mago.atacar(alvo)
-    assert alvo.get_hp() < 500
+def test_vocalista_ataca_com_folego_suficiente():
+    vocalista = Vocalista("Selene", folego=50, inteligencia=10)
+    dano = vocalista.atacar()
+    assert dano > 0
 
 
-from Paladino import Paladino
+from Baixista import Baixista
 
 
-def test_paladino_e_subclasse_de_guerreiro():
-    from Guerreiro import Guerreiro
-    assert issubclass(Paladino, Guerreiro)
+def test_baixista_e_subclasse_de_guitarrista():
+    from Guitarrista import Guitarrista
+    assert issubclass(Baixista, Guitarrista)
 
 
-def test_paladino_ataca_com_fe_e_se_cura():
-    paladino = Paladino("Arthur", hp_maximo=150, forca=20, fe=20)
-    alvo = Guerreiro("Alvo", hp_maximo=500)
-    paladino.receber_dano(30)
-    hp_apos_dano = paladino.get_hp()
-    paladino.atacar(alvo)
-    assert paladino.get_hp() > hp_apos_dano
+def test_baixista_ataca_com_groove_e_se_cura():
+    baixista = Baixista("Arthur", hp_maximo=150, forca=20, fe=20)
+    baixista.receber_dano(30)
+    hp_apos_dano = baixista.get_hp()
+    baixista.atacar()
+    assert baixista.get_hp() > hp_apos_dano
 
 
-def test_paladino_ataca_sem_fe_nao_se_cura():
-    paladino = Paladino("Arthur", hp_maximo=150, forca=20, fe=0)
-    alvo = Guerreiro("Alvo", hp_maximo=500)
-    paladino.receber_dano(30)
-    hp_apos_dano = paladino.get_hp()
-    paladino.atacar(alvo)
-    assert paladino.get_hp() == hp_apos_dano
+def test_baixista_ataca_sem_groove_nao_se_cura():
+    baixista = Baixista("Arthur", hp_maximo=150, forca=20, fe=0)
+    baixista.receber_dano(30)
+    hp_apos_dano = baixista.get_hp()
+    baixista.atacar()
+    assert baixista.get_hp() == hp_apos_dano
 
 
-def test_paladino_exibir_status_inclui_fe():
+def test_baixista_exibir_status_inclui_groove():
     import io, sys
-    paladino = Paladino("Arthur", fe=15)
+    baixista = Baixista("Arthur", fe=15)
     output = io.StringIO()
     sys.stdout = output
-    paladino.exibir_status()
+    baixista.exibir_status()
     sys.stdout = sys.__stdout__
     assert "15" in output.getvalue()

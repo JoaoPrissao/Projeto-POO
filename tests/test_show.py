@@ -4,11 +4,12 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'backend'))
 import pytest
 from unittest.mock import patch
 
-from show import Show, Inimigo
-from Guerreiro import Guerreiro
-from Mago import Mago
-from Ladrao import Ladrao
-from Paladino import Paladino
+from show import Show, Empresario
+from ritmo import Ritmo
+from Guitarrista import Guitarrista
+from Vocalista import Vocalista
+from Baterista import Baterista
+from Baixista import Baixista
 from gerenciador import GerenciadorJogo
 from excecoes import JogadorMortoError
 
@@ -20,93 +21,171 @@ def _reset_singleton():
     GerenciadorJogo.resetar()
 
 
-# ── Inimigo ───────────────────────────────────────────────────────────────────
+# ── Empresario ────────────────────────────────────────────────────────────────
 
-def test_inimigo_esta_vivo_com_hp_positivo():
-    inimigo = Inimigo("Boss", hp=100, dano=10)
-    assert inimigo.esta_vivo() is True
-
-
-def test_inimigo_morre_ao_receber_dano_total():
-    inimigo = Inimigo("Boss", hp=10, dano=10)
-    inimigo.receber_dano(10)
-    assert inimigo.esta_vivo() is False
+def test_empresario_esta_vivo_com_hp_positivo():
+    emp = Empresario("Boss", hp=100, dano=10)
+    assert emp.esta_vivo() is True
 
 
-def test_inimigo_receber_dano_morto_levanta_jogador_morto_error():
-    inimigo = Inimigo("Boss", hp=5, dano=10)
-    inimigo.receber_dano(5)
+def test_empresario_morre_ao_receber_dano_total():
+    emp = Empresario("Boss", hp=10, dano=10)
+    emp.receber_dano(10)
+    assert emp.esta_vivo() is False
+
+
+def test_empresario_receber_dano_morto_levanta_jogador_morto_error():
+    emp = Empresario("Boss", hp=5, dano=10)
+    emp.receber_dano(5)
     with pytest.raises(JogadorMortoError):
-        inimigo.receber_dano(1)
+        emp.receber_dano(1)
 
 
-def test_inimigo_get_hp_apos_dano():
-    inimigo = Inimigo("Boss", hp=50, dano=10)
-    assert inimigo.get_hp() == 50
-    inimigo.receber_dano(20)
-    assert inimigo.get_hp() == 30
+def test_empresario_get_hp_apos_dano():
+    emp = Empresario("Boss", hp=50, dano=10)
+    assert emp.get_hp() == 50
+    emp.receber_dano(20)
+    assert emp.get_hp() == 30
 
 
-def test_inimigo_get_nome():
-    inimigo = Inimigo("Boss Teste", hp=100, dano=10)
-    assert inimigo.get_nome() == "Boss Teste"
+def test_empresario_get_nome():
+    emp = Empresario("O Empresário", hp=100, dano=10)
+    assert emp.get_nome() == "O Empresário"
 
 
-# ── Show.acao_musico ──────────────────────────────────────────────────────────
+# ── Show.acao_musico — contrato D2 (retorna dano calculado pelo Show) ─────────
 
-def test_acao_musico_reduz_hp_do_inimigo():
-    g = Guerreiro("Aldric", forca=10)  # dano = int(10 * 1.5) = 15
-    inimigo = Inimigo("Boss", hp=100, dano=10)
-    show = Show([g], inimigo)
+def test_acao_musico_reduz_hp_do_empresario():
+    g = Guitarrista("Aldric", forca=10)  # dano base = 15, ego=0 → dano final = 15
+    emp = Empresario("Boss", hp=100, dano=10)
+    show = Show([g], emp)
     resultado = show.acao_musico(0)
-    assert inimigo.get_hp() == 85
+    assert emp.get_hp() == 85
     assert resultado["dano"] == 15
 
 
 def test_acao_musico_retorna_dict_com_campos_esperados():
-    g = Guerreiro("Aldric", forca=10)
-    inimigo = Inimigo("Boss", hp=100, dano=10)
-    show = Show([g], inimigo)
+    g = Guitarrista("Aldric", forca=10)
+    emp = Empresario("Boss", hp=100, dano=10)
+    show = Show([g], emp)
     resultado = show.acao_musico(0)
     assert "atacante" in resultado
     assert "dano" in resultado
     assert "hp_inimigo" in resultado
     assert "fim" in resultado
+    assert "critico" in resultado
+    assert "modo_refrao_ativo" in resultado
+    assert "multiplicador_aplicado" in resultado
 
 
-def test_acao_musico_retorna_vitoria_quando_inimigo_cai():
-    g = Guerreiro("Aldric", forca=10)  # dano = 15
-    inimigo = Inimigo("Boss", hp=10, dano=10)
-    show = Show([g], inimigo)
+def test_acao_musico_retorna_vitoria_quando_empresario_cai():
+    g = Guitarrista("Aldric", forca=10)  # dano = 15
+    emp = Empresario("Boss", hp=10, dano=10)
+    show = Show([g], emp)
     resultado = show.acao_musico(0)
     assert resultado["fim"] == "vitoria"
-    assert not inimigo.esta_vivo()
+    assert not emp.esta_vivo()
 
 
 def test_acao_musico_retorna_fim_none_se_jogo_continua():
-    g = Guerreiro("Aldric", forca=10)
-    inimigo = Inimigo("Boss", hp=100, dano=10)
-    show = Show([g], inimigo)
+    g = Guitarrista("Aldric", forca=10)
+    emp = Empresario("Boss", hp=100, dano=10)
+    show = Show([g], emp)
     resultado = show.acao_musico(0)
     assert resultado["fim"] is None
+
+
+# ── Show.acao_musico — multiplicador de Ritmo ─────────────────────────────────
+
+def test_acao_musico_aplica_multiplicador_de_ritmo():
+    g = Guitarrista("Aldric", forca=10)  # dano base = 15
+    emp = Empresario("Boss", hp=200, dano=10)
+    show = Show([g], emp)
+    # precisao=0.8 < 0.90 → sem Modo Refrão; mult = 1.0 + 5*0.1 = 1.5
+    ritmo = Ritmo(acertos=8, total_notas=10, combo_max=5)
+    resultado = show.acao_musico(0, ritmo=ritmo)
+    # dano_final = int(15 * 1.5) = 22
+    assert resultado["dano"] == 22
+    assert resultado["multiplicador_aplicado"] == pytest.approx(1.5)
+
+
+def test_acao_musico_sem_ritmo_mult_e_1():
+    g = Guitarrista("Aldric", forca=10)
+    emp = Empresario("Boss", hp=200, dano=10)
+    show = Show([g], emp)
+    resultado = show.acao_musico(0)  # sem ritmo
+    assert resultado["multiplicador_aplicado"] == pytest.approx(1.0)
+
+
+def test_acao_musico_modo_refrao_aplica_mult_extra():
+    g = Guitarrista("Aldric", forca=10)  # dano base = 15
+    emp = Empresario("Boss", hp=200, dano=10)
+    show = Show([g], emp)
+    # precisao=1.0 >= 0.90 → Modo Refrão; mult = 1.0 + 0 * 0.1 = 1.0; com refrão: 1.0 * 1.5 = 1.5
+    ritmo = Ritmo(acertos=10, total_notas=10, combo_max=0)
+    resultado = show.acao_musico(0, ritmo=ritmo)
+    assert resultado["modo_refrao_ativo"] is True
+    # dano_final = int(15 * 1.5) = 22
+    assert resultado["dano"] == 22
+
+
+# ── Virada de bateria (crítico do Baterista) ──────────────────────────────────
+
+def test_baterista_critico_mockado_no_show():
+    with patch("random.random", return_value=0.0):  # 0.0 < 0.3 → sempre crítico
+        b = Baterista("Kael", agilidade=10, chance_critico=0.3)
+        emp = Empresario("Boss", hp=1000, dano=5)
+        show = Show([b], emp)
+        resultado = show.acao_musico(0)
+        assert resultado["dano"] == 30  # int(10 * 3.0)
+        assert resultado["critico"] is True
+
+
+def test_baterista_normal_nao_e_critico():
+    with patch("random.random", return_value=1.0):  # nunca crítico
+        b = Baterista("Kael", agilidade=10, chance_critico=0.3)
+        emp = Empresario("Boss", hp=1000, dano=5)
+        show = Show([b], emp)
+        resultado = show.acao_musico(0)
+        assert resultado["dano"] == 10  # int(10 * 1.0)
+        assert resultado["critico"] is False
+
+
+# ── Ego do Guitarrista no Show ────────────────────────────────────────────────
+
+def test_ego_alto_aumenta_dano_no_show():
+    g = Guitarrista("Aldric", forca=10, ego=50)  # ego no máximo
+    emp = Empresario("Boss", hp=200, dano=10)
+    show = Show([g], emp)
+    resultado = show.acao_musico(0)
+    # dano_base = 15; ego_bonus = int(50 / 10) = 5; dano_final = int((15+5)*1.0) = 20
+    assert resultado["dano"] == 20
+
+
+def test_ego_zero_nao_adiciona_bonus():
+    g = Guitarrista("Aldric", forca=10, ego=0)
+    emp = Empresario("Boss", hp=200, dano=10)
+    show = Show([g], emp)
+    resultado = show.acao_musico(0)
+    assert resultado["dano"] == 15  # sem bonus
 
 
 # ── Show.turno_inimigo ────────────────────────────────────────────────────────
 
 def test_turno_inimigo_reduz_hp_de_musico_vivo():
-    g = Guerreiro("Aldric", forca=10)
+    g = Guitarrista("Aldric", forca=10)
     hp_antes = g.get_hp()
-    inimigo = Inimigo("Boss", hp=100, dano=20)
-    show = Show([g], inimigo)
+    emp = Empresario("Boss", hp=100, dano=20)
+    show = Show([g], emp)
     resultado = show.turno_inimigo()
     assert g.get_hp() == hp_antes - 20
     assert resultado["dano"] == 20
 
 
 def test_turno_inimigo_retorna_dict_com_campos_esperados():
-    g = Guerreiro("Aldric", forca=10)
-    inimigo = Inimigo("Boss", hp=100, dano=20)
-    show = Show([g], inimigo)
+    g = Guitarrista("Aldric", forca=10)
+    emp = Empresario("Boss", hp=100, dano=20)
+    show = Show([g], emp)
     resultado = show.turno_inimigo()
     assert "atacante" in resultado
     assert "alvo" in resultado
@@ -116,12 +195,12 @@ def test_turno_inimigo_retorna_dict_com_campos_esperados():
 
 
 def test_turno_inimigo_pula_musico_nocauteado():
-    g1 = Guerreiro("Morto", hp_maximo=10, forca=1)
+    g1 = Guitarrista("Morto", hp_maximo=10, forca=1)
     g1.receber_dano(10)
-    g2 = Guerreiro("Vivo", forca=10)
+    g2 = Guitarrista("Vivo", forca=10)
     hp_antes = g2.get_hp()
-    inimigo = Inimigo("Boss", hp=100, dano=20)
-    show = Show([g1, g2], inimigo)
+    emp = Empresario("Boss", hp=100, dano=20)
+    show = Show([g1, g2], emp)
     resultado = show.turno_inimigo()
     assert g1.get_hp() == 0
     assert g2.get_hp() == hp_antes - 20
@@ -129,10 +208,10 @@ def test_turno_inimigo_pula_musico_nocauteado():
 
 
 def test_turno_inimigo_sem_musicos_vivos_retorna_derrota():
-    g = Guerreiro("Aldric", hp_maximo=10, forca=1)
+    g = Guitarrista("Aldric", hp_maximo=10, forca=1)
     g.receber_dano(10)
-    inimigo = Inimigo("Boss", hp=100, dano=20)
-    show = Show([g], inimigo)
+    emp = Empresario("Boss", hp=100, dano=20)
+    show = Show([g], emp)
     resultado = show.turno_inimigo()
     assert resultado["fim"] == "derrota"
 
@@ -140,54 +219,43 @@ def test_turno_inimigo_sem_musicos_vivos_retorna_derrota():
 # ── Show.verificar_fim ────────────────────────────────────────────────────────
 
 def test_verificar_fim_retorna_none_quando_jogo_continua():
-    g = Guerreiro("Aldric", forca=10)
-    inimigo = Inimigo("Boss", hp=100, dano=10)
-    show = Show([g], inimigo)
+    g = Guitarrista("Aldric", forca=10)
+    emp = Empresario("Boss", hp=100, dano=10)
+    show = Show([g], emp)
     assert show.verificar_fim() is None
 
 
-def test_verificar_fim_vitoria_quando_inimigo_morto():
-    g = Guerreiro("Aldric", forca=10)
-    inimigo = Inimigo("Boss", hp=1, dano=10)
-    inimigo.receber_dano(1)
-    show = Show([g], inimigo)
+def test_verificar_fim_vitoria_quando_empresario_morto():
+    g = Guitarrista("Aldric", forca=10)
+    emp = Empresario("Boss", hp=1, dano=10)
+    emp.receber_dano(1)
+    show = Show([g], emp)
     assert show.verificar_fim() == "vitoria"
 
 
 def test_verificar_fim_derrota_quando_banda_toda_nocauteada():
-    g = Guerreiro("Aldric", hp_maximo=10, forca=1)
+    g = Guitarrista("Aldric", hp_maximo=10, forca=1)
     g.receber_dano(10)
-    inimigo = Inimigo("Boss", hp=100, dano=10)
-    show = Show([g], inimigo)
+    emp = Empresario("Boss", hp=100, dano=10)
+    show = Show([g], emp)
     assert show.verificar_fim() == "derrota"
 
 
 # ── Polimorfismo ──────────────────────────────────────────────────────────────
 
 def test_polimorfismo_banda_mista_sem_isinstance():
-    """Show com subclasses mistas resolve ações sem checar tipo."""
     banda = [
-        Guerreiro("G", forca=10),
-        Mago("M", inteligencia=10, mana=50),
-        Ladrao("L", agilidade=10, chance_critico=0.0),
-        Paladino("P", forca=10, fe=20),
+        Guitarrista("G", forca=10),
+        Vocalista("M", inteligencia=10, folego=50),
+        Baterista("L", agilidade=10, chance_critico=0.0),
+        Baixista("P", forca=10, fe=20),
     ]
-    inimigo = Inimigo("Boss", hp=1000, dano=5)
-    show = Show(banda, inimigo)
+    emp = Empresario("Boss", hp=1000, dano=5)
+    show = Show(banda, emp)
     for i in range(len(banda)):
         resultado = show.acao_musico(i)
         assert "dano" in resultado
         assert resultado["dano"] > 0
-
-
-def test_ladrao_critico_mockado():
-    """Mock do random para garantir crítico determinístico."""
-    with patch("random.random", return_value=0.0):  # 0.0 < 0.3 → sempre crítico
-        l = Ladrao("Kael", agilidade=10, chance_critico=0.3)
-        inimigo = Inimigo("Boss", hp=1000, dano=5)
-        show = Show([l], inimigo)
-        resultado = show.acao_musico(0)
-        assert resultado["dano"] == 30  # int(10 * 3.0) = 30
 
 
 # ── Integração com Factory/Singleton ─────────────────────────────────────────
@@ -195,23 +263,22 @@ def test_ladrao_critico_mockado():
 def test_integracao_factory_singleton_banda_e_show():
     g = GerenciadorJogo.get_instancia()
     g.criar_banda([
-        {"tipo": "guerreiro", "nome": "Aldric", "forca": 10},
-        {"tipo": "mago", "nome": "Selene", "mana": 50, "inteligencia": 10},
+        {"tipo": "guitarrista", "nome": "Aldric", "forca": 10},
+        {"tipo": "vocalista", "nome": "Selene", "folego": 50, "inteligencia": 10},
     ])
     banda = g.listar_jogadores()
-    inimigo = Inimigo("Boss", hp=200, dano=15)
-    show = Show(banda, inimigo)
+    emp = Empresario("Boss", hp=200, dano=15)
+    show = Show(banda, emp)
     resultado = show.acao_musico(0)
-    assert resultado["dano"] == 15  # guerreiro forca=10 → int(10*1.5) = 15
-    assert inimigo.get_hp() == 185
+    assert resultado["dano"] == 15  # guitarrista ego=0 → dano = 15
+    assert emp.get_hp() == 185
 
 
 def test_turno_inimigo_com_morto_em_posicao_zero():
-    """Show não crasha quando o primeiro da banda está nocauteado."""
-    g1 = Guerreiro("Morto", hp_maximo=1, forca=1)
+    g1 = Guitarrista("Morto", hp_maximo=1, forca=1)
     g1.receber_dano(1)
-    g2 = Guerreiro("Vivo", forca=10)
-    inimigo = Inimigo("Boss", hp=100, dano=10)
-    show = Show([g1, g2], inimigo)
+    g2 = Guitarrista("Vivo", forca=10)
+    emp = Empresario("Boss", hp=100, dano=10)
+    show = Show([g1, g2], emp)
     resultado = show.turno_inimigo()
     assert resultado["alvo"] == "Vivo"

@@ -4,8 +4,8 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'backend'))
 import pytest
 
 from gerenciador import GerenciadorJogo
-from Guerreiro import Guerreiro
-from Mago import Mago
+from Guitarrista import Guitarrista
+from Vocalista import Vocalista
 from excecoes import TipoInvalidoError
 
 
@@ -34,7 +34,7 @@ def test_construtor_chamado_duas_vezes_retorna_mesma_instancia():
 
 def test_reinstanciar_nao_zera_o_estado_existente():
     g = GerenciadorJogo()
-    g.adicionar_jogador("guerreiro", nome="Aldric")
+    g.adicionar_jogador("guitarrista", nome="Aldric")
     # "reinstanciar" não pode rodar __init__ de novo e apagar a banda
     g2 = GerenciadorJogo()
     assert len(g2.listar_jogadores()) == 1
@@ -43,7 +43,7 @@ def test_reinstanciar_nao_zera_o_estado_existente():
 
 def test_resetar_descarta_a_instancia_e_cria_uma_limpa():
     a = GerenciadorJogo.get_instancia()
-    a.adicionar_jogador("mago", nome="Selene")
+    a.adicionar_jogador("vocalista", nome="Selene")
     GerenciadorJogo.resetar()
     b = GerenciadorJogo.get_instancia()
     assert a is not b
@@ -54,8 +54,8 @@ def test_resetar_descarta_a_instancia_e_cria_uma_limpa():
 
 def test_adicionar_jogador_usa_a_factory():
     g = GerenciadorJogo.get_instancia()
-    jogador = g.adicionar_jogador("guerreiro", nome="Aldric", forca=17)
-    assert isinstance(jogador, Guerreiro)
+    jogador = g.adicionar_jogador("guitarrista", nome="Aldric", forca=17)
+    assert isinstance(jogador, Guitarrista)
     assert jogador.get_forca() == 17
     assert g.listar_jogadores() == [jogador]
 
@@ -69,21 +69,21 @@ def test_adicionar_jogador_tipo_invalido_propaga_erro():
 def test_criar_banda_a_partir_de_composicao():
     g = GerenciadorJogo.get_instancia()
     g.criar_banda([
-        {"tipo": "guerreiro", "nome": "Aldric", "forca": 12},
-        {"tipo": "mago", "nome": "Selene", "mana": 30},
+        {"tipo": "guitarrista", "nome": "Aldric", "forca": 12},
+        {"tipo": "vocalista", "nome": "Selene", "folego": 30},
     ])
     banda = g.listar_jogadores()
     assert len(banda) == 2
-    assert isinstance(banda[0], Guerreiro)
-    assert isinstance(banda[1], Mago)
+    assert isinstance(banda[0], Guitarrista)
+    assert isinstance(banda[1], Vocalista)
     assert banda[0].get_forca() == 12
-    assert banda[1].get_mana() == 30
+    assert banda[1].get_folego() == 30
 
 
 def test_criar_banda_substitui_a_banda_anterior():
     g = GerenciadorJogo.get_instancia()
-    g.adicionar_jogador("guerreiro", nome="Velho")
-    g.criar_banda([{"tipo": "mago", "nome": "Novo"}])
+    g.adicionar_jogador("guitarrista", nome="Velho")
+    g.criar_banda([{"tipo": "vocalista", "nome": "Novo"}])
     banda = g.listar_jogadores()
     assert len(banda) == 1
     assert banda[0].get_nome() == "Novo"
@@ -91,8 +91,8 @@ def test_criar_banda_substitui_a_banda_anterior():
 
 def test_obter_jogador_por_indice():
     g = GerenciadorJogo.get_instancia()
-    g.adicionar_jogador("guerreiro", nome="Aldric")
-    g.adicionar_jogador("mago", nome="Selene")
+    g.adicionar_jogador("guitarrista", nome="Aldric")
+    g.adicionar_jogador("vocalista", nome="Selene")
     assert g.obter_jogador(0).get_nome() == "Aldric"
     assert g.obter_jogador(1).get_nome() == "Selene"
 
@@ -101,8 +101,8 @@ def test_obter_jogador_por_indice():
 
 def test_salvar_e_carregar_faz_round_trip_da_banda(tmp_path):
     g = GerenciadorJogo.get_instancia()
-    g.adicionar_jogador("guerreiro", nome="Aldric", forca=15)
-    g.adicionar_jogador("mago", nome="Selene", mana=42)
+    g.adicionar_jogador("guitarrista", nome="Aldric", forca=15)
+    g.adicionar_jogador("vocalista", nome="Selene", folego=42)
     g.salvar("slot1", pasta=str(tmp_path))
 
     GerenciadorJogo.resetar()
@@ -111,10 +111,10 @@ def test_salvar_e_carregar_faz_round_trip_da_banda(tmp_path):
 
     banda = g2.listar_jogadores()
     assert len(banda) == 2
-    assert isinstance(banda[0], Guerreiro)
+    assert isinstance(banda[0], Guitarrista)
     assert banda[0].get_forca() == 15
-    assert isinstance(banda[1], Mago)
-    assert banda[1].get_mana() == 42
+    assert isinstance(banda[1], Vocalista)
+    assert banda[1].get_folego() == 42
 
 
 # ── Placeholder de fase do jogo (estado centralizado) ─────────────

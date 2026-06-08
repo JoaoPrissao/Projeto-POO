@@ -6,8 +6,8 @@ import pytest
 from itens import Item, Equipavel, Consumivel
 from inventario import Inventario
 from fabricas import ItemFactory
-from Guerreiro import Guerreiro
-from Mago import Mago
+from Guitarrista import Guitarrista
+from Vocalista import Vocalista
 from excecoes import (
     TipoInvalidoError,
     InventarioCheioError,
@@ -36,10 +36,10 @@ def test_adicionar_alem_da_capacidade_lanca_excecao():
 
 def test_remover_retorna_o_item_e_tira_do_inventario():
     inv = Inventario(capacidade=2)
-    espada = Item("Espada")
-    inv.adicionar(espada)
-    removido = inv.remover("Espada")
-    assert removido is espada
+    pedal = Item("Pedal de Efeito")
+    inv.adicionar(pedal)
+    removido = inv.remover("Pedal de Efeito")
+    assert removido is pedal
     assert len(inv) == 0
 
 
@@ -51,78 +51,78 @@ def test_remover_item_inexistente_lanca_excecao():
 
 # ── Inventario: usar consumível ───────────────────────────────────
 
-def test_usar_pocao_de_vida_cura_o_alvo():
+def test_usar_energetico_cura_o_alvo():
     inv = Inventario(capacidade=2)
-    pocao = ItemFactory.criar("pocao_vida")   # cura 50
-    inv.adicionar(pocao)
-    alvo = Guerreiro("Aldric", hp_maximo=100)
-    alvo.receber_dano(50)                      # hp = 50
-    inv.usar(pocao.nome, alvo)
+    energetico = ItemFactory.criar("energetico")   # cura 50
+    inv.adicionar(energetico)
+    alvo = Guitarrista("Aldric", hp_maximo=100)
+    alvo.receber_dano(50)                           # hp = 50
+    inv.usar(energetico.nome, alvo)
     assert alvo.get_hp() == 100
 
 
 def test_consumivel_e_removido_apos_uso():
     inv = Inventario(capacidade=2)
-    pocao = ItemFactory.criar("pocao_vida")
-    inv.adicionar(pocao)
-    alvo = Guerreiro("Aldric", hp_maximo=100)
+    energetico = ItemFactory.criar("energetico")
+    inv.adicionar(energetico)
+    alvo = Guitarrista("Aldric", hp_maximo=100)
     alvo.receber_dano(10)
-    inv.usar(pocao.nome, alvo)
+    inv.usar(energetico.nome, alvo)
     assert len(inv) == 0
 
 
-def test_usar_pocao_de_mana_restaura_mana_do_mago():
+def test_usar_cerveja_restaura_folego_do_vocalista():
     inv = Inventario(capacidade=2)
-    pocao = ItemFactory.criar("pocao_mana")    # restaura 30
-    inv.adicionar(pocao)
-    mago = Mago("Selene", mana=0)
-    inv.usar(pocao.nome, mago)
-    assert mago.get_mana() == 30
+    cerveja = ItemFactory.criar("cerveja")    # restaura 30
+    inv.adicionar(cerveja)
+    vocalista = Vocalista("Selene", folego=0)
+    inv.usar(cerveja.nome, vocalista)
+    assert vocalista.get_folego() == 30
 
 
 def test_usar_item_inexistente_lanca_excecao():
     inv = Inventario(capacidade=2)
-    alvo = Guerreiro("Aldric")
+    alvo = Guitarrista("Aldric")
     with pytest.raises(ItemNaoEncontradoError):
         inv.usar("Inexistente", alvo)
 
 
 # ── Inventario: itens incompatíveis ───────────────────────────────
 
-def test_mago_equipando_espada_lanca_incompativel():
+def test_vocalista_equipando_pedal_lanca_incompativel():
     inv = Inventario(capacidade=2)
-    espada = ItemFactory.criar("espada")       # restrita a Guerreiro/Paladino
-    inv.adicionar(espada)
-    mago = Mago("Selene")
+    pedal = ItemFactory.criar("pedal")       # restrito a Guitarrista/Baixista
+    inv.adicionar(pedal)
+    vocalista = Vocalista("Selene")
     with pytest.raises(ItemIncompativelError):
-        inv.usar(espada.nome, mago)
+        inv.usar(pedal.nome, vocalista)
 
 
 def test_item_incompativel_nao_e_consumido():
     inv = Inventario(capacidade=2)
-    espada = ItemFactory.criar("espada")
-    inv.adicionar(espada)
-    mago = Mago("Selene")
+    pedal = ItemFactory.criar("pedal")
+    inv.adicionar(pedal)
+    vocalista = Vocalista("Selene")
     with pytest.raises(ItemIncompativelError):
-        inv.usar(espada.nome, mago)
+        inv.usar(pedal.nome, vocalista)
     assert len(inv) == 1                        # continua no inventário
 
 
-def test_guerreiro_equipa_espada_e_ganha_forca():
+def test_guitarrista_equipa_pedal_e_ganha_forca():
     inv = Inventario(capacidade=2)
-    espada = ItemFactory.criar("espada", bonus=5)
-    inv.adicionar(espada)
-    guerreiro = Guerreiro("Aldric", forca=10)
-    inv.usar(espada.nome, guerreiro)
-    assert guerreiro.get_forca() == 15
+    pedal = ItemFactory.criar("pedal", bonus=5)
+    inv.adicionar(pedal)
+    guitarrista = Guitarrista("Aldric", forca=10)
+    inv.usar(pedal.nome, guitarrista)
+    assert guitarrista.get_forca() == 15
 
 
 # ── ItemFactory ───────────────────────────────────────────────────
 
 def test_factory_cria_consumiveis_e_equipaveis():
-    assert isinstance(ItemFactory.criar("pocao_vida"), Consumivel)
-    assert isinstance(ItemFactory.criar("pocao_mana"), Consumivel)
-    assert isinstance(ItemFactory.criar("espada"), Equipavel)
+    assert isinstance(ItemFactory.criar("energetico"), Consumivel)
+    assert isinstance(ItemFactory.criar("cerveja"), Consumivel)
+    assert isinstance(ItemFactory.criar("pedal"), Equipavel)
 
 
 def test_factory_tipo_desconhecido_lanca_excecao():
@@ -143,17 +143,17 @@ def test_factory_registrar_adiciona_item_novo():
 # ── Persistência (preparação Tarefa 3) ────────────────────────────
 
 def test_equipavel_round_trip_dict():
-    espada = Equipavel("Espada", "Afiada.", atributo="forca", bonus=7,
-                       classes_permitidas=("Guerreiro",))
-    copia = Equipavel.from_dict(espada.to_dict())
-    assert copia.nome == "Espada"
+    pedal = Equipavel("Pedal", "Afiado.", atributo="forca", bonus=7,
+                      classes_permitidas=("Guitarrista",))
+    copia = Equipavel.from_dict(pedal.to_dict())
+    assert copia.nome == "Pedal"
     assert copia.atributo == "forca"
     assert copia.bonus == 7
 
 
 def test_consumivel_round_trip_dict():
-    pocao = Consumivel("Poção", "Cura.", efeito="cura", valor=40)
-    copia = Consumivel.from_dict(pocao.to_dict())
-    assert copia.nome == "Poção"
+    energetico = Consumivel("Energético", "Cura.", efeito="cura", valor=40)
+    copia = Consumivel.from_dict(energetico.to_dict())
+    assert copia.nome == "Energético"
     assert copia.efeito == "cura"
     assert copia.valor == 40
