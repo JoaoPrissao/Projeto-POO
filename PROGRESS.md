@@ -58,3 +58,39 @@ Todos ✅ (inalterados — F2.1 é rename puro, zero mecânica nova).
 
 ### Próxima tarefa
 **F2.3** — Ponte pywebview + frontend mínimo.
+
+---
+
+## F2.3 — Ponte pywebview + frontend mínimo (08/06/2026)
+
+### Nova dependência
+- **pywebview==6.2.1** instalado no `.venv` (com OK do usuário) e fixado em `requirements.txt`.
+
+### O que foi criado
+- **`bridge/api.py`:** classe `API` (adaptador domínio↔JS). Métodos expostos: `listar_tipos_musicos`, `novo_jogo`, `criar_banda`, `obter_estado`, `executar_acao`, `turno_inimigo`, `salvar`, `carregar`, `listar_saves`. Decorator `_ponte` captura `JogoError` (e qualquer erro) → `ErroDTO` `{ok:false, erro:{tipo,mensagem}}`; nenhuma exceção crua cruza a ponte (§7.3.1). Monta `EstadoDTO`/`ResultadoDTO` 100% serializáveis. Recurso por tipo via `.TIPO` (ego/folego/groove/ritmo).
+- **`bridge/app.py`:** entrypoint pywebview (`webview.create_window` + `js_api=API()`). Rodar com `python bridge/app.py`.
+- **`frontend/index.html` + `css/estilo.css` + `js/main.js`:** UI mínima — boss com barra de HP, cards da banda (clique = atacar), botões montar banda demo / turno do Empresário / salvar / carregar. Tokens de cor por personagem (§13). **Ritmo é placeholder** (contagem fixa) — minigame Web Audio fica para F3.1.
+- **`tests/test_api.py` (novo):** 14 testes da API sem janela (DTOs serializáveis, ego/folego/groove no estado, dano com/sem ritmo, ErroDTO em índice inválido, vitória, turno inimigo, save/load round-trip).
+
+### Estado/arquitetura
+- O estado da banda continua no `GerenciadorJogo` (Singleton); o `Show`+`Empresario` são instanciados e mantidos pela `API` (adaptador fino). Domínio segue puro.
+- Boss padrão: `Empresario("O Empresário", hp=200, dano=20)`.
+
+### Decisões/observações
+- Aviso de XSS no `innerHTML` do `main.js`: app desktop local single-user, dados vêm do próprio domínio → risco desprezível. Sanitização fica como polimento opcional de F3.2.
+- Smoke test com `PYWEBVIEW_GUI=mock` confirma `app.py` importável e ponte funcional; janela real não é aberta em CI/teste.
+
+### Contagem de testes
+**133 testes, 100% verdes** (+14 da API).
+
+### Status do DoD (F2.3)
+- ✅ Ponte pywebview expõe a API ao JS
+- ✅ Frontend renderiza o EstadoDTO e dispara ações por clique
+- ✅ Salvar/carregar pela UI (via API)
+- ⏳ Validação visual da janela real: pendente de execução manual (`python bridge/app.py`)
+
+### Nada commitado
+✓
+
+### Próxima tarefa
+**F3.1** — Minigame de ritmo (Web Audio + requestAnimationFrame).

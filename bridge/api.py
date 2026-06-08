@@ -1,0 +1,204 @@
+"""Ponte domínio ↔ frontend (pywebview).
+
+Regras do contrato (Planejamento §7.3):
+  1. Exceções do domínio NÃO cruzam a ponte. Todo método público envolve a
+     chamada ao domínio e devolve um ErroDTO (`{"ok": False, "erro": {...}}`).
+  2. Tudo que cruza é serializável em JSON (dict/list/str/num/bool) — nunca um
+     objeto `Musico` cru.
+  3. O domínio continua dando `raise` de verdade; aqui é só a tradução.
+
+Esta camada é um adaptador fino: o estado da banda vive no GerenciadorJogo
+(Singleton) e a lógica de combate vive em `show.py`. A API só orquestra e
+serializa.
+"""
+import os
+import sys
+
+# Permite rodar tanto via pytest (que injeta backend/) quanto via app.py direto.
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'backend'))
+
+from gerenciador import GerenciadorJogo
+from fabricas import MusicoFactory
+from show import Show, Empresario
+from ritmo import Ritmo
+from excecoes import JogoError
+import persistencia
+
+
+BOSS_HP_PADRAO = 200
+BOSS_DANO_PADRAO = 20
+
+# Metadados de cada tipo para a tela de montar banda (vêm do Factory).
+_INFO_TIPOS = {
+    "guitarrista": {"nome": "Guitarrista", "recurso": "ego",
+                    "descricao": "Dano alto. Acumula Ego a cada ataque."},
+    "vocalista":   {"nome": "Vocalista", "recurso": "folego",
+                    "descricao": "Gasta fôlego para soltar a voz com força."},
+    "baterista":   {"nome": "Baterista", "recurso": "ritmo",
+                    "descricao": "Viradas de bateria são golpes críticos."},
+    "baixista":    {"nome": "Baixista", "recurso": "groove",
+                    "descricao": "Segura o groove e se cura no compasso."},
+}
+
+
+def _erro_dto(exc: Exception) -> dict:
+    return {"ok": False, "erro": {"tipo": type(exc).__name__, "mensagem": str(exc)}}
+
+
+def _ponte(metodo):
+    """Decorator: captura JogoError (→ ErroDTO) e qualquer erro inesperado."""
+    def wrapper(self, *args, **kwargs):
+        try:
+            return metodo(self, *args, **kwargs)
+        except JogoError as e:
+            return _erro_dto(e)
+        except Exception as e:  # noqa: BLE001 — nada de traceback cru cruzando a ponte
+            return _erro_dto(e)
+    wrapper.__name__ = metodo.__name__
+    return wrapper
+
+
+class API:
+    def __init__(self):
+        self._boss: Empresario | None = None
+        self._boss_hp_max: int = BOSS_HP_PADRAO
+        self._show: Show | None = None
+        self._turno: str = "banda"
+
+    # ── infra interna ─────────────────────────────────────────────────────────
+
+    @property
+    def _gerenciador(self) -> GerenciadorJogo:
+        return GerenciadorJogo.get_instancia()
+
+    def _iniciar_show(self) -> None:
+        self._boss = Empresario("O Empresário", hp=BOSS_HP_PADRAO, dano=BOSS_DANO_PADRAO)
+        self._boss_hp_max = BOSS_HP_PADRAO
+        self._show = Show(self._gerenciador.listar_jogadores(), self._boss)
+        self._turno = "banda"
+
+    def _recurso_dto(self, musico) -> dict:
+        tipo = getattr(musico, "TIPO", None)
+        if tipo == "baixista":
+            return {"tipo": "groove", "valor": musico.get_fe(), "max": None}
+        if tipo == "guitarrista":
+            return {"tipo": "ego", "valor": musico.get_ego(), "max": musico.EGO_MAX}
+        if tipo == "vocalista":
+            return {"tipo": "folego", "valor": musico.get_folego(), "max": None}
+        if tipo == "baterista":
+            return {"tipo": "ritmo", "valor": musico.get_agilidade(), "max": None}
+        return {"tipo": None, "valor": 0, "max": None}
+
+    def _musico_dto(self, indice: int, musico) -> dict:
+        return {
+            "id": indice,
+            "tipo": getattr(musico, "TIPO", None),
+            "nome": musico.get_nome(),
+            "nivel": musico.get_nivel(),
+            "hp": musico.get_hp(),
+            "hp_maximo": musico.get_hp_maximo(),
+            "xp": musico.get_xp(),
+            "vivo": musico.esta_vivo(),
+            "recurso": self._recurso_dto(musico),
+        }
+
+    def _estado_dto(self) -> dict:
+        banda = self._gerenciador.listar_jogadores()
+        fim = self._show.verificar_fim() if self._show else None
+        return {
+            "banda": [self._musico_dto(i, m) for i, m in enumerate(banda)],
+            "boss": {
+                "id": "empresario",
+                "nome": self._boss.get_nome() if self._boss else "O Empresário",
+                "hp": self._boss.get_hp() if self._boss else self._boss_hp_max,
+                "hp_maximo": self._boss_hp_max,
+            },
+            "turno": self._turno,
+            "fim_de_jogo": fim is not None,
+            "resultado": fim,
+        }
+
+    # ── métodos expostos ao JS ────────────────────────────────────────────────
+
+    @_ponte
+    def listar_tipos_musicos(self) -> list:
+        return [
+            {"tipo": t, "nome": info["nome"], "recurso": info["recurso"],
+             "descricao": info["descricao"]}
+            for t, info in _INFO_TIPOS.items()
+            if t in MusicoFactory._tipos
+        ]
+
+    @_ponte
+    def novo_jogo(self, config: dict = None) -> dict:
+        self._gerenciador.criar_banda([])
+        self._iniciar_show()
+        return self._estado_dto()
+
+    @_ponte
+    def criar_banda(self, composicao: list) -> dict:
+        self._gerenciador.criar_banda(composicao)
+        self._iniciar_show()
+        return self._estado_dto()
+
+    @_ponte
+    def obter_estado(self) -> dict:
+        if self._show is None:
+            self._iniciar_show()
+        return self._estado_dto()
+
+    @_ponte
+    def executar_acao(self, payload: dict) -> dict:
+        if self._show is None:
+            self._iniciar_show()
+        indice = payload["indice"]
+        ritmo = None
+        if payload.get("ritmo"):
+            ritmo = Ritmo.de_payload(payload["ritmo"])
+
+        resultado = self._show.acao_musico(indice, ritmo=ritmo)
+        self._turno = "boss"
+        fim = resultado["fim"]
+        return {
+            "ok": True,
+            "dano": resultado["dano"],
+            "critico": resultado["critico"],
+            "modo_refrao_ativo": resultado["modo_refrao_ativo"],
+            "multiplicador_aplicado": resultado["multiplicador_aplicado"],
+            "atacante": resultado["atacante"],
+            "estado": self._estado_dto(),
+            "fim_de_jogo": fim is not None,
+            "resultado_final": fim,
+        }
+
+    @_ponte
+    def turno_inimigo(self) -> dict:
+        if self._show is None:
+            self._iniciar_show()
+        resultado = self._show.turno_inimigo()
+        self._turno = "banda"
+        fim = resultado["fim"]
+        return {
+            "ok": True,
+            "atacante": resultado["atacante"],
+            "alvo": resultado["alvo"],
+            "dano": resultado["dano"],
+            "estado": self._estado_dto(),
+            "fim_de_jogo": fim is not None,
+            "resultado_final": fim,
+        }
+
+    @_ponte
+    def salvar(self, slot: str, pasta: str = None) -> dict:
+        self._gerenciador.salvar(slot, pasta)
+        return {"ok": True, "slot": slot}
+
+    @_ponte
+    def carregar(self, slot: str, pasta: str = None) -> dict:
+        self._gerenciador.carregar(slot, pasta)
+        self._iniciar_show()
+        return {"ok": True, "estado": self._estado_dto()}
+
+    @_ponte
+    def listar_saves(self, pasta: str = None) -> list:
+        return persistencia.listar_saves(pasta)

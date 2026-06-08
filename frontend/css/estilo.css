@@ -1,0 +1,109 @@
+:root {
+  --bg: #14111c;
+  --painel: #211b2e;
+  --texto: #ece6f5;
+  --acento: #e0457b;
+  --boss: #3fae6b;
+  --ego: #e23b4e;
+  --folego: #b04ad8;
+  --groove: #4a78d8;
+  --ritmo: #e0b341;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: "Segoe UI", system-ui, sans-serif;
+  background: var(--bg);
+  color: var(--texto);
+  padding: 16px;
+}
+
+header h1 { font-size: 1.4rem; }
+header .sub { font-weight: 400; opacity: .6; font-size: .9rem; }
+
+main {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-top: 14px;
+}
+
+.painel {
+  background: var(--painel);
+  border-radius: 10px;
+  padding: 14px;
+}
+
+/* Barras */
+.barra {
+  position: relative;
+  height: 22px;
+  background: #0d0a14;
+  border-radius: 6px;
+  overflow: hidden;
+}
+.barra .fill {
+  height: 100%;
+  width: 100%;
+  transition: width .35s ease;
+}
+.barra-boss .fill { background: var(--boss); }
+.barra-label {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: .8rem;
+  font-weight: 600;
+  text-shadow: 0 1px 2px #000;
+}
+
+/* Banda */
+.banda {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 12px;
+}
+.card {
+  background: var(--painel);
+  border: 1px solid #352b48;
+  border-left: 4px solid var(--acento);
+  border-radius: 10px;
+  padding: 12px;
+  cursor: pointer;
+  transition: transform .12s ease, box-shadow .12s ease;
+}
+.card:hover { transform: translateY(-3px); box-shadow: 0 6px 18px #0008; }
+.card.nocauteado { opacity: .4; cursor: not-allowed; filter: grayscale(1); }
+.card[data-tipo="guitarrista"] { border-left-color: var(--ego); }
+.card[data-tipo="vocalista"]   { border-left-color: var(--folego); }
+.card[data-tipo="baixista"]    { border-left-color: var(--groove); }
+.card[data-tipo="baterista"]   { border-left-color: var(--ritmo); }
+
+.card h3 { font-size: 1rem; margin-bottom: 2px; }
+.card .papel { font-size: .72rem; opacity: .6; text-transform: capitalize; margin-bottom: 8px; }
+.card .mini-barra { height: 8px; background: #0d0a14; border-radius: 4px; overflow: hidden; margin: 5px 0; }
+.card .mini-barra .fill { height: 100%; }
+.card .stat { font-size: .72rem; opacity: .8; }
+
+/* Controles */
+#controles { display: flex; gap: 10px; flex-wrap: wrap; }
+button {
+  background: var(--acento);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 9px 16px;
+  font-size: .9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: filter .12s ease;
+}
+button:hover:not(:disabled) { filter: brightness(1.15); }
+button:disabled { opacity: .35; cursor: not-allowed; }
+
+.log { font-size: .9rem; line-height: 1.5; min-height: 1.4em; }
+.log .crit { color: var(--ritmo); font-weight: 700; }
+.log .refrao { color: var(--acento); font-weight: 700; }

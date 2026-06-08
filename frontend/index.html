@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RPG Manager — A Banda</title>
+  <link rel="stylesheet" href="css/estilo.css">
+</head>
+<body>
+  <header>
+    <h1>🎸 RPG Manager <span class="sub">— o show contra O Empresário</span></h1>
+  </header>
+
+  <main>
+    <!-- Boss -->
+    <section id="boss-area" class="painel">
+      <h2 id="boss-nome">O Empresário</h2>
+      <div class="barra barra-boss">
+        <div id="boss-hp-fill" class="fill"></div>
+        <span id="boss-hp-label" class="barra-label">—</span>
+      </div>
+    </section>
+
+    <!-- Log de eventos -->
+    <section id="log-area" class="painel">
+      <p id="log" class="log">Monte a banda para começar o show.</p>
+    </section>
+
+    <!-- Banda -->
+    <section id="banda-area">
+      <div id="banda" class="banda"></div>
+    </section>
+
+    <!-- Controles -->
+    <section id="controles" class="painel">
+      <button id="btn-banda-demo">Montar banda demo</button>
+      <button id="btn-turno-inimigo" disabled>Turno do Empresário</button>
+      <button id="btn-salvar" disabled>Salvar</button>
+      <button id="btn-carregar">Carregar</button>
+    </section>
+  </main>
+
+  <script src="js/main.js"></script>
+</body>
+</html>
