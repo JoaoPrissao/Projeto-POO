@@ -6,14 +6,15 @@ from Guerreiro import Guerreiro
 from Mago import Mago, CUSTO_MANA, DANO_BASE_MINIMO
 from Ladrao import Ladrao
 from Paladino import Paladino
-from excecoes import ManaInsuficienteError, JogadorMortoError
+from gerenciador import GerenciadorJogo
+from show import Show, Inimigo
+from excecoes import ManaInsuficienteError, JogadorMortoError, JogoError
 
 if sys.platform == "win32":
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
 
-if __name__ == "__main__":
-
+def demo_polimorfismo():
     # ── Criação dos personagens ───────────────────────────────────
     print("── Criando personagens ──────────────────────────")
     guerreiro = Guerreiro("Aldric",  nivel=5, hp_maximo=150, forca=20)
@@ -29,8 +30,6 @@ if __name__ == "__main__":
         j.exibir_status()
 
     # ── Demonstração de polimorfismo dinâmico ─────────────────────
-    # list[Jogador] armazena 4 tipos distintos — o tipo real só é
-    # resolvido em tempo de execução (late binding / polimorfismo dinâmico)
     print("\n── Rodada de combate (polimorfismo dinâmico) ────")
     jogadores: list[Jogador] = [guerreiro, mago, ladrao, paladino]
 
@@ -62,3 +61,79 @@ if __name__ == "__main__":
         mago_sem_mana.atacar(alvo)
     except ManaInsuficienteError as e:
         print(f"  [EXCEÇÃO capturada] {e}")
+
+
+def jogar():
+    print("\n" + "=" * 50)
+    print("  BEM-VINDO AO SHOW!")
+    print("=" * 50)
+
+    GerenciadorJogo.resetar()
+    gerenciador = GerenciadorJogo.get_instancia()
+    gerenciador.criar_banda([
+        {"tipo": "guerreiro", "nome": "Aldric", "forca": 15},
+        {"tipo": "mago",      "nome": "Selene", "mana": 50, "inteligencia": 12},
+        {"tipo": "ladrao",    "nome": "Kael",   "agilidade": 10, "chance_critico": 0.3},
+    ])
+    banda = gerenciador.listar_jogadores()
+    inimigo = Inimigo("O Empresário", hp=120, dano=18)
+
+    show = Show(banda, inimigo)
+
+    print(f"\nBanda vs {inimigo.get_nome()} (HP: {inimigo.get_hp()})")
+    print("-" * 50)
+
+    turno = 1
+    while True:
+        print(f"\n=== TURNO {turno} ===")
+
+        # Exibe status da banda
+        print("Banda:")
+        for i, musico in enumerate(banda):
+            status = "vivo" if musico.esta_vivo() else "NOCAUTEADO"
+            print(f"  [{i}] {musico.get_nome()} — HP: {musico.get_hp()} ({status})")
+        print(f"Inimigo: {inimigo.get_nome()} — HP: {inimigo.get_hp()}")
+
+        vivos_idx = [i for i, j in enumerate(banda) if j.esta_vivo()]
+        if not vivos_idx:
+            print("\n  Toda a banda foi nocauteada. DERROTA!")
+            break
+
+        # Escolha do músico
+        print(f"\nEscolha quem ataca {[str(i) for i in vivos_idx]}: ", end="")
+        try:
+            escolha = int(input())
+            if escolha not in vivos_idx:
+                print("  Escolha inválida — tente novamente.")
+                continue
+
+            resultado = show.acao_musico(escolha)
+            print(f"  {resultado['atacante']} causou {resultado['dano']} de dano! "
+                  f"HP do inimigo: {resultado['hp_inimigo']}")
+
+            if resultado["fim"] == "vitoria":
+                print("\n  O inimigo foi derrotado. VITÓRIA!")
+                break
+
+        except JogoError as e:
+            print(f"  [ERRO] {e}")
+            continue
+        except ValueError:
+            print("  Entrada inválida.")
+            continue
+
+        # Turno do inimigo
+        resultado = show.turno_inimigo()
+        if resultado["alvo"]:
+            print(f"  {resultado['atacante']} ataca {resultado['alvo']}! "
+                  f"Dano: {resultado['dano']} — HP restante: {resultado['hp_alvo']}")
+        if resultado["fim"] == "derrota":
+            print("\n  Toda a banda foi nocauteada. DERROTA!")
+            break
+
+        turno += 1
+
+
+if __name__ == "__main__":
+    demo_polimorfismo()
+    jogar()
