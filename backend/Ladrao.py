@@ -4,6 +4,7 @@ from jogador import Jogador
 
 
 class Ladrao(Jogador):
+    TIPO = "ladrao"
 
     def __init__(self, nome: str, nivel: int = 1, hp_maximo: int = 90,
                  xp: int = 0, agilidade: int = 10, chance_critico: float = 0.3):
@@ -16,6 +17,12 @@ class Ladrao(Jogador):
 
     def get_chance_critico(self) -> float:
         return self.__chance_critico
+
+    def to_dict(self) -> dict:
+        dados = super().to_dict()
+        dados["agilidade"] = self.__agilidade
+        dados["chance_critico"] = self.__chance_critico
+        return dados
 
     def exibir_status(self) -> None:
         super().exibir_status()

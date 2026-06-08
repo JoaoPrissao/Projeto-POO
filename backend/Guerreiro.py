@@ -2,6 +2,7 @@ from jogador import Jogador
 
 
 class Guerreiro(Jogador):
+    TIPO = "guerreiro"
 
     def __init__(self, nome: str, nivel: int = 1, hp_maximo: int = 100,
                  xp: int = 0, forca: int = 10):
@@ -15,6 +16,11 @@ class Guerreiro(Jogador):
         if quantidade > 0:
             self.__forca += quantidade
             print(f"  {self._nome} ganhou +{quantidade} de força. Força: {self.__forca}")
+
+    def to_dict(self) -> dict:
+        dados = super().to_dict()
+        dados["forca"] = self.__forca
+        return dados
 
     def exibir_status(self) -> None:
         super().exibir_status()

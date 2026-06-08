@@ -5,6 +5,7 @@ DANO_BASE_MINIMO = 5
 
 
 class Mago(Jogador):
+    TIPO = "mago"
 
     def __init__(self, nome: str, nivel: int = 1, hp_maximo: int = 80,
                  xp: int = 0, mana: int = 50, inteligencia: int = 10):
@@ -22,6 +23,12 @@ class Mago(Jogador):
         if quantidade > 0:
             self.__mana += quantidade
             print(f"  {self._nome} restaurou {quantidade} de mana. Mana: {self.__mana}")
+
+    def to_dict(self) -> dict:
+        dados = super().to_dict()
+        dados["mana"] = self.__mana
+        dados["inteligencia"] = self.__inteligencia
+        return dados
 
     def exibir_status(self) -> None:
         super().exibir_status()

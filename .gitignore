@@ -8,6 +8,7 @@ dist/
 build/
 gerar_uml.py
 docs/
+saves/
 
 # Claude Code
 .claude/

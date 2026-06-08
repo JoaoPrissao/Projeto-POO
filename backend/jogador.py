@@ -1,9 +1,13 @@
 from abc import ABC, abstractmethod
 from excecoes import JogadorMortoError, AtaqueInvalidoError
+from inventario import Inventario
+
+CAPACIDADE_INVENTARIO_PADRAO = 20
 
 
 class Jogador(ABC):
     XP_BASE = 100
+    TIPO = None  # discriminador de serialização; cada subclasse define o seu
 
     def __init__(self, nome: str, nivel: int = 1, hp_maximo: int = 100, xp: int = 0):
         self._nome             = nome
@@ -122,3 +126,49 @@ class Jogador(ABC):
     @abstractmethod
     def atacar(self, alvo: "Jogador") -> None:
         pass
+
+    # ── Inventário ────────────────────────────────────────────────
+
+    def get_inventario(self) -> "Inventario":
+        if not hasattr(self, "_inventario"):
+            self._inventario = Inventario(CAPACIDADE_INVENTARIO_PADRAO)
+        return self._inventario
+
+    # ── Serialização (persistência) ───────────────────────────────
+
+    def to_dict(self) -> dict:
+        inv = getattr(self, "_inventario", None)
+        return {
+            "tipo": self.TIPO,
+            "nome": self._nome,
+            "nivel": self._nivel,
+            "hp_maximo": self._hp_maximo,
+            "hp": self._hp,
+            "xp": self._xp,
+            "inventario": {
+                "capacidade": inv.capacidade if inv else CAPACIDADE_INVENTARIO_PADRAO,
+                "itens": [item.to_dict() for item in inv.listar()] if inv else [],
+            },
+        }
+
+    @classmethod
+    def from_dict(cls, dados: dict) -> "Jogador":
+        from fabricas import JogadorFactory
+        from itens import item_from_dict
+
+        dados = dict(dados)
+        tipo = dados.pop("tipo")
+        hp_atual = dados.pop("hp")
+        inv_dados = dados.pop("inventario", None)
+
+        # o restante (nome, nivel, hp_maximo, xp, + atributos da subclasse)
+        # casa exatamente com os parâmetros do construtor de cada subclasse
+        jogador = JogadorFactory.criar(tipo, **dados)
+        jogador._hp = hp_atual
+
+        if inv_dados:
+            inv = jogador.get_inventario()
+            inv.capacidade = inv_dados.get("capacidade", inv.capacidade)
+            for item_d in inv_dados.get("itens", []):
+                inv.adicionar(item_from_dict(item_d))
+        return jogador

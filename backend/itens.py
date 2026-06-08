@@ -119,3 +119,12 @@ class Consumivel(Item):
             efeito=dados.get("efeito", "cura"),
             valor=dados.get("valor", 0),
         )
+
+
+# Reconstrução polimórfica de um item a partir do seu dict (discriminador "classe").
+_CLASSES_ITEM = {"Item": Item, "Equipavel": Equipavel, "Consumivel": Consumivel}
+
+
+def item_from_dict(dados: dict) -> Item:
+    classe = _CLASSES_ITEM[dados["classe"]]
+    return classe.from_dict(dados)

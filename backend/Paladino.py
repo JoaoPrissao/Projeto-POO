@@ -3,6 +3,7 @@ from jogador import Jogador
 
 
 class Paladino(Guerreiro):
+    TIPO = "paladino"
 
     def __init__(self, nome: str, nivel: int = 1, hp_maximo: int = 130,
                  xp: int = 0, forca: int = 15, fe: int = 20):
@@ -11,6 +12,11 @@ class Paladino(Guerreiro):
 
     def get_fe(self) -> int:
         return self.__fe
+
+    def to_dict(self) -> dict:
+        dados = super().to_dict()   # inclui tipo="paladino" e forca (Guerreiro)
+        dados["fe"] = self.__fe
+        return dados
 
     def exibir_status(self) -> None:
         Jogador.exibir_status(self)
