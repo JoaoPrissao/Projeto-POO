@@ -11,8 +11,14 @@ const COMPOSICAO_DEMO = [
   { tipo: "baixista",    nome: "Paul",   forca: 12, fe: 20 },
 ];
 
-// Placeholder de ritmo (Fase 3 substitui pelo resultado real do minigame).
-const RITMO_PLACEHOLDER = { acertos: 9, total_notas: 10, combo_max: 6 };
+// Cor-assinatura por tipo (espelha os tokens do card em estilo.css) — pinta a
+// highway do minigame na cor do músico ativo.
+const COR_POR_TIPO = {
+  guitarrista: "#e23b4e",  // --ego
+  vocalista:   "#b04ad8",  // --folego
+  baixista:    "#4a78d8",  // --groove
+  baterista:   "#e0b341",  // --ritmo
+};
 
 let estadoAtual = null;
 
@@ -105,10 +111,18 @@ async function montarBandaDemo() {
 }
 
 async function executarAcao(indice) {
-  const res = await window.pywebview.api.executar_acao({
-    indice,
-    ritmo: RITMO_PLACEHOLDER,
-  });
+  const musico = estadoAtual?.banda?.[indice];
+  const tipo = musico?.tipo;
+  const cor = COR_POR_TIPO[tipo] || "#e0457b";
+
+  // Abre o minigame; a performance vira a contagem crua {acertos,total,combo_max}.
+  const ritmo = await window.RitmoMinigame.jogarRitmo({ tipoMusico: tipo, cor });
+  if (ritmo === null) {                  // Esc → cancelou; não gasta o turno
+    log("Ritmo cancelado — escolha um músico para tocar.");
+    return;
+  }
+
+  const res = await window.pywebview.api.executar_acao({ indice, ritmo });
   aplicarResultado(res);
 }
 

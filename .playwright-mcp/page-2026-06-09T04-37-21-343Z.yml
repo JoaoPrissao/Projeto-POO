@@ -1,0 +1,13 @@
+- generic [active] [ref=e1]:
+  - heading "Harness do minigame de ritmo" [level=1] [ref=e2]
+  - generic [ref=e3]: TODOS PASSARAM (9)
+  - list [ref=e4]:
+    - listitem [ref=e5]: "PASS placar: acertos/combo_max"
+    - listitem [ref=e6]: "PASS engine: perfeito"
+    - listitem [ref=e7]: "PASS engine: intercalado"
+    - listitem [ref=e8]: "PASS engine: todas perdidas"
+    - listitem [ref=e9]: "PASS engine: cancelar"
+    - listitem [ref=e10]: "PASS jogarRitmo: payload perfeito"
+    - listitem [ref=e11]: "PASS jogarRitmo: montou 4 pistas"
+    - listitem [ref=e12]: "PASS jogarRitmo: overlay fechou no fim"
+    - listitem [ref=e13]: "PASS fluxo: executar_acao recebeu o ritmo"

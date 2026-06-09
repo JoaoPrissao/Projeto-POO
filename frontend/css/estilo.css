@@ -107,3 +107,91 @@ button:disabled { opacity: .35; cursor: not-allowed; }
 .log { font-size: .9rem; line-height: 1.5; min-height: 1.4em; }
 .log .crit { color: var(--ritmo); font-weight: 700; }
 .log .refrao { color: var(--acento); font-weight: 700; }
+
+/* ── Minigame de ritmo (overlay) ──────────────────────────────────────────── */
+#ritmo-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(8, 6, 14, .85);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 50;
+}
+#ritmo-overlay.aberto { display: flex; }
+
+#ritmo-modal {
+  background: var(--painel);
+  border-radius: 14px;
+  padding: 18px;
+  width: min(480px, 92vw);
+  box-shadow: 0 12px 40px #000a;
+}
+
+#ritmo-cabecalho {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+#ritmo-titulo { font-size: 1.05rem; font-weight: 700; text-transform: capitalize; }
+.ritmo-hud {
+  font-size: .85rem;
+  font-weight: 700;
+  background: #0d0a14;
+  border-radius: 6px;
+  padding: 4px 10px;
+}
+#ritmo-combo { color: var(--cor-pista, var(--acento)); }
+
+/* Highway: 4 pistas verticais + linha de acerto na base */
+.ritmo-pistas {
+  --cor-pista: var(--acento);
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+  height: 360px;
+  background: #0d0a14;
+  border-radius: 10px;
+  overflow: hidden;
+}
+.ritmo-pistas .pista {
+  position: relative;
+  border-right: 1px solid #ffffff10;
+}
+.ritmo-pistas .pista:last-child { border-right: none; }
+.ritmo-pistas .pista .tecla {
+  position: absolute;
+  bottom: 6px;
+  left: 0;
+  right: 0;
+  text-align: center;
+  font-size: .8rem;
+  font-weight: 700;
+  opacity: .5;
+}
+.ritmo-pistas .linha-acerto {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 36px;
+  height: 4px;
+  background: var(--cor-pista);
+  box-shadow: 0 0 12px var(--cor-pista);
+}
+.ritmo-pistas .nota {
+  position: absolute;
+  left: 14%;
+  right: 14%;
+  /* a linha de acerto fica a ~90% da altura (bottom:36px de 360px) */
+  top: 0;
+  height: 18px;
+  border-radius: 5px;
+  background: var(--cor-pista);
+  transform: translateY(-50%);
+}
+.ritmo-pistas .nota.acerto { background: #5be08a; box-shadow: 0 0 10px #5be08a; }
+.ritmo-pistas .nota.erro   { background: #555; opacity: .4; }
+
+#ritmo-dica { margin-top: 12px; font-size: .8rem; opacity: .65; text-align: center; }

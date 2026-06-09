@@ -1,0 +1,13 @@
+- generic [active] [ref=e1]:
+  - heading "Harness do minigame de ritmo" [level=1] [ref=e2]
+  - generic [ref=e3]: "FALHAS: 6/9"
+  - list [ref=e4]:
+    - listitem [ref=e5]: "PASS placar: acertos/combo_max"
+    - listitem [ref=e6]: "FAIL engine: perfeito | atual=undefined esperado={\"acertos\":4,\"total_notas\":4,\"combo\":4,\"combo_max\":4}"
+    - listitem [ref=e7]: "FAIL engine: intercalado | atual=undefined esperado={\"acertos\":3,\"total_notas\":4,\"combo\":2,\"combo_max\":2}"
+    - listitem [ref=e8]: "FAIL engine: todas perdidas | atual=undefined esperado={\"acertos\":0,\"total_notas\":4,\"combo\":0,\"combo_max\":0}"
+    - listitem [ref=e9]: "FAIL engine: cancelar | atual=undefined esperado=null"
+    - listitem [ref=e10]: "FAIL jogarRitmo: payload perfeito | atual=undefined esperado={\"acertos\":16,\"total_notas\":16,\"combo\":16,\"combo_max\":16}"
+    - listitem [ref=e11]: "PASS jogarRitmo: montou 4 pistas"
+    - listitem [ref=e12]: "FAIL jogarRitmo: overlay fechou no fim | atual=true esperado=false"
+    - listitem [ref=e13]: "PASS fluxo: executar_acao recebeu o ritmo"

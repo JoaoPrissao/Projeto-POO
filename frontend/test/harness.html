@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Harness — minigame de ritmo</title>
+  <style>
+    body { font-family: monospace; background:#14111c; color:#ece6f5; padding:16px; }
+    .ok { color:#5be08a; } .falhou { color:#e23b4e; }
+    h1 { font-size:1.1rem; }
+    li { margin:2px 0; }
+    .ritmo-pistas { position:relative; display:grid; grid-template-columns:repeat(4,1fr); height:200px; }
+    .ritmo-pistas .pista { position:relative; } .nota { position:absolute; }
+    #ritmo-overlay { display:none; } #ritmo-overlay.aberto { display:block; }
+  </style>
+</head>
+<body>
+  <h1>Harness do minigame de ritmo</h1>
+  <div id="resumo">rodando…</div>
+  <ul id="casos"></ul>
+
+  <!-- DOM do overlay real, usado pelo cenário 6 (jogarRitmo) -->
+  <div id="ritmo-overlay"><div id="ritmo-modal">
+    <span id="ritmo-titulo"></span><span id="ritmo-acertos"></span><span id="ritmo-combo"></span>
+    <div id="ritmo-pistas" class="ritmo-pistas"></div><div id="ritmo-dica"></div>
+  </div></div>
+
+  <script src="../js/ritmo.js"></script>
+  <script src="mock-api.js"></script>
+  <script>
+  (async function () {
+    "use strict";
+    const RM = window.RitmoMinigame;
+    const casos = [];
+    function checar(nome, atual, esperado) {
+      const ok = JSON.stringify(atual) === JSON.stringify(esperado);
+      casos.push({ nome, ok, atual, esperado });
+    }
+
+    // ── 1. Placar puro ────────────────────────────────────────────────────────
+    (function () {
+      const p = RM.criarPlacar(10);
+      p.acerto(); p.acerto(); p.acerto();   // combo 3
+      p.erro();                              // zera
+      p.acerto(); p.acerto();                // combo 2
+      checar("placar: acertos/combo_max", p.estado,
+        { acertos: 5, total_notas: 10, combo: 2, combo_max: 3 });
+    })();
+
+    // Engine com relógio/escalonador falsos. O loop avança enquanto o engine
+    // reagenda uma frame (pendente !== null); ao finalizar ele não reagenda.
+    // Resolve via Promise (microtask), então damos `await` no fim.
+    async function rodarEngine(chart, roteiro) {
+      let T = 0, pendente = null;
+      const mg = RM.criarMinigame({
+        agora: () => T,
+        agendarFrame: (cb) => { pendente = cb; },
+        audio: RM.audioNulo(),
+        container: null,
+        chart,
+      });
+      const prom = mg.iniciar();   // agenda a 1ª frame
+      function frame(ms) { T += ms; const cb = pendente; pendente = null; if (cb) cb(); }
+      for (const passo of roteiro) {
+        if (passo.avancar != null) frame(passo.avancar);
+        if (passo.apertar != null) mg.apertarPista(passo.apertar);
+        if (passo.cancelar) mg.cancelar();
+      }
+      let guarda = 0;
+      while (pendente && guarda++ < 5000) frame(50);
+      return await prom;
+    }
+
+    const chart4 = [
+      { tempo_ms: 1000, pista: 0 },
+      { tempo_ms: 1400, pista: 1 },
+      { tempo_ms: 1800, pista: 2 },
+      { tempo_ms: 2200, pista: 3 },
+    ];
+
+    // ── 2. Sequência perfeita ─────────────────────────────────────────────────
+    checar("engine: perfeito", await rodarEngine(chart4, [
+      { avancar: 1000, apertar: 0 },
+      { avancar: 400, apertar: 1 },
+      { avancar: 400, apertar: 2 },
+      { avancar: 400, apertar: 3 },
+    ]), { acertos: 4, total_notas: 4, combo: 4, combo_max: 4 });
+
+    // ── 3. Intercalado (erra a 2ª; combo_max = 2) ─────────────────────────────
+    checar("engine: intercalado", await rodarEngine(chart4, [
+      { avancar: 1000, apertar: 0 },   // acerto, combo 1
+      { avancar: 600 },                // T=1600 → nota1 (1400) expira: erro
+      { avancar: 200, apertar: 2 },    // T=1800 → acerto, combo 1
+      { avancar: 400, apertar: 3 },    // T=2200 → acerto, combo 2
+    ]), { acertos: 3, total_notas: 4, combo: 2, combo_max: 2 });
+
+    // ── 4. Todas perdidas ─────────────────────────────────────────────────────
+    checar("engine: todas perdidas", await rodarEngine(chart4, []),
+      { acertos: 0, total_notas: 4, combo: 0, combo_max: 0 });
+
+    // ── 5. Cancelar → resolve null ────────────────────────────────────────────
+    checar("engine: cancelar", await rodarEngine(chart4, [
+      { avancar: 1000, apertar: 0 },
+      { cancelar: true },
+    ]), null);
+
+    // ── 6. jogarRitmo (overlay + teclado real, relógio monkeypatched) ─────────
+    {
+      const realNow = performance.now.bind(performance);
+      const realRaf = window.requestAnimationFrame;
+      let T = 0, pendente = null;
+      performance.now = () => T;
+      window.requestAnimationFrame = (cb) => { pendente = cb; return 1; };
+      function frame(ms) { T += ms; const cb = pendente; pendente = null; if (cb) cb(); }
+
+      const prom = RM.jogarRitmo({ tipoMusico: "guitarrista", cor: "#e23b4e" });
+      for (const nota of RM.CHART) {
+        frame(nota.tempo_ms - T);   // avança até o tempo da nota
+        window.dispatchEvent(new KeyboardEvent("keydown", { key: RM.TECLAS[nota.pista] }));
+      }
+      let guarda = 0;
+      while (pendente && guarda++ < 5000) frame(50);
+      const resultado = await prom;
+
+      performance.now = realNow;
+      window.requestAnimationFrame = realRaf;
+
+      const total = RM.CHART.length;
+      checar("jogarRitmo: payload perfeito", resultado,
+        { acertos: total, total_notas: total, combo: total, combo_max: total });
+      checar("jogarRitmo: montou 4 pistas",
+        document.getElementById("ritmo-pistas").querySelectorAll(".pista").length, 4);
+      checar("jogarRitmo: overlay fechou no fim",
+        document.getElementById("ritmo-overlay").classList.contains("aberto"), false);
+
+      // Simula o que main.js faz: manda a contagem crua pro backend (mock).
+      await window.pywebview.api.executar_acao({ indice: 0, ritmo: resultado });
+      checar("fluxo: executar_acao recebeu o ritmo",
+        window.__mockApi.ultimo().payload.ritmo, resultado);
+    }
+
+    // ── Relatório ─────────────────────────────────────────────────────────────
+    const ul = document.getElementById("casos");
+    let todosOk = true;
+    for (const c of casos) {
+      if (!c.ok) todosOk = false;
+      const li = document.createElement("li");
+      li.className = c.ok ? "ok" : "falhou";
+      li.textContent = (c.ok ? "PASS " : "FAIL ") + c.nome +
+        (c.ok ? "" : ` | atual=${JSON.stringify(c.atual)} esperado=${JSON.stringify(c.esperado)}`);
+      ul.appendChild(li);
+    }
+    const resumo = document.getElementById("resumo");
+    resumo.textContent = todosOk
+      ? `TODOS PASSARAM (${casos.length})`
+      : `FALHAS: ${casos.filter((c) => !c.ok).length}/${casos.length}`;
+    resumo.className = todosOk ? "ok" : "falhou";
+    window.__testes = { ok: todosOk, total: casos.length, casos };
+  })();
+  </script>
+</body>
+</html>

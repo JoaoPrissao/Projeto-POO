@@ -40,6 +40,21 @@
     </section>
   </main>
 
+  <!-- Overlay do minigame de ritmo (oculto até clicar num músico) -->
+  <div id="ritmo-overlay">
+    <div id="ritmo-modal">
+      <div id="ritmo-cabecalho">
+        <span id="ritmo-titulo">Ritmo</span>
+        <span id="ritmo-acertos" class="ritmo-hud">0/0</span>
+        <span id="ritmo-combo" class="ritmo-hud">Combo 0</span>
+      </div>
+      <div id="ritmo-pistas" class="ritmo-pistas"></div>
+      <div id="ritmo-dica">Acerte no tempo: <b>D F J K</b> (ou clique na pista). <b>Esc</b> cancela.</div>
+    </div>
+  </div>
+
+  <script src="js/audio.js"></script>
+  <script src="js/ritmo.js"></script>
   <script src="js/main.js"></script>
 </body>
 </html>

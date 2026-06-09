@@ -1,5 +1,36 @@
 # PROGRESS — RPG Manager (banda de rock)
 
+## F3.1 — Minigame de ritmo (4 pistas, Web Audio + rAF) (09/06/2026)
+
+### O que mudou
+Substitui o ritmo placeholder por um minigame real. Backend intocado (Ritmo + contrato já prontos).
+- **`frontend/js/ritmo.js` (novo):** placar **puro** (`criarPlacar`) + engine com relógio/escalonador/áudio/entrada **injetáveis** (`criarMinigame`) + `jogarRitmo({tipoMusico, cor}) → Promise<{acertos,total_notas,combo_max}|null>` (null = cancelado). 4 pistas (D F J K), chart fixo (~16 notas), janela de acerto ±150ms; nota não acertada = erro (zera combo). Clique na pista = fallback de acessibilidade.
+- **`frontend/js/audio.js` (novo):** Web Audio sintetizado (OscillatorNode) — beep de acerto, buzz de erro, pulso de compasso; no-op se não houver AudioContext.
+- **`frontend/index.html` + `css/estilo.css`:** overlay do minigame (highway 4 pistas, linha de acerto, HUD combo/acertos), pintado na cor-assinatura do músico. Scripts audio.js + ritmo.js antes do main.js.
+- **`frontend/js/main.js`:** `executarAcao` agora abre o minigame, usa a contagem real e só ataca se não cancelar (Esc); removido `RITMO_PLACEHOLDER`; mapa `COR_POR_TIPO`.
+
+### Testes (padrão de harness mantido)
+- **`tests/test_ritmo_contrato.py` (novo, +6):** parametriza `{acertos,total_notas,combo_max}` → dano/Modo Refrão/multiplicador via `api.executar_acao` (inclui teto do mult e ausência de ritmo).
+- **`frontend/test/harness.html` + `mock-api.js` (novo):** harness de browser determinístico (relógio manual injetado) com 9 asserts in-page — placar puro, engine (perfeito/intercalado/perdidas/cancelar) e `jogarRitmo` completo (overlay + teclado real + payload no `executar_acao`). **Rodado via Playwright (MCP): 9/9 PASS.**
+
+### Contagem de testes
+**150 pytest, 100% verdes** (+6) · **9/9 no harness de browser** (Playwright).
+
+### Como rodar o harness do minigame
+Servir `frontend/` e abrir `test/harness.html` num browser (lê PASS/FAIL na tela ou em `window.__testes`):
+`\.venv\Scripts\python.exe -m http.server 8765 --directory frontend` → `http://127.0.0.1:8765/test/harness.html`.
+
+### Pendente de validação visual (usuário)
+`\.venv\Scripts\python.exe bridge\app.py` → montar banda → clicar músico → tocar com D F J K; dano deve variar com a performance; combo alto liga Modo Refrão; Esc cancela sem gastar turno.
+
+### Nada commitado
+✓
+
+### Próxima tarefa
+**F3.2** — Animações/SFX + identidade visual (inclui sanitizar innerHTML).
+
+---
+
 ## F2.1 — Rename mecânico pro tema banda (08/06/2026)
 
 ### O que mudou
