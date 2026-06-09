@@ -123,6 +123,21 @@ Antes, salvar/carregar recriava o boss com HP cheio (a persistência só seriali
 ### Contagem de testes
 **138 testes, 100% verdes** (+5).
 
+---
+
+## F2.4b — Bug do botão "Montar banda" + harness de integração (09/06/2026)
+
+### Bug (frontend)
+Abrir → Salvar (banda ainda vazia) → Carregar travava o botão "Montar banda demo".
+Causa: `carregar()` e `montarBandaDemo()` mexiam em `btn-banda-demo.disabled` ad-hoc, em vez de derivar do estado.
+- **`frontend/js/main.js`:** habilitação de botões centralizada em `atualizarBotoes(estado)`, chamada pelo `render()`. Regra: "Montar banda" só fica disponível quando `banda` vazia OU `fim_de_jogo`; removidas as manipulações ad-hoc.
+
+### Harness de teste do jogo
+- **`tests/test_integracao_jogo.py` (novo):** dirige a API como o frontend faria — abrir, montar, atacar, turno do boss, salvar/carregar, vitória, serialização em todo o fluxo. Inclui o repro exato do bug (`test_salvar_vazio_e_carregar_ainda_permite_montar`) e o invariante `_pode_montar_banda` que espelha a regra do `main.js`. É o "jeito reproduzível de testar o jogo": `pytest tests/test_integracao_jogo.py -v`.
+
+### Contagem de testes
+**144 testes, 100% verdes** (+6 de integração).
+
 ### Nada commitado
 ✓
 

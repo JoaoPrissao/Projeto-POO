@@ -59,16 +59,25 @@ function renderBanda(banda, fimDeJogo) {
   });
 }
 
+// Única fonte de verdade do estado dos botões — derivada do EstadoDTO.
+// (Espelha _pode_montar_banda em tests/test_integracao_jogo.py.)
+function atualizarBotoes(estado) {
+  const fim = estado.fim_de_jogo;
+  const bandaVazia = estado.banda.length === 0;
+  // Só dá pra (re)montar quando não há banda ativa: vazia ou show acabou.
+  $("#btn-banda-demo").disabled = !bandaVazia && !fim;
+  $("#btn-turno-inimigo").disabled = fim || bandaVazia || estado.turno !== "boss";
+  $("#btn-salvar").disabled = false;
+  $("#btn-carregar").disabled = false;
+}
+
 function render(estado) {
   estadoAtual = estado;
   renderBoss(estado.boss);
   renderBanda(estado.banda, estado.fim_de_jogo);
+  atualizarBotoes(estado);
 
-  const fim = estado.fim_de_jogo;
-  $("#btn-turno-inimigo").disabled = fim || estado.turno !== "boss";
-  $("#btn-salvar").disabled = false;
-
-  if (fim) {
+  if (estado.fim_de_jogo) {
     log(estado.resultado === "vitoria"
       ? "🏆 <span class='refrao'>Vitória!</span> O Empresário caiu — a banda fez história."
       : "💀 <span class='crit'>Derrota.</span> A banda foi nocauteada.");
@@ -93,7 +102,6 @@ async function montarBandaDemo() {
   const estado = await window.pywebview.api.criar_banda(COMPOSICAO_DEMO);
   render(estado);
   log("Banda no palco! Clique num músico para atacar.");
-  $("#btn-banda-demo").disabled = true;
 }
 
 async function executarAcao(indice) {
@@ -122,7 +130,6 @@ async function carregar() {
   const res = await window.pywebview.api.carregar("slot1");
   if (!res.ok) { log(`⚠️ ${res.erro.mensagem}`); return; }
   render(res.estado);
-  $("#btn-banda-demo").disabled = true;
   log("📂 Show carregado do slot1.");
 }
 
