@@ -1,6 +1,7 @@
-// Frontend mínimo F2.3 — render do EstadoDTO + ações por clique.
-// O ritmo ainda é placeholder: por enquanto manda contagem perfeita fixa.
-// (O minigame Web Audio + rAF entra na Fase 3.)
+// Frontend — modo história (F3.2): overworld side-scroll + batalha de ritmo.
+// Duas telas alternadas: o mapa (overworld.js, canvas) e o show (a UI de batalha
+// herdada da F2/F3.1). Andar até uma venue e apertar W troca pra tela de show e
+// arma a capanga daquela parada; vencer volta pro mapa com a venue concluída.
 
 const $ = (sel) => document.querySelector(sel);
 
@@ -20,7 +21,27 @@ const COR_POR_TIPO = {
   baterista:   "#e0b341",  // --ritmo
 };
 
+// Campanha provisória no front (F3.2) — migra pro backend autoritativo na F3.3.
+// Cada venue tem uma capanga (reusa Empresario via API.entrar_no_show); a última
+// é o próprio Empresário. Itens são pegos andando por cima (API.coletar_item).
+const CAMPANHA = {
+  venues: [
+    { id: "bar",   x: 420,  nome: "Bar do Zé", capanga: { nome: "Capanga do Bar", hp: 60, dano: 8 } },
+    { id: "feira", x: 980,  nome: "Feira Punk", capanga: { nome: "Roadie Valentão", hp: 95, dano: 12 } },
+    { id: "arena", x: 1600, nome: "Arena — O Empresário", capanga: { nome: "O Empresário", hp: 200, dano: 20 } },
+  ],
+  itens: [
+    { id: "i1", x: 250,  tipo: "energetico" },
+    { id: "i2", x: 1280, tipo: "pedal" },
+  ],
+};
+const concluidas = new Set();     // ids de venues vencidas
+const itensColetados = new Set(); // ids de itens já pegos
+
 let estadoAtual = null;
+let venueAtual = null;            // venue da batalha em curso
+let owHandle = null;             // handle do overworld em execução
+let posicaoMapa = null;          // x da banda no mapa (lembra entre batalhas)
 
 function pct(v, max) {
   if (!max) return 100;
@@ -83,10 +104,22 @@ function render(estado) {
   renderBanda(estado.banda, estado.fim_de_jogo);
   atualizarBotoes(estado);
 
+  // Fim de batalha: vitória marca a venue como concluída; nos dois casos o
+  // jogador volta ao mapa pelo botão.
+  const btnVoltar = $("#btn-voltar-mapa");
   if (estado.fim_de_jogo) {
-    log(estado.resultado === "vitoria"
-      ? "🏆 <span class='refrao'>Vitória!</span> O Empresário caiu — a banda fez história."
-      : "💀 <span class='crit'>Derrota.</span> A banda foi nocauteada.");
+    if (estado.resultado === "vitoria" && venueAtual) {
+      concluidas.add(venueAtual.id);
+      const final = venueAtual.id === "arena";
+      log(final
+        ? "🏆 <span class='refrao'>Vitória final!</span> O Empresário caiu — a banda fez história."
+        : `🏆 <span class='refrao'>Venceu ${venueAtual.nome}!</span> Volte ao mapa e siga a turnê.`);
+    } else {
+      log("💀 <span class='crit'>Derrota.</span> A banda foi nocauteada.");
+    }
+    if (btnVoltar) btnVoltar.hidden = false;
+  } else if (btnVoltar) {
+    btnVoltar.hidden = true;
   }
 }
 
@@ -147,17 +180,81 @@ async function carregar() {
   log("📂 Show carregado do slot1.");
 }
 
+// ── Controlador de telas (overworld ↔ show) ─────────────────────────────────
+function mostrarTela(id) {
+  document.querySelectorAll(".tela").forEach((t) => t.classList.toggle("ativa", t.id === id));
+}
+
+function avisoOverworld(texto) {
+  const el = $("#ow-aviso");
+  if (el) el.textContent = texto || "";
+}
+
+// Abre/reabre o mapa. Reconstrói o mundo a partir do progresso da campanha
+// (venues vencidas e itens já pegos ficam marcados).
+function abrirOverworld() {
+  venueAtual = null;
+  mostrarTela("tela-overworld");
+  const canvas = $("#overworld-canvas");
+  const venues = CAMPANHA.venues.map((v) => ({ ...v, concluida: concluidas.has(v.id) }));
+  const itens = CAMPANHA.itens.map((i) => ({ ...i, coletado: itensColetados.has(i.id) }));
+
+  if (owHandle) owHandle.desligar();
+  owHandle = window.Overworld.montar({
+    canvas, venues, itens, corTipo: "guitarrista",
+    inicioX: posicaoMapa,            // retoma onde a banda estava (null = começo)
+    aoEntrar: entrarNaVenue,
+    aoColetar: coletarItemNoMapa,
+  });
+  window.__overworld = owHandle;   // handle p/ harness/depuração (dirige o mundo sem rAF)
+
+  const faltam = CAMPANHA.venues.length - concluidas.size;
+  avisoOverworld(faltam > 0 ? `${faltam} venue(s) restante(s) na turnê.` : "Turnê completa! 🤘");
+}
+
+async function entrarNaVenue(venue) {
+  if (owHandle) {
+    posicaoMapa = owHandle.mundo.estado.banda.x;   // lembra onde parou no mapa
+    owHandle.desligar();
+  }
+  venueAtual = venue;
+  mostrarTela("tela-show");
+  const estado = await window.pywebview.api.entrar_no_show(venue.capanga);
+  render(estado);
+  log(`🎤 <b>${venue.nome}</b> — encare <b>${venue.capanga.nome}</b>! Clique num músico pra tocar.`);
+}
+
+async function coletarItemNoMapa(item) {
+  itensColetados.add(item.id);
+  const res = await window.pywebview.api.coletar_item({ tipo: item.tipo, indice: 0 });
+  avisoOverworld(res.ok
+    ? `🎁 ${res.musico} pegou ${res.item}! (inventário: ${res.tamanho_inventario})`
+    : `⚠️ ${res.erro.mensagem}`);
+}
+
+function voltarAoMapa() {
+  $("#btn-voltar-mapa").hidden = true;
+  abrirOverworld();
+}
+
 function bind() {
   $("#btn-banda-demo").addEventListener("click", montarBandaDemo);
   $("#btn-turno-inimigo").addEventListener("click", turnoInimigo);
   $("#btn-salvar").addEventListener("click", salvar);
   $("#btn-carregar").addEventListener("click", carregar);
+  $("#btn-voltar-mapa").addEventListener("click", voltarAoMapa);
+}
+
+// Boot do modo história: garante a banda no palco e abre o mapa.
+async function iniciarJogo() {
+  await window.pywebview.api.criar_banda(COMPOSICAO_DEMO);
+  abrirOverworld();
 }
 
 // A API só existe depois que o pywebview termina de injetar a ponte.
 window.addEventListener("pywebviewready", () => {
   bind();
-  window.pywebview.api.obter_estado().then(render);
+  iniciarJogo();
 });
 
 // Fallback se o evento já tiver disparado antes deste script carregar.

@@ -1,5 +1,39 @@
 # PROGRESS — RPG Manager (banda de rock)
 
+## F3.2 — Modo história: scaffold do overworld + ponte p/ batalha (09/06/2026)
+
+### Base travada
+Antes de começar: tag `entrega-base-f3.1` no commit verde da F3.1 + branch de trabalho `modo-historia`. Sempre há uma versão submissível.
+
+### O que mudou (duas telas alternadas, reuso máximo da batalha)
+- **`frontend/js/overworld.js` (novo):** mundo side-scroll "lite" com game loop **injetável** (mesmo padrão do ritmo.js: `agora`/`agendarFrame`/`ctx`). Movimento horizontal A/D, câmera que segue, **sem física** (só AABB 1D). `pressionar/soltar` (teclado→ação), `passo(dt)` (núcleo determinístico), `interagir()` (W entra na venue mais próxima dentro do alcance), coleta de item por sobreposição. Render placeholder em canvas (retângulos coloridos; arte real é F3.4).
+- **`bridge/api.py` (aditivo, domínio intocado):** `entrar_no_show({nome,hp,dano})` arma a capanga daquela venue (reusa `Empresario` + `iniciar_show`) e religa o `Show`; `coletar_item({tipo,indice})` adiciona item ao inventário de um músico via `ItemFactory`. Erros viram ErroDTO pelo `_ponte`.
+- **`frontend/index.html` + `css/estilo.css`:** `#tela-overworld` (canvas) e `#tela-show` (a UI de batalha herdada); `.tela.ativa` alterna. App começa no mapa.
+- **`frontend/js/main.js`:** controlador de telas + campanha provisória no front (3 venues, 2 itens — migra pro backend na F3.3). Andar→entrar dispara `entrar_no_show` e troca pra batalha; vencer marca a venue concluída e mostra "← Voltar ao mapa"; item pego chama `coletar_item` e mostra no HUD. `window.__overworld` exposto p/ harness dirigir o mundo sem rAF.
+
+### Testes (padrão de harness mantido)
+- **`tests/test_integracao_overworld.py` (novo, +8):** `entrar_no_show` (arma boss da venue, preserva banda, permite atacar, troca de venue reseta) e `coletar_item` (adiciona, índice padrão, tipo inválido/índice fora → ErroDTO). Serialização verificada.
+- **`frontend/test/overworld.harness.html` (novo):** harness de browser determinístico (relógio injetado) — 15 asserts: anda/para, câmera segue/clampa, coleta item, entra na venue (W), W longe não entra, venue concluída não re-entra, loop real integra. **Playwright (MCP): 15/15 PASS.**
+- **Smoke de integração do `main.js`** (mock-api + `__overworld`): boot abre o mapa → andar → `coletar_item` (HUD "🎁 Aldric pegou…") → W → troca pra `tela-show` com `entrar_no_show` payload certo e boss "Capanga do Bar". Validado via Playwright.
+- **`frontend/test/mock-api.js`:** estendido com os métodos do modo história (criar_banda/entrar_no_show/coletar_item/…). Harness do ritmo segue 9/9.
+
+### Contagem de testes
+**158 pytest, 100% verdes** (+8) · **15/15 overworld** + **9/9 ritmo** (Playwright).
+
+### Como rodar
+`\.venv\Scripts\python.exe -m http.server 8765 --directory frontend` → `http://127.0.0.1:8765/test/overworld.harness.html`.
+
+### Pendente de validação visual (usuário)
+`\.venv\Scripts\python.exe bridge\app.py` → começa no mapa; A/D anda, item no caminho é coletado, W na porta abre a batalha de ritmo contra a capanga; vencer volta ao mapa com a venue marcada.
+
+### Nada commitado
+✓ (na branch `modo-historia`, tree limpo fora dos arquivos da F3.2)
+
+### Próxima tarefa
+**F3.3** — Campanha no backend (modelo + persistência + API + harness): a sequência de venues vira estado autoritativo do `GerenciadorJogo`, save/load retoma a história.
+
+---
+
 ## F3.1 — Minigame de ritmo (4 pistas, Web Audio + rAF) (09/06/2026)
 
 ### O que mudou

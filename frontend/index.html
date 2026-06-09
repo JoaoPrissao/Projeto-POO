@@ -8,35 +8,50 @@
 </head>
 <body>
   <header>
-    <h1>🎸 RPG Manager <span class="sub">— o show contra O Empresário</span></h1>
+    <h1>🎸 RPG Manager <span class="sub">— a turnê contra O Empresário</span></h1>
   </header>
 
   <main>
-    <!-- Boss -->
-    <section id="boss-area" class="painel">
-      <h2 id="boss-nome">O Empresário</h2>
-      <div class="barra barra-boss">
-        <div id="boss-hp-fill" class="fill"></div>
-        <span id="boss-hp-label" class="barra-label">—</span>
+    <!-- ── Tela 1: Overworld (mapa side-scroll) ──────────────────────────── -->
+    <section id="tela-overworld" class="tela ativa">
+      <div id="overworld-hud" class="painel">
+        <span id="ow-dica"><b>A</b>/<b>D</b> anda · <b>W</b> entra na venue · ande por cima dos itens</span>
+        <span id="ow-aviso" class="ow-aviso"></span>
+      </div>
+      <div class="overworld-palco">
+        <canvas id="overworld-canvas"></canvas>
       </div>
     </section>
 
-    <!-- Log de eventos -->
-    <section id="log-area" class="painel">
-      <p id="log" class="log">Monte a banda para começar o show.</p>
-    </section>
+    <!-- ── Tela 2: Show (batalha de ritmo — reusada da F2/F3.1) ───────────── -->
+    <section id="tela-show" class="tela">
+      <!-- Boss -->
+      <section id="boss-area" class="painel">
+        <h2 id="boss-nome">O Empresário</h2>
+        <div class="barra barra-boss">
+          <div id="boss-hp-fill" class="fill"></div>
+          <span id="boss-hp-label" class="barra-label">—</span>
+        </div>
+      </section>
 
-    <!-- Banda -->
-    <section id="banda-area">
-      <div id="banda" class="banda"></div>
-    </section>
+      <!-- Log de eventos -->
+      <section id="log-area" class="painel">
+        <p id="log" class="log">Monte a banda para começar o show.</p>
+      </section>
 
-    <!-- Controles -->
-    <section id="controles" class="painel">
-      <button id="btn-banda-demo">Montar banda demo</button>
-      <button id="btn-turno-inimigo" disabled>Turno do Empresário</button>
-      <button id="btn-salvar" disabled>Salvar</button>
-      <button id="btn-carregar">Carregar</button>
+      <!-- Banda -->
+      <section id="banda-area">
+        <div id="banda" class="banda"></div>
+      </section>
+
+      <!-- Controles -->
+      <section id="controles" class="painel">
+        <button id="btn-voltar-mapa" hidden>← Voltar ao mapa</button>
+        <button id="btn-turno-inimigo" disabled>Turno do Empresário</button>
+        <button id="btn-salvar" disabled>Salvar</button>
+        <button id="btn-carregar">Carregar</button>
+        <button id="btn-banda-demo" hidden>Montar banda demo</button>
+      </section>
     </section>
   </main>
 
@@ -55,6 +70,7 @@
 
   <script src="js/audio.js"></script>
   <script src="js/ritmo.js"></script>
+  <script src="js/overworld.js"></script>
   <script src="js/main.js"></script>
 </body>
 </html>

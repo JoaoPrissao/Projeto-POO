@@ -12,6 +12,39 @@
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
+/* ── Telas (overworld ↔ show) ─────────────────────────────────────────────── */
+.tela { display: none; flex-direction: column; gap: 14px; }
+.tela.ativa { display: flex; }
+
+#overworld-hud {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: .85rem;
+  gap: 12px;
+}
+#overworld-hud b {
+  background: #0d0a14;
+  border-radius: 5px;
+  padding: 1px 7px;
+  color: var(--acento);
+}
+.ow-aviso { color: var(--ritmo); font-weight: 700; min-height: 1.2em; }
+.overworld-palco {
+  background: #0d0a14;
+  border-radius: 10px;
+  overflow: hidden;
+  display: flex;
+  justify-content: center;
+}
+#overworld-canvas {
+  display: block;
+  width: 100%;
+  max-width: 800px;
+  height: auto;
+  image-rendering: pixelated;     /* mantém os pixels crus quando escalar (F3.4) */
+}
+
 body {
   font-family: "Segoe UI", system-ui, sans-serif;
   background: var(--bg);

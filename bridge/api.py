@@ -18,7 +18,7 @@ import sys
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'backend'))
 
 from gerenciador import GerenciadorJogo
-from fabricas import MusicoFactory
+from fabricas import MusicoFactory, ItemFactory
 from show import Show, Empresario
 from ritmo import Ritmo
 from excecoes import JogoError
@@ -180,6 +180,38 @@ class API:
             "estado": self._estado_dto(),
             "fim_de_jogo": fim is not None,
             "resultado_final": fim,
+        }
+
+    @_ponte
+    def entrar_no_show(self, venue: dict) -> dict:
+        """Modo história: entrar numa venue arma o boss daquela parada (uma
+        capanga do Empresário) e religa o Show à banda atual. Espelha
+        `_iniciar_show`, mas com os atributos vindos do overworld. Aditivo:
+        não altera o fluxo de combate; só troca quem é o inimigo da vez."""
+        boss = Empresario(
+            venue.get("nome", "Capanga"),
+            hp=int(venue.get("hp", BOSS_HP_PADRAO)),
+            dano=int(venue.get("dano", BOSS_DANO_PADRAO)),
+        )
+        self._gerenciador.iniciar_show(boss)
+        self._show = Show(self._gerenciador.listar_jogadores(), boss)
+        return self._estado_dto()
+
+    @_ponte
+    def coletar_item(self, payload: dict) -> dict:
+        """Modo história: pegar um item no overworld o adiciona ao inventário
+        de um músico (via ItemFactory — reuso do domínio)."""
+        indice = int(payload.get("indice", 0))
+        banda = self._gerenciador.listar_jogadores()
+        musico = banda[indice]                       # IndexError → ErroDTO
+        item = ItemFactory.criar(payload["tipo"])    # TipoInvalidoError → ErroDTO
+        inventario = musico.get_inventario()
+        inventario.adicionar(item)                   # InventarioCheioError → ErroDTO
+        return {
+            "ok": True,
+            "musico": musico.get_nome(),
+            "item": item.nome,
+            "tamanho_inventario": len(inventario),
         }
 
     @_ponte

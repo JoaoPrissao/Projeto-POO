@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Harness — overworld side-scroll</title>
+  <style>
+    body { font-family: monospace; background:#14111c; color:#ece6f5; padding:16px; }
+    .ok { color:#5be08a; } .falhou { color:#e23b4e; }
+    h1 { font-size:1.1rem; } li { margin:2px 0; }
+  </style>
+</head>
+<body>
+  <h1>Harness do overworld</h1>
+  <div id="resumo">rodando…</div>
+  <ul id="casos"></ul>
+
+  <script src="../js/overworld.js"></script>
+  <script>
+  (function () {
+    "use strict";
+    const OW = window.Overworld;
+    const V = OW.CONFIG.VEL;
+    const casos = [];
+    function checar(nome, atual, esperado) {
+      const ok = JSON.stringify(atual) === JSON.stringify(esperado);
+      casos.push({ nome, ok, atual, esperado });
+    }
+    function perto(nome, atual, esperado, tol) {
+      const ok = Math.abs(atual - esperado) <= (tol || 0.001);
+      casos.push({ nome, ok, atual, esperado });
+    }
+
+    const VENUES = [
+      { id: "bar",   x: 400,  nome: "Bar do Zé" },
+      { id: "arena", x: 1500, nome: "Arena" },
+    ];
+    const ITENS = [{ id: "i1", x: 250, tipo: "energetico" }];
+
+    function novoMundo() {
+      const entrou = [], coletou = [];
+      const mundo = OW.criarMundo({
+        agora: () => 0, agendarFrame: () => {},     // loop não usado (dirigimos passo())
+        ctx: null, inicioX: 60,
+        venues: VENUES, itens: ITENS,
+        aoEntrar: (v) => entrou.push(v.id),
+        aoColetar: (it) => coletou.push(it.id),
+      });
+      return { mundo, entrou, coletou };
+    }
+
+    // ── 1. Anda pra direita (A/D) ──────────────────────────────────────────────
+    {
+      const { mundo } = novoMundo();
+      mundo.pressionar("d");
+      mundo.passo(500);
+      perto("anda: x = inicio + VEL*dt", mundo.estado.banda.x, 60 + V * 500, 0.001);
+      checar("anda: direcao = +1", mundo.estado.direcao, 1);
+    }
+
+    // ── 2. Para ao soltar a tecla ──────────────────────────────────────────────
+    {
+      const { mundo } = novoMundo();
+      mundo.pressionar("d"); mundo.passo(500);
+      const x1 = mundo.estado.banda.x;
+      mundo.soltar("d"); mundo.passo(500);
+      checar("para: direcao = 0", mundo.estado.direcao, 0);
+      perto("para: x congelado", mundo.estado.banda.x, x1, 0.001);
+    }
+
+    // ── 3. Câmera segue na horizontal ──────────────────────────────────────────
+    {
+      const { mundo } = novoMundo();
+      // Mundo largo (arena em 1500) → câmera tem pra onde rolar.
+      mundo.pressionar("d"); mundo.passo(2000);
+      const e = mundo.estado;
+      const centro = e.banda.x + OW.CONFIG.TAM_BANDA / 2;
+      perto("camera: segue o centro da banda", e.camera_x, centro - OW.CONFIG.LARGURA / 2, 0.001);
+    }
+
+    // ── 4. Câmera não passa de 0 perto do início ───────────────────────────────
+    {
+      const { mundo } = novoMundo();
+      mundo.passo(16);
+      checar("camera: clamp em 0 no começo", mundo.estado.camera_x, 0);
+    }
+
+    // ── 5. Coleta item ao sobrepor ─────────────────────────────────────────────
+    {
+      const { mundo, coletou } = novoMundo();
+      // item em x=250; anda até o centro da banda cobrir.
+      mundo.pressionar("d"); mundo.passo(900);   // x ≈ 60+198=258, centro ≈ 280
+      checar("item: coletou i1", coletou, ["i1"]);
+      checar("item: marcado coletado no estado",
+        mundo.estado.itens.find((i) => i.id === "i1").coletado, true);
+    }
+
+    // ── 6. Entra na venue com W quando perto ───────────────────────────────────
+    {
+      const { mundo, entrou } = novoMundo();
+      mundo.pressionar("d"); mundo.passo(1600);  // centro ≈ 82+352=434, perto do bar(400)
+      checar("venue: bar detectada perto", mundo.estado.venue_perto, "bar");
+      mundo.pressionar("w");
+      checar("venue: W entrou no bar", entrou, ["bar"]);
+    }
+
+    // ── 7. W longe de qualquer porta não faz nada ──────────────────────────────
+    {
+      const { mundo, entrou } = novoMundo();
+      mundo.pressionar("w");                     // ainda no início, longe do bar
+      checar("venue: W longe não entra", entrou, []);
+    }
+
+    // ── 8. Venue concluída não dispara de novo ─────────────────────────────────
+    {
+      const { mundo, entrou } = novoMundo();
+      mundo.marcarVenueConcluida("bar");
+      mundo.pressionar("d"); mundo.passo(1600);
+      checar("venue: concluída some do venue_perto", mundo.estado.venue_perto, null);
+      mundo.pressionar("w");
+      checar("venue: concluída não re-entra", entrou, []);
+    }
+
+    // ── 9. Loop real (agora/agendarFrame injetados) integra o movimento ────────
+    {
+      let T = 0, pendente = null;
+      const entrou = [];
+      const mundo = OW.criarMundo({
+        agora: () => T,
+        agendarFrame: (cb) => { pendente = cb; },
+        ctx: null, inicioX: 60, venues: VENUES, itens: [],
+        aoEntrar: (v) => entrou.push(v.id),
+      });
+      mundo.iniciar();                 // agenda 1ª frame
+      mundo.pressionar("d");
+      function frame(ms) { T += ms; const cb = pendente; pendente = null; if (cb) cb(); }
+      frame(0);                        // 1ª frame: dt=0 (estabelece ultimoT)
+      for (let i = 0; i < 10; i++) frame(100);   // 1000ms andando
+      perto("loop: integrou ~VEL*1000", mundo.estado.banda.x, 60 + V * 1000, 0.5);
+      mundo.parar();
+      checar("loop: parar zera rodando", mundo.rodando, false);
+    }
+
+    // ── 10. inicioX posiciona a banda (retomar posição entre batalhas) ─────────
+    {
+      const mundo = OW.criarMundo({
+        agora: () => 0, agendarFrame: () => {}, ctx: null,
+        inicioX: 300, venues: VENUES, itens: [],
+      });
+      checar("inicioX: banda começa na posição lembrada", mundo.estado.banda.x, 300);
+    }
+
+    // ── Relatório ──────────────────────────────────────────────────────────────
+    const ul = document.getElementById("casos");
+    let todosOk = true;
+    for (const c of casos) {
+      if (!c.ok) todosOk = false;
+      const li = document.createElement("li");
+      li.className = c.ok ? "ok" : "falhou";
+      li.textContent = (c.ok ? "PASS " : "FAIL ") + c.nome +
+        (c.ok ? "" : ` | atual=${JSON.stringify(c.atual)} esperado=${JSON.stringify(c.esperado)}`);
+      ul.appendChild(li);
+    }
+    const resumo = document.getElementById("resumo");
+    resumo.textContent = todosOk
+      ? `TODOS PASSARAM (${casos.length})`
+      : `FALHAS: ${casos.filter((c) => !c.ok).length}/${casos.length}`;
+    resumo.className = todosOk ? "ok" : "falhou";
+    window.__testes = { ok: todosOk, total: casos.length, casos };
+  })();
+  </script>
+</body>
+</html>
