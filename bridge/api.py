@@ -89,6 +89,22 @@ class API:
         else:
             self._iniciar_show()
 
+    def _garantir_campanha(self):
+        """Garante uma campanha sem destruir progresso: reusa a do gerenciador
+        (ex.: restaurada de um save) ou começa a turnê padrão."""
+        if self._gerenciador.get_campanha() is None:
+            self._gerenciador.iniciar_campanha()
+        return self._gerenciador.get_campanha()
+
+    def _campanha_dto(self) -> dict:
+        camp = self._garantir_campanha()
+        return {
+            "venues": camp.listar_venues(),
+            "itens": camp.listar_itens(),
+            "posicao": camp.get_posicao(),
+            "completa": camp.esta_completa(),
+        }
+
     def _recurso_dto(self, musico) -> dict:
         tipo = getattr(musico, "TIPO", None)
         if tipo == "baixista":
@@ -183,28 +199,46 @@ class API:
         }
 
     @_ponte
-    def entrar_no_show(self, venue: dict) -> dict:
-        """Modo história: entrar numa venue arma o boss daquela parada (uma
-        capanga do Empresário) e religa o Show à banda atual. Espelha
-        `_iniciar_show`, mas com os atributos vindos do overworld. Aditivo:
-        não altera o fluxo de combate; só troca quem é o inimigo da vez."""
-        boss = Empresario(
-            venue.get("nome", "Capanga"),
-            hp=int(venue.get("hp", BOSS_HP_PADRAO)),
-            dano=int(venue.get("dano", BOSS_DANO_PADRAO)),
-        )
+    def obter_campanha(self) -> dict:
+        """Estado autoritativo da turnê: venues (com flag concluída), itens
+        (com flag coletado), posição da banda no mapa e se a campanha acabou."""
+        return self._campanha_dto()
+
+    @_ponte
+    def entrar_no_show(self, venue_id: str) -> dict:
+        """Modo história: entrar numa venue (por id) arma a capanga definida na
+        campanha e religa o Show à banda. A capanga reusa `Empresario`; nada do
+        fluxo de combate muda — só quem é o inimigo da vez."""
+        camp = self._garantir_campanha()
+        venue = camp.get_venue(venue_id)             # VenueInvalidaError → ErroDTO
+        capanga = venue["capanga"]
+        boss = Empresario(capanga["nome"], hp=int(capanga["hp"]), dano=int(capanga["dano"]))
         self._gerenciador.iniciar_show(boss)
         self._show = Show(self._gerenciador.listar_jogadores(), boss)
         return self._estado_dto()
 
     @_ponte
+    def concluir_venue(self, venue_id: str) -> dict:
+        """Marca a venue como vencida na campanha (chamado após a vitória).
+        Devolve o estado novo da campanha (mesmo formato de `obter_campanha`)."""
+        self._garantir_campanha().concluir(venue_id)  # VenueInvalidaError → ErroDTO
+        return {"ok": True, **self._campanha_dto()}
+
+    @_ponte
+    def registrar_posicao(self, x: float) -> dict:
+        """Guarda onde a banda está no overworld (persiste no save)."""
+        self._garantir_campanha().set_posicao(float(x))
+        return {"ok": True}
+
+    @_ponte
     def coletar_item(self, payload: dict) -> dict:
-        """Modo história: pegar um item no overworld o adiciona ao inventário
-        de um músico (via ItemFactory — reuso do domínio)."""
+        """Modo história: pegar um item (por id) marca-o como coletado na
+        campanha e o adiciona ao inventário de um músico via ItemFactory."""
+        camp = self._garantir_campanha()
+        tipo = camp.coletar(payload["id"])           # ItemMapaInvalidoError → ErroDTO
         indice = int(payload.get("indice", 0))
-        banda = self._gerenciador.listar_jogadores()
-        musico = banda[indice]                       # IndexError → ErroDTO
-        item = ItemFactory.criar(payload["tipo"])    # TipoInvalidoError → ErroDTO
+        musico = self._gerenciador.listar_jogadores()[indice]   # IndexError → ErroDTO
+        item = ItemFactory.criar(tipo)
         inventario = musico.get_inventario()
         inventario.adicionar(item)                   # InventarioCheioError → ErroDTO
         return {
@@ -212,6 +246,7 @@ class API:
             "musico": musico.get_nome(),
             "item": item.nome,
             "tamanho_inventario": len(inventario),
+            "campanha": self._campanha_dto(),
         }
 
     @_ponte

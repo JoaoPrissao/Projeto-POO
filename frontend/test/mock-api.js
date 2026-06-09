@@ -18,18 +18,50 @@
     };
   }
 
+  // Campanha mock (espelha Campanha.padrao() do backend) com progresso mutável.
+  const VENUES = [
+    { id: "bar",   x: 420,  nome: "Bar do Zé", capanga: { nome: "Capanga do Bar", hp: 60, dano: 8 } },
+    { id: "feira", x: 980,  nome: "Feira Punk", capanga: { nome: "Roadie Valentão", hp: 95, dano: 12 } },
+    { id: "arena", x: 1600, nome: "Arena — O Empresário", capanga: { nome: "O Empresário", hp: 200, dano: 20 } },
+  ];
+  const ITENS = [
+    { id: "i1", x: 250,  tipo: "energetico" },
+    { id: "i2", x: 1280, tipo: "pedal" },
+  ];
+  const progresso = { concluidas: new Set(), coletados: new Set(), posicao: 60 };
+  function campanhaMock() {
+    return {
+      venues: VENUES.map((v) => ({ ...v, concluida: progresso.concluidas.has(v.id) })),
+      itens: ITENS.map((i) => ({ ...i, coletado: progresso.coletados.has(i.id) })),
+      posicao: progresso.posicao,
+      completa: VENUES.every((v) => progresso.concluidas.has(v.id)),
+    };
+  }
+
   window.pywebview = {
     api: {
       criar_banda(comp) { reg("criar_banda", comp); return Promise.resolve(estadoMock()); },
       obter_estado() { reg("obter_estado"); return Promise.resolve(estadoMock()); },
-      entrar_no_show(venue) {
-        reg("entrar_no_show", venue);
+      obter_campanha() { reg("obter_campanha"); return Promise.resolve(campanhaMock()); },
+      registrar_posicao(x) { reg("registrar_posicao", x); progresso.posicao = x; return Promise.resolve({ ok: true }); },
+      entrar_no_show(venueId) {
+        reg("entrar_no_show", venueId);
+        const v = VENUES.find((x) => x.id === venueId);
+        if (!v) return Promise.resolve({ ok: false, erro: { tipo: "VenueInvalidaError", mensagem: "venue inválida" } });
         return Promise.resolve(estadoMock(
-          { id: "empresario", nome: venue.nome, hp: venue.hp, hp_maximo: venue.hp }, "banda", null));
+          { id: "empresario", nome: v.capanga.nome, hp: v.capanga.hp, hp_maximo: v.capanga.hp }, "banda", null));
+      },
+      concluir_venue(venueId) {
+        reg("concluir_venue", venueId);
+        progresso.concluidas.add(venueId);
+        return Promise.resolve({ ok: true, ...campanhaMock() });
       },
       coletar_item(payload) {
         reg("coletar_item", payload);
-        return Promise.resolve({ ok: true, musico: "Aldric", item: payload.tipo, tamanho_inventario: 1 });
+        const it = ITENS.find((x) => x.id === payload.id);
+        if (!it) return Promise.resolve({ ok: false, erro: { tipo: "ItemMapaInvalidoError", mensagem: "item inválido" } });
+        progresso.coletados.add(it.id);
+        return Promise.resolve({ ok: true, musico: "Aldric", item: it.tipo, tamanho_inventario: 1, campanha: campanhaMock() });
       },
       executar_acao(payload) {
         reg("executar_acao", payload);

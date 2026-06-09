@@ -56,3 +56,19 @@ class SaveCorrompidoError(PersistenciaError):
 class TipoInvalidoError(JogoError):
     def __init__(self, tipo: str):
         super().__init__(f"Tipo de músico inválido: '{tipo}'.")
+
+
+# ── Campanha (modo história) ──────────────────────────────────────
+
+class CampanhaError(JogoError):
+    pass
+
+
+class VenueInvalidaError(CampanhaError):
+    def __init__(self, venue_id):
+        super().__init__(f"Venue inexistente na campanha: '{venue_id}'.")
+
+
+class ItemMapaInvalidoError(CampanhaError):
+    def __init__(self, item_id):
+        super().__init__(f"Item de mapa inexistente na campanha: '{item_id}'.")

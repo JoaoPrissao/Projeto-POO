@@ -30,6 +30,7 @@ class GerenciadorJogo:
         self._fase: int = 1
         self._boss = None        # Empresario | None — boss do show em andamento
         self._turno: str = "banda"
+        self._campanha = None    # Campanha | None — turnê do modo história
         self._inicializado = True
 
     # ── Acesso canônico ao Singleton ──────────────────────────────
@@ -83,6 +84,15 @@ class GerenciadorJogo:
     def set_turno(self, turno: str) -> None:
         self._turno = turno
 
+    # ── Campanha (modo história) ──────────────────────────────────
+
+    def iniciar_campanha(self, campanha=None) -> None:
+        from campanha import Campanha
+        self._campanha = campanha if campanha is not None else Campanha.padrao()
+
+    def get_campanha(self):
+        return self._campanha
+
     # ── Fase do jogo (placeholder de estado) ──────────────────────
 
     def get_fase(self) -> int:
@@ -97,6 +107,7 @@ class GerenciadorJogo:
         estado = {
             "banda": [j.to_dict() for j in self._banda],
             "show": self._show_to_dict(),
+            "campanha": self._campanha.to_dict() if self._campanha else None,
         }
         persistencia.salvar_estado(estado, slot, pasta)
 
@@ -105,6 +116,7 @@ class GerenciadorJogo:
         try:
             self._banda = [Musico.from_dict(d) for d in estado["banda"]]
             self._carregar_show(estado.get("show"))
+            self._carregar_campanha(estado.get("campanha"))
         except (KeyError, TypeError, AttributeError) as erro:
             raise SaveCorrompidoError(f"Save '{slot}' incompatível: {erro}") from erro
 
@@ -123,3 +135,10 @@ class GerenciadorJogo:
         from show import Empresario
         self._boss = Empresario.from_dict(show["boss"])
         self._turno = show.get("turno", "banda")
+
+    def _carregar_campanha(self, campanha) -> None:
+        if not campanha:
+            self._campanha = None
+            return
+        from campanha import Campanha
+        self._campanha = Campanha.from_dict(campanha)

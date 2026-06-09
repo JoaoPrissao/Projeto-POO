@@ -1,5 +1,35 @@
 # PROGRESS — RPG Manager (banda de rock)
 
+## F3.3 — Campanha no backend autoritativo (09/06/2026)
+
+### O que mudou (a turnê virou estado do domínio; save/load retoma a história)
+A campanha (venues + itens + progresso) saiu do front e virou estado autoritativo do `GerenciadorJogo`, persistido no envelope de save.
+- **`backend/campanha.py` (novo):** classe `Campanha` — defs de venues (`{id,x,nome,capanga:{nome,hp,dano}}`) e itens (`{id,x,tipo}`) + progresso (`concluidas`, `coletados`, `posicao`). `padrao()` (3 venues + 2 itens, espelha o que vivia no main.js), `listar_venues/itens` (com flags), `get_venue/get_item` (→ exceções), `concluir`, `coletar` (devolve o tipo), `get/set_posicao`, `esta_completa`, `to_dict/from_dict`.
+- **`backend/excecoes.py`:** `CampanhaError`, `VenueInvalidaError`, `ItemMapaInvalidoError`.
+- **`backend/gerenciador.py`:** campo `_campanha` + `iniciar_campanha()/get_campanha()`; `salvar()` inclui `"campanha"` no envelope e `carregar()` reconstrói via `Campanha.from_dict` (erros → `SaveCorrompidoError`). `persistencia.py` intocado (envelope já passa chaves extras).
+- **`bridge/api.py`:** contrato agora id-based e autoritativo — `obter_campanha()`, `entrar_no_show(venue_id)` (capanga vem da campanha), `concluir_venue(id)`, `coletar_item({id})` (tipo vem da campanha + inventário via ItemFactory), `registrar_posicao(x)`. `_garantir_campanha()` espelha `_garantir_show()`.
+- **`frontend/js/main.js`:** removida a `CAMPANHA`/`Set`s hardcoded. Boot lê `obter_campanha`; entrar usa `registrar_posicao` + `entrar_no_show(venue.id)`; coletar usa `coletar_item({id})`; vitória chama `concluir_venue`; voltar re-lê a campanha (reflete o progresso).
+- **Combate intocado:** `Show`/`acao_musico`/`turno_inimigo`/`Empresario` sem mudança.
+
+### Testes (TDD + harness mantido)
+- **`tests/test_campanha.py` (novo, +14):** defaults, concluir/coletar, ids inválidos, `esta_completa`, posição, **round-trip to_dict/from_dict**.
+- **`tests/test_integracao_overworld.py` (reescrito p/ id-based, 10):** `obter_campanha`, `entrar_no_show(id)`, `concluir_venue`, `coletar_item({id})`, `registrar_posicao` e o **teste-chave `test_save_load_retoma_a_campanha`** (concluídas/coletados/posição sobrevivem ao load).
+- **`frontend/test/mock-api.js`:** estendido com os métodos de campanha (progresso mutável). **Smoke do `index.html` (Playwright):** boot lê a campanha do backend (venues bar/feira/arena), anda→`coletar_item({id:i1})`, W→`entrar_no_show("bar")` + `registrar_posicao`, vitória→`concluir_venue("bar")`, voltar→bar aparece concluída. Round-trip completo ✓.
+
+### Contagem de testes
+**174 pytest, 100% verdes** (+16) · **16/16 overworld** + **9/9 ritmo** (Playwright).
+
+### Pendente de validação visual (usuário)
+`.\.venv\Scripts\python.exe bridge\app.py` → vencer a 1ª venue, **Salvar**, fechar, reabrir, **Carregar** → venue continua marcada e a banda volta na posição salva.
+
+### Nada commitado
+✓ (na branch `modo-historia`)
+
+### Próxima tarefa
+**F3.4** — Pixel art (eu desenho): 4 integrantes (idle+andar), capangas, props/venue, itens, cenário.
+
+---
+
 ## F3.2 — Modo história: scaffold do overworld + ponte p/ batalha (09/06/2026)
 
 ### Base travada
