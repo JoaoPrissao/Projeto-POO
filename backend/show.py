@@ -1,3 +1,5 @@
+import random
+
 from excecoes import JogadorMortoError, AtaqueInvalidoError
 
 
@@ -7,9 +9,10 @@ class Empresario:
     """
 
     def __init__(self, nome: str = "O Empresário", hp: int = 200, dano: int = 20):
-        self._nome = nome
-        self._hp   = hp
-        self._dano = dano
+        self._nome     = nome
+        self._hp_max   = hp
+        self._hp       = hp
+        self._dano     = dano
 
     def get_nome(self) -> str:
         return self._nome
@@ -17,8 +20,27 @@ class Empresario:
     def get_hp(self) -> int:
         return self._hp
 
+    def get_hp_maximo(self) -> int:
+        return self._hp_max
+
     def esta_vivo(self) -> bool:
         return self._hp > 0
+
+    # ── Serialização (persistência do progresso do show) ──────────
+
+    def to_dict(self) -> dict:
+        return {
+            "nome": self._nome,
+            "hp": self._hp,
+            "hp_maximo": self._hp_max,
+            "dano": self._dano,
+        }
+
+    @classmethod
+    def from_dict(cls, dados: dict) -> "Empresario":
+        emp = cls(dados["nome"], hp=dados["hp_maximo"], dano=dados["dano"])
+        emp._hp = dados["hp"]
+        return emp
 
     def receber_dano(self, dano: int) -> None:
         if dano <= 0:
@@ -92,7 +114,7 @@ class Show:
                 "hp_alvo": 0,
                 "fim": self.verificar_fim(),
             }
-        alvo = vivos[0]
+        alvo = random.choice(vivos)  # IA simples: provoca um músico vivo qualquer
         hp_antes = alvo.get_hp()
         self._inimigo.atacar(alvo)
         dano = hp_antes - alvo.get_hp()
@@ -107,6 +129,7 @@ class Show:
     def verificar_fim(self) -> str | None:
         if not self._inimigo.esta_vivo():
             return "vitoria"
-        if not any(j.esta_vivo() for j in self._banda):
+        # Banda vazia é estado neutro (ainda não montou) — não é derrota.
+        if self._banda and not any(j.esta_vivo() for j in self._banda):
             return "derrota"
         return None

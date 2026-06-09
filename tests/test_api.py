@@ -100,7 +100,7 @@ def test_executar_acao_indice_invalido_retorna_erro_dto():
 
 def test_executar_acao_vitoria_quando_boss_cai():
     api = _api_com_banda([{"tipo": "guitarrista", "nome": "Aldric", "forca": 10}])
-    api._boss._hp = 10  # boss quase morto
+    api._gerenciador.get_boss()._hp = 10  # boss quase morto
     res = api.executar_acao({"indice": 0})
     assert res["fim_de_jogo"] is True
     assert res["resultado_final"] == "vitoria"
@@ -128,6 +128,20 @@ def test_salvar_e_carregar_round_trip(tmp_path):
     r2 = api2.carregar("slot1", pasta=str(tmp_path))
     assert r2["ok"] is True
     assert r2["estado"]["banda"][0]["nome"] == "Aldric"
+
+
+def test_save_load_preserva_hp_do_boss(tmp_path):
+    api = _api_com_banda([{"tipo": "guitarrista", "nome": "Aldric", "forca": 10}])
+    api.executar_acao({"indice": 0})  # boss leva dano
+    hp_com_dano = api.obter_estado()["boss"]["hp"]
+    assert hp_com_dano < 200
+
+    api.salvar("slot_boss", pasta=str(tmp_path))
+    GerenciadorJogo.resetar()
+    api2 = API()
+    res = api2.carregar("slot_boss", pasta=str(tmp_path))
+    # o show retoma no ponto certo — boss NÃO volta pra 200
+    assert res["estado"]["boss"]["hp"] == hp_com_dano
 
 
 def test_carregar_inexistente_retorna_erro_dto(tmp_path):

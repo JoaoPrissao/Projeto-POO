@@ -53,6 +53,20 @@ def test_empresario_get_nome():
     assert emp.get_nome() == "O Empresário"
 
 
+def test_empresario_hp_maximo_inicial():
+    emp = Empresario("Boss", hp=200, dano=10)
+    assert emp.get_hp_maximo() == 200
+
+
+def test_empresario_round_trip_preserva_hp_atual_e_maximo():
+    emp = Empresario("Boss", hp=200, dano=15)
+    emp.receber_dano(50)
+    copia = Empresario.from_dict(emp.to_dict())
+    assert copia.get_nome() == "Boss"
+    assert copia.get_hp() == 150
+    assert copia.get_hp_maximo() == 200
+
+
 # ── Show.acao_musico — contrato D2 (retorna dano calculado pelo Show) ─────────
 
 def test_acao_musico_reduz_hp_do_empresario():
@@ -216,6 +230,17 @@ def test_turno_inimigo_sem_musicos_vivos_retorna_derrota():
     assert resultado["fim"] == "derrota"
 
 
+def test_turno_inimigo_escolhe_alvo_aleatorio_entre_vivos():
+    g1 = Guitarrista("Ana", forca=1)
+    g2 = Guitarrista("Bia", forca=1)
+    g3 = Guitarrista("Cau", forca=1)
+    emp = Empresario("Boss", hp=100, dano=10)
+    show = Show([g1, g2, g3], emp)
+    with patch("random.choice", return_value=g2):
+        resultado = show.turno_inimigo()
+    assert resultado["alvo"] == "Bia"  # não é mais sempre o primeiro
+
+
 # ── Show.verificar_fim ────────────────────────────────────────────────────────
 
 def test_verificar_fim_retorna_none_quando_jogo_continua():
@@ -239,6 +264,13 @@ def test_verificar_fim_derrota_quando_banda_toda_nocauteada():
     emp = Empresario("Boss", hp=100, dano=10)
     show = Show([g], emp)
     assert show.verificar_fim() == "derrota"
+
+
+def test_verificar_fim_banda_vazia_e_neutro():
+    # Banda vazia não é "derrota" imediata — é um estado neutro (monte a banda).
+    emp = Empresario("Boss", hp=100, dano=10)
+    show = Show([], emp)
+    assert show.verificar_fim() is None
 
 
 # ── Polimorfismo ──────────────────────────────────────────────────────────────

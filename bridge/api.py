@@ -60,10 +60,7 @@ def _ponte(metodo):
 
 class API:
     def __init__(self):
-        self._boss: Empresario | None = None
-        self._boss_hp_max: int = BOSS_HP_PADRAO
         self._show: Show | None = None
-        self._turno: str = "banda"
 
     # ── infra interna ─────────────────────────────────────────────────────────
 
@@ -72,10 +69,25 @@ class API:
         return GerenciadorJogo.get_instancia()
 
     def _iniciar_show(self) -> None:
-        self._boss = Empresario("O Empresário", hp=BOSS_HP_PADRAO, dano=BOSS_DANO_PADRAO)
-        self._boss_hp_max = BOSS_HP_PADRAO
-        self._show = Show(self._gerenciador.listar_jogadores(), self._boss)
-        self._turno = "banda"
+        """Começa um show novo: boss cheio, turno da banda."""
+        boss = Empresario("O Empresário", hp=BOSS_HP_PADRAO, dano=BOSS_DANO_PADRAO)
+        self._gerenciador.iniciar_show(boss)
+        self._show = Show(self._gerenciador.listar_jogadores(), boss)
+
+    def _vincular_show(self) -> None:
+        """Liga o orquestrador Show à banda e ao boss atuais do gerenciador
+        (usado após carregar um save, que restaura o boss no ponto certo)."""
+        self._show = Show(self._gerenciador.listar_jogadores(), self._gerenciador.get_boss())
+
+    def _garantir_show(self) -> None:
+        """Garante um Show válido sem destruir progresso: reusa o boss do
+        gerenciador se já houver um; senão começa um show novo."""
+        if self._show is not None:
+            return
+        if self._gerenciador.get_boss() is not None:
+            self._vincular_show()
+        else:
+            self._iniciar_show()
 
     def _recurso_dto(self, musico) -> dict:
         tipo = getattr(musico, "TIPO", None)
@@ -104,16 +116,17 @@ class API:
 
     def _estado_dto(self) -> dict:
         banda = self._gerenciador.listar_jogadores()
+        boss = self._gerenciador.get_boss()
         fim = self._show.verificar_fim() if self._show else None
         return {
             "banda": [self._musico_dto(i, m) for i, m in enumerate(banda)],
             "boss": {
                 "id": "empresario",
-                "nome": self._boss.get_nome() if self._boss else "O Empresário",
-                "hp": self._boss.get_hp() if self._boss else self._boss_hp_max,
-                "hp_maximo": self._boss_hp_max,
+                "nome": boss.get_nome() if boss else "O Empresário",
+                "hp": boss.get_hp() if boss else BOSS_HP_PADRAO,
+                "hp_maximo": boss.get_hp_maximo() if boss else BOSS_HP_PADRAO,
             },
-            "turno": self._turno,
+            "turno": self._gerenciador.get_turno(),
             "fim_de_jogo": fim is not None,
             "resultado": fim,
         }
@@ -143,21 +156,19 @@ class API:
 
     @_ponte
     def obter_estado(self) -> dict:
-        if self._show is None:
-            self._iniciar_show()
+        self._garantir_show()
         return self._estado_dto()
 
     @_ponte
     def executar_acao(self, payload: dict) -> dict:
-        if self._show is None:
-            self._iniciar_show()
+        self._garantir_show()
         indice = payload["indice"]
         ritmo = None
         if payload.get("ritmo"):
             ritmo = Ritmo.de_payload(payload["ritmo"])
 
         resultado = self._show.acao_musico(indice, ritmo=ritmo)
-        self._turno = "boss"
+        self._gerenciador.set_turno("boss")
         fim = resultado["fim"]
         return {
             "ok": True,
@@ -173,10 +184,9 @@ class API:
 
     @_ponte
     def turno_inimigo(self) -> dict:
-        if self._show is None:
-            self._iniciar_show()
+        self._garantir_show()
         resultado = self._show.turno_inimigo()
-        self._turno = "banda"
+        self._gerenciador.set_turno("banda")
         fim = resultado["fim"]
         return {
             "ok": True,
@@ -196,7 +206,10 @@ class API:
     @_ponte
     def carregar(self, slot: str, pasta: str = None) -> dict:
         self._gerenciador.carregar(slot, pasta)
-        self._iniciar_show()
+        if self._gerenciador.get_boss() is None:
+            self._iniciar_show()        # save antigo sem show → começa um novo
+        else:
+            self._vincular_show()       # retoma o show no ponto salvo
         return {"ok": True, "estado": self._estado_dto()}
 
     @_ponte

@@ -94,3 +94,37 @@ Todos ✅ (inalterados — F2.1 é rename puro, zero mecânica nova).
 
 ### Próxima tarefa
 **F3.1** — Minigame de ritmo (Web Audio + requestAnimationFrame).
+
+---
+
+## F2.4 — Correções pós-validação visual da F2.3 (09/06/2026)
+
+Três ajustes apontados ao rodar `python bridge/app.py`:
+
+### 1. Save/load agora preserva o progresso do show (bug real)
+Antes, salvar/carregar recriava o boss com HP cheio (a persistência só serializava a banda). Decisão de arquitetura: **o estado do show (boss + turno) passou para o `GerenciadorJogo`** (alinha com Planejamento §5.1).
+- **`backend/show.py`:** `Empresario` ganhou `_hp_max`, `get_hp_maximo()`, `to_dict()`/`from_dict()`.
+- **`backend/persistencia.py`:** novas `salvar_estado(estado, slot)` / `carregar_estado(slot)` — envelope `{"banda":[...], "show":{boss, turno}|None}`. Retrocompat: save em formato lista (antigo) é lido como banda sem show. `salvar_jogo`/`carregar_jogo` intactos (ainda usados pelos testes de persistência).
+- **`backend/gerenciador.py`:** estado `_boss`/`_turno` + `iniciar_show()`, `get_boss()`, `get_turno()`, `set_turno()`. `salvar`/`carregar` agora persistem o show; reconstrução do boss via `Empresario.from_dict` (erros → `SaveCorrompidoError`).
+- **`bridge/api.py`:** boss/turno lidos do gerenciador (removidos `_boss`/`_boss_hp_max`/`_turno` locais). `carregar` reusa o boss restaurado (`_vincular_show`) em vez de criar um novo; `_garantir_show()` evita resetar um show já em andamento.
+
+### 2. Empresário ataca alvo aleatório
+`show.py turno_inimigo`: `vivos[0]` → `random.choice(vivos)`. Antes batia sempre no músico mais à esquerda.
+
+### 3. Banda vazia é estado neutro
+`show.py verificar_fim`: banda vazia (`[]`) não é mais "derrota" imediata — só há derrota se a banda tem membros e todos caíram.
+
+### Testes novos (+5)
+- `test_empresario_hp_maximo_inicial`, `test_empresario_round_trip_preserva_hp_atual_e_maximo`
+- `test_turno_inimigo_escolhe_alvo_aleatorio_entre_vivos` (mock `random.choice`)
+- `test_verificar_fim_banda_vazia_e_neutro`
+- `test_save_load_preserva_hp_do_boss` (API end-to-end)
+
+### Contagem de testes
+**138 testes, 100% verdes** (+5).
+
+### Nada commitado
+✓
+
+### Próxima tarefa
+**F3.1** — Minigame de ritmo (Web Audio + requestAnimationFrame).
