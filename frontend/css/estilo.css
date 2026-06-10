@@ -212,6 +212,73 @@ button:disabled { opacity: .35; cursor: not-allowed; }
 .log .crit { color: var(--ritmo); font-weight: 700; }
 .log .refrao { color: var(--acento); font-weight: 700; }
 
+/* ── Menu principal + overlays de pausa/fim (F3.5b) ───────────────────────── */
+.menu-principal {
+  max-width: 420px;
+  margin: 8vh auto 0;
+  text-align: center;
+  padding: 36px 28px;
+}
+.menu-titulo { font-size: 1.8rem; }
+.menu-sub { opacity: .6; margin: 4px 0 22px; }
+.menu-opcoes {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.menu-opcoes button { font-size: 1rem; padding: 12px 16px; }
+#menu-aviso { margin-top: 14px; }
+
+.overlay-modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(8, 6, 14, .85);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 60;                /* acima do minigame (50) */
+}
+.overlay-modal.aberto { display: flex; }
+.modal-caixa {
+  width: min(440px, 92vw);
+  text-align: center;
+  box-shadow: 0 12px 40px #000a;
+}
+.modal-caixa h2 { margin-bottom: 14px; }
+.modal-caixa .menu-opcoes { margin-top: 6px; }
+
+/* Tela de fim: card do drop + escolha de membro */
+.fim-xp { color: var(--ritmo); font-weight: 700; margin: 6px 0 12px; }
+.fim-drop {
+  background: #0d0a14;
+  border-radius: 10px;
+  padding: 12px;
+  margin-bottom: 12px;
+}
+.fim-drop .drop-nome { font-weight: 700; color: var(--acento); }
+.fim-drop .drop-desc { font-size: .8rem; opacity: .7; margin-top: 3px; }
+.fim-membros {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: center;
+  margin: 10px 0;
+}
+.fim-membros button { font-size: .85rem; padding: 8px 12px; }
+.fim-aviso { color: var(--ritmo); font-weight: 700; min-height: 1.2em; margin: 6px 0; }
+.fim-derrota-info { margin: 6px 0 14px; line-height: 1.6; }
+
+/* Aviso de especial no rodapé da batalha */
+.especial-hint { font-size: .8rem; font-weight: 700; }
+.especial-hint.pronto {
+  color: var(--ritmo);
+  animation: pulsar-especial .8s ease-in-out infinite alternate;
+}
+@keyframes pulsar-especial {
+  from { opacity: .65; }
+  to   { opacity: 1; text-shadow: 0 0 10px var(--ritmo); }
+}
+
 /* ── Minigame de ritmo (overlay) ──────────────────────────────────────────── */
 #ritmo-overlay {
   position: fixed;

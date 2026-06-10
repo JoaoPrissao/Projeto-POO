@@ -19,6 +19,8 @@
   (async function () {
     "use strict";
     const B = window.Batalha;
+    const AUTO = B.CONFIG.AUTO_ATAQUE_MS;
+    const INTRO = B.CONFIG.INTRO_BANDA_MS + B.CONFIG.INTRO_VILAO_MS + B.CONFIG.INTRO_FIGHT_MS;
     const casos = [];
     const clone = (o) => JSON.parse(JSON.stringify(o));
     function checar(nome, atual, esperado) {
@@ -41,42 +43,77 @@
       }, over || {});
     }
 
-    // API fake determinística: mexe no `estado` (mutável) e devolve clones.
+    // API fake determinística: espelha o contrato F3.4 (stun consome a vez,
+    // 4 perfeitos liberam o especial). Mexe no `estado` e devolve clones.
     function fakeApi(estado, opts) {
       opts = opts || {};
       const chamadas = [];
+      let perfeitos = 0;
+      let atordoado = false;
       return {
         chamadas,
         executar_acao(p) {
           chamadas.push(["executar_acao", p]);
           estado.boss.hp = Math.max(0, estado.boss.hp - (opts.danoBoss || 30));
           const fim = estado.boss.hp <= 0 ? "vitoria" : null;
+          const r = p && p.ritmo;
+          const perfeito = !!(r && r.acertos >= r.total_notas);
+          if (perfeito) { perfeitos += 1; atordoado = true; } else { perfeitos = 0; }
           estado.fim_de_jogo = !!fim; estado.resultado = fim; estado.turno = "boss";
-          return Promise.resolve({ ok: true, estado: clone(estado), fim_de_jogo: !!fim, resultado_final: fim });
+          return Promise.resolve({ ok: true, dano: opts.danoBoss || 30, critico: false,
+            modo_refrao_ativo: false, perfeito, atordoado,
+            perfeitos_seguidos: perfeitos, especial_disponivel: perfeitos >= 4,
+            atacante: "fake",
+            estado: clone(estado), fim_de_jogo: !!fim, resultado_final: fim });
+        },
+        ataque_especial() {
+          chamadas.push(["ataque_especial"]);
+          if (perfeitos < 4) {
+            return Promise.resolve({ ok: false,
+              erro: { tipo: "EspecialIndisponivelError", mensagem: "especial indisponível" } });
+          }
+          perfeitos = 0;
+          estado.boss.hp = Math.max(0, estado.boss.hp - (opts.danoEspecial || 120));
+          const fim = estado.boss.hp <= 0 ? "vitoria" : null;
+          estado.fim_de_jogo = !!fim; estado.resultado = fim;
+          return Promise.resolve({ ok: true, dano: opts.danoEspecial || 120,
+            atacante: "Banda (especial)", por_membro: [],
+            estado: clone(estado), fim_de_jogo: !!fim, resultado_final: fim });
         },
         turno_inimigo() {
           chamadas.push(["turno_inimigo"]);
+          if (atordoado) {
+            atordoado = false;
+            return Promise.resolve({ ok: true, atacante: estado.boss.nome, alvo: null,
+              dano: 0, atordoado: true, estado: clone(estado),
+              fim_de_jogo: false, resultado_final: null });
+          }
           const i = opts.alvo != null ? opts.alvo : 0;
           const m = estado.banda[i];
           if (m) { m.hp = Math.max(0, m.hp - (opts.danoMembro || 20)); m.vivo = m.hp > 0; }
           const fim = estado.banda.every((x) => !x.vivo) ? "derrota" : null;
           estado.fim_de_jogo = !!fim; estado.resultado = fim; estado.turno = "banda";
-          return Promise.resolve({ ok: true, alvo: m ? m.nome : null, estado: clone(estado),
-                                   fim_de_jogo: !!fim, resultado_final: fim });
+          return Promise.resolve({ ok: true, atacante: estado.boss.nome,
+            alvo: m ? m.nome : null, dano: opts.danoMembro || 20, atordoado: false,
+            estado: clone(estado), fim_de_jogo: !!fim, resultado_final: fim });
         },
       };
     }
 
     const ritmoOk = () => Promise.resolve({ acertos: 8, total_notas: 10, combo_max: 5 });
+    const ritmoPerfeito = () => Promise.resolve({ acertos: 10, total_notas: 10, combo_max: 10 });
     const ritmoCancel = () => Promise.resolve(null);
 
+    // Por padrão pula a intro (testes do combate); `comIntro: true` mantém.
     function mk(estado, o) {
       o = o || {};
-      return B.criarBatalha({
+      const b = B.criarBatalha({
         ctx: null, estado, api: o.api, jogarRitmo: o.jogarRitmo || ritmoOk,
         aoFim: o.aoFim || function () {}, aoAtualizar: o.aoAtualizar || function () {},
-        esperar: () => Promise.resolve(),     // sem respiro real nos testes
+        aoPausar: o.aoPausar, aoLuta: o.aoLuta,
       });
+      if (!o.comIntro) b.pularIntro();
+      return b;
     }
 
     // ── 1. Estado inicial: banda + boss + seleção no 1º vivo ───────────────────
@@ -86,9 +123,30 @@
       checar("init: 3 membros na banda", b.estado.banda.length, 3);
       checar("init: boss presente", b.estado.boss.nome, "Capanga");
       checar("init: seleciona o 1º vivo", b.selecionado, 0);
+      checar("init: fase luta após pular a intro", b.fase, "luta");
     }
 
-    // ── 2. Seleção anda entre vivos (com wrap) ─────────────────────────────────
+    // ── 2. Intro coreografada: fase inicial, input bloqueado, avança por tempo ─
+    {
+      const est = estadoBase();
+      const api = fakeApi(est);
+      const b = mk(est, { api, comIntro: true });
+      checar("intro: fase começa em intro", b.fase, "intro");
+      await b.atacar();
+      checar("intro: ataque ignorado durante a intro", api.chamadas.length, 0);
+      await b.passo(INTRO - 1);
+      checar("intro: ainda em intro antes do tempo", b.fase, "intro");
+      await b.passo(1);
+      checar("intro: vira luta quando o tempo fecha", b.fase, "luta");
+    }
+    {
+      const est = estadoBase();
+      const b = mk(est, { api: fakeApi(est), comIntro: true });
+      b.pularIntro();
+      checar("intro: pularIntro vai direto pra luta", b.fase, "luta");
+    }
+
+    // ── 3. Seleção anda entre vivos (com wrap) ─────────────────────────────────
     {
       const est = estadoBase();
       const b = mk(est, { api: fakeApi(est) });
@@ -98,7 +156,7 @@
       b.selecionar(-1); checar("sel: ←2 (wrap pra trás)", b.selecionado, 2);
     }
 
-    // ── 3. Seleção pula membro nocauteado ──────────────────────────────────────
+    // ── 4. Seleção pula membro nocauteado ──────────────────────────────────────
     {
       const est = estadoBase({ banda: [
         membro(0, "guitarrista", "Aldric", 100),
@@ -109,30 +167,51 @@
       b.selecionar(1); checar("sel: pula o KO (0→2)", b.selecionado, 2);
     }
 
-    // ── 4. Ataque chama executar_acao com o índice selecionado ─────────────────
+    // ── 5. Ataque chama executar_acao e rearma o relógio do vilão ──────────────
     {
       const est = estadoBase();
       const api = fakeApi(est);
       const b = mk(est, { api });
+      await b.passo(AUTO - 100);              // relógio quase estourando…
       b.selecionarIndice(2);
       await b.atacar();
       const ult = api.chamadas.find((c) => c[0] === "executar_acao");
       checar("atk: executar_acao com indice=2", ult[1].indice, 2);
-      checar("atk: HP do boss caiu", b.estado.boss.hp, 60);   // 90 - 30 (um ataque)
+      checar("atk: HP do boss caiu", b.estado.boss.hp, 60);   // 90 - 30
+      checar("atk: hit rearma o relógio do vilão", b.timerAuto, AUTO);
     }
 
-    // ── 5. Vilão revida na hora (turno_inimigo) ────────────────────────────────
+    // ── 6. Auto-ataque por tempo: vilão age sozinho após AUTO ms ───────────────
     {
       const est = estadoBase();
       const api = fakeApi(est, { alvo: 0, danoMembro: 20 });
       const b = mk(est, { api });
-      await b.atacar();
-      checar("revide: turno_inimigo foi chamado",
-        api.chamadas.some((c) => c[0] === "turno_inimigo"), true);
-      checar("revide: HP de um membro caiu", b.estado.banda[0].hp, 80);
+      await b.passo(AUTO - 1);
+      checar("auto: nada antes do tempo", api.chamadas.length, 0);
+      await b.passo(1);
+      checar("auto: turno_inimigo disparou no tempo",
+        api.chamadas.filter((c) => c[0] === "turno_inimigo").length, 1);
+      checar("auto: HP de um membro caiu", b.estado.banda[0].hp, 80);
+      checar("auto: relógio rearmado após o golpe", b.timerAuto, AUTO);
     }
 
-    // ── 6. Esc no minigame (null) não gasta a vez ──────────────────────────────
+    // ── 7. Relógio congela enquanto o minigame está aberto (ocupado) ───────────
+    {
+      const est = estadoBase();
+      const api = fakeApi(est);
+      let resolver;
+      const lento = () => new Promise((r) => { resolver = r; });
+      const b = mk(est, { api, jogarRitmo: lento });
+      const p1 = b.atacar();                  // trava no minigame (ocupado)
+      await b.passo(AUTO * 3);
+      checar("ocupado: vilão não age durante o minigame",
+        api.chamadas.filter((c) => c[0] === "turno_inimigo").length, 0);
+      resolver({ acertos: 8, total_notas: 10, combo_max: 5 });
+      await p1;
+      checar("ocupado: ataque resolveu depois", b.estado.boss.hp, 60);
+    }
+
+    // ── 8. Esc no minigame (null) não gasta a vez ──────────────────────────────
     {
       const est = estadoBase();
       const api = fakeApi(est);
@@ -142,48 +221,135 @@
       checar("cancela: boss intacto", b.estado.boss.hp, 90);
     }
 
-    // ── 7. Vitória chama aoFim('vitoria') e o vilão não revida ─────────────────
+    // ── 9. Stun: combo perfeito atordoa; vilão perde a vez e acorda ────────────
     {
-      const est = estadoBase({ boss: { id: "e", nome: "Fraco", hp: 30, hp_maximo: 30 } });
-      const api = fakeApi(est, { danoBoss: 30 });   // 1 ataque derruba
-      let fim = null;
-      const b = mk(est, { api, aoFim: (r) => { fim = r; } });
+      const est = estadoBase();
+      const api = fakeApi(est, { alvo: 0, danoMembro: 20 });
+      const b = mk(est, { api, jogarRitmo: ritmoPerfeito });
       await b.atacar();
-      checar("vitória: aoFim('vitoria')", fim, "vitoria");
-      checar("vitória: sem revide após morte do boss",
-        api.chamadas.some((c) => c[0] === "turno_inimigo"), false);
+      checar("stun: perfeito liga o visual de atordoado", b.bossAtordoado, true);
+      checar("stun: perfeitos seguidos = 1", b.perfeitosSeguidos, 1);
+      await b.passo(AUTO);
+      checar("stun: vilão perdeu a vez (sem dano)", b.estado.banda[0].hp, 100);
+      checar("stun: visual limpo após a vez perdida", b.bossAtordoado, false);
+      await b.passo(AUTO);
+      checar("stun: na vez seguinte ele bate de novo", b.estado.banda[0].hp, 80);
     }
 
-    // ── 8. Derrota chama aoFim('derrota') ──────────────────────────────────────
+    // ── 10. Especial: só com 4 perfeitos; espaço gasta e rearma ────────────────
     {
-      const est = estadoBase({
-        banda: [membro(0, "guitarrista", "Aldric", 20)],
-        boss: { id: "e", nome: "Forte", hp: 500, hp_maximo: 500 },
-      });
-      const api = fakeApi(est, { danoBoss: 30, alvo: 0, danoMembro: 20 }); // revide mata
-      let fim = null;
-      const b = mk(est, { api, aoFim: (r) => { fim = r; } });
-      await b.atacar();
-      checar("derrota: aoFim('derrota')", fim, "derrota");
+      const est = estadoBase({ boss: { id: "e", nome: "Tanque", hp: 900, hp_maximo: 900 } });
+      const api = fakeApi(est, { danoBoss: 10, danoEspecial: 150 });
+      const lutas = [];
+      const b = mk(est, { api, jogarRitmo: ritmoPerfeito,
+                          aoLuta: (i) => lutas.push(clone(i)) });
+      await b.especial();
+      checar("especial: sem flag não chama a API",
+        api.chamadas.filter((c) => c[0] === "ataque_especial").length, 0);
+      for (let k = 0; k < 4; k++) await b.atacar();   // 4 perfeitos seguidos
+      checar("especial: liberado após 4 perfeitos", b.especialDisponivel, true);
+      checar("especial: aoLuta avisou o HUD",
+        lutas.some((i) => i.especialDisponivel === true), true);
+      await b.passo(AUTO - 50);                       // relógio quase lá
+      await b.especial();
+      checar("especial: chamou ataque_especial",
+        api.chamadas.filter((c) => c[0] === "ataque_especial").length, 1);
+      checar("especial: dano aplicado no boss", b.estado.boss.hp, 900 - 40 - 150);
+      checar("especial: flag consumida", b.especialDisponivel, false);
+      checar("especial: rearma o relógio do vilão", b.timerAuto, AUTO);
     }
 
-    // ── 9. Reentrância: 2º ataque é ignorado enquanto ocupado ──────────────────
+    // ── 11. Vitória pelo especial encerra a luta ───────────────────────────────
+    {
+      const est = estadoBase({ boss: { id: "e", nome: "Quase", hp: 200, hp_maximo: 200 } });
+      const api = fakeApi(est, { danoBoss: 10, danoEspecial: 500 });
+      let fim = null;
+      const b = mk(est, { api, jogarRitmo: ritmoPerfeito, aoFim: (r) => { fim = r; } });
+      for (let k = 0; k < 4; k++) await b.atacar();
+      await b.especial();
+      checar("vitória especial: aoFim('vitoria')", fim, "vitoria");
+      checar("vitória especial: fase fim", b.fase, "fim");
+    }
+
+    // ── 12. Pausa: congela o relógio e bloqueia até retomar ────────────────────
+    {
+      const est = estadoBase();
+      const api = fakeApi(est, { alvo: 0, danoMembro: 20 });
+      let pausas = 0;
+      const b = mk(est, { api, aoPausar: () => { pausas += 1; } });
+      b.pausar();
+      checar("pausa: fase pausa", b.fase, "pausa");
+      checar("pausa: aoPausar avisado", pausas, 1);
+      await b.passo(AUTO * 4);
+      checar("pausa: vilão não age pausado",
+        api.chamadas.filter((c) => c[0] === "turno_inimigo").length, 0);
+      await b.atacar();
+      checar("pausa: ataque bloqueado", api.chamadas.length, 0);
+      b.retomar();
+      checar("pausa: retomar volta pra luta", b.fase, "luta");
+      await b.passo(AUTO);
+      checar("pausa: relógio volta a andar",
+        api.chamadas.filter((c) => c[0] === "turno_inimigo").length, 1);
+    }
+
+    // ── 13. Pausa não entra durante o minigame (Esc é do modal) ────────────────
     {
       const est = estadoBase();
       const api = fakeApi(est);
       let resolver;
       const lento = () => new Promise((r) => { resolver = r; });
       const b = mk(est, { api, jogarRitmo: lento });
-      const p1 = b.atacar();                 // começa e trava no minigame
+      const p1 = b.atacar();
+      b.pausar();
+      checar("pausa: ignorada com o minigame aberto", b.fase, "luta");
+      resolver(null);
+      await p1;
+    }
+
+    // ── 14. Vitória pelo ataque normal: aoFim e relógio morto ──────────────────
+    {
+      const est = estadoBase({ boss: { id: "e", nome: "Fraco", hp: 30, hp_maximo: 30 } });
+      const api = fakeApi(est, { danoBoss: 30 });
+      let fim = null;
+      const b = mk(est, { api, aoFim: (r) => { fim = r; } });
+      await b.atacar();
+      checar("vitória: aoFim('vitoria')", fim, "vitoria");
+      await b.passo(AUTO * 2);
+      checar("vitória: vilão morto não age",
+        api.chamadas.some((c) => c[0] === "turno_inimigo"), false);
+    }
+
+    // ── 15. Derrota pelo auto-ataque chama aoFim('derrota') ────────────────────
+    {
+      const est = estadoBase({
+        banda: [membro(0, "guitarrista", "Aldric", 20)],
+        boss: { id: "e", nome: "Forte", hp: 500, hp_maximo: 500 },
+      });
+      const api = fakeApi(est, { alvo: 0, danoMembro: 20 });
+      let fim = null;
+      const b = mk(est, { api, aoFim: (r) => { fim = r; } });
+      await b.passo(AUTO);                    // golpe automático mata o último
+      checar("derrota: aoFim('derrota')", fim, "derrota");
+      checar("derrota: fase fim", b.fase, "fim");
+    }
+
+    // ── 16. Reentrância: 2º ataque é ignorado enquanto ocupado ─────────────────
+    {
+      const est = estadoBase();
+      const api = fakeApi(est);
+      let resolver;
+      const lento = () => new Promise((r) => { resolver = r; });
+      const b = mk(est, { api, jogarRitmo: lento });
+      const p1 = b.atacar();
       checar("ocupado: flag durante o ataque", b.ocupado, true);
-      b.atacar();                            // 2ª chamada deve ser ignorada
+      b.atacar();
       resolver({ acertos: 8, total_notas: 10, combo_max: 5 });
       await p1;
       checar("ocupado: só 1 executar_acao",
         api.chamadas.filter((c) => c[0] === "executar_acao").length, 1);
     }
 
-    // ── 10. aoAtualizar recebe o estado novo (hook do HUD) ─────────────────────
+    // ── 17. aoAtualizar recebe o estado novo (hook do HUD) ─────────────────────
     {
       const est = estadoBase();
       const api = fakeApi(est);

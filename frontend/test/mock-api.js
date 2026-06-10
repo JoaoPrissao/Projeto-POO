@@ -59,7 +59,11 @@
 
   // Estado de batalha mutável (mock) — criado em entrar_no_show; executar_acao
   // tira HP do boss e turno_inimigo tira de um membro, pro HUD refletir mudança.
+  // F3.5b: espelha o contrato de stun/especial do backend — combo perfeito
+  // atordoa (vilão perde a próxima vez); 4 perfeitos seguidos liberam o especial.
   let batalha = null;
+  let perfeitosSeguidos = 0;
+  let bossAtordoado = false;
   function estadoDaBatalha(turno, fim) {
     return {
       banda: batalha.banda, boss: batalha.boss,
@@ -80,6 +84,7 @@
         if (progresso.bloqueios.has(venueId))
           return Promise.resolve({ ok: false, erro: { tipo: "VenueBloqueadaError", mensagem: "venue bloqueada" } });
         batalha = { banda: bandaMock(), boss: { id: "empresario", nome: v.capanga.nome, hp: v.capanga.hp, hp_maximo: v.capanga.hp } };
+        perfeitosSeguidos = 0; bossAtordoado = false;
         return Promise.resolve(estadoDaBatalha("banda", null));
       },
       concluir_venue(venueId) {
@@ -96,11 +101,17 @@
       },
       ataque_especial() {
         reg("ataque_especial");
+        if (perfeitosSeguidos < 4)
+          return Promise.resolve({ ok: false, erro: { tipo: "EspecialIndisponivelError", mensagem: "especial indisponível" } });
+        perfeitosSeguidos = 0;
+        if (batalha) batalha.boss.hp = Math.max(0, batalha.boss.hp - 120);
+        const fim = batalha && batalha.boss.hp <= 0 ? "vitoria" : null;
         return Promise.resolve({
           ok: true, dano: 120, atacante: "Banda (especial)",
           por_membro: [{ atacante: "Aldric", dano: 120 }],
-          estado: estadoMock({ id: "empresario", nome: "mock", hp: 80, hp_maximo: 200 }, "boss", null),
-          fim_de_jogo: false, resultado_final: null,
+          estado: batalha ? estadoDaBatalha("boss", fim)
+                          : estadoMock({ id: "empresario", nome: "mock", hp: 80, hp_maximo: 200 }, "boss", null),
+          fim_de_jogo: !!fim, resultado_final: fim,
         });
       },
       aplicar_drop(payload) {
@@ -127,13 +138,15 @@
         reg("executar_acao", payload);
         const r = payload && payload.ritmo;
         const perfeito = !!(r && r.acertos >= r.total_notas);
+        if (perfeito) { perfeitosSeguidos += 1; bossAtordoado = true; }
+        else perfeitosSeguidos = 0;
         if (batalha) batalha.boss.hp = Math.max(0, batalha.boss.hp - 30);
         const fim = batalha && batalha.boss.hp <= 0 ? "vitoria" : null;
         return Promise.resolve({
           ok: true, dano: 30, critico: false, modo_refrao_ativo: false,
           multiplicador_aplicado: 1.0, atacante: "mock",
-          perfeito, atordoado: perfeito, perfeitos_seguidos: perfeito ? 1 : 0,
-          especial_disponivel: false,
+          perfeito, atordoado: bossAtordoado, perfeitos_seguidos: perfeitosSeguidos,
+          especial_disponivel: perfeitosSeguidos >= 4,
           estado: batalha ? estadoDaBatalha("boss", fim)
                           : estadoMock({ id: "empresario", nome: "mock", hp: 200, hp_maximo: 200 }, "boss", null),
           fim_de_jogo: !!fim, resultado_final: fim,
@@ -141,6 +154,13 @@
       },
       turno_inimigo() {
         reg("turno_inimigo");
+        if (bossAtordoado) {        // stun consome a vez do vilão (espelha o backend)
+          bossAtordoado = false;
+          return Promise.resolve({ ok: true, atacante: "mock", alvo: null, dano: 0,
+            atordoado: true,
+            estado: batalha ? estadoDaBatalha("banda", null) : estadoMock(null, "banda", null),
+            fim_de_jogo: false, resultado_final: null });
+        }
         let alvo = "mock";
         if (batalha && batalha.banda[0]) {
           const m = batalha.banda[0];
@@ -151,6 +171,13 @@
           estado: batalha ? estadoDaBatalha("banda", fim) : estadoMock(null, "banda", null),
           fim_de_jogo: !!fim, resultado_final: fim });
       },
+      nova_campanha() {
+        reg("nova_campanha");
+        progresso.concluidas.clear(); progresso.coletados.clear();
+        progresso.bloqueios.clear(); progresso.posicao = 60; progresso.fama_banda = 0;
+        return Promise.resolve({ ok: true, campanha: campanhaMock() });
+      },
+      sair() { reg("sair"); return Promise.resolve({ ok: true }); },
       salvar(slot) { reg("salvar", slot); return Promise.resolve({ ok: true, slot }); },
       carregar(slot) { reg("carregar", slot); return Promise.resolve({ ok: true, estado: estadoMock() }); },
     },

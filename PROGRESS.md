@@ -1,5 +1,42 @@
 # PROGRESS — RPG Manager (banda de rock)
 
+## F3.5b — Intro, auto-ataque por tempo, especial, pausa, menus e telas de fim (10/06/2026)
+
+### Contexto
+A 5a entregou a arena MK com "turno educado" (vilão revida 0.9s após cada hit). A 5b completa o combate de tempo real + as molduras do jogo: intro coreografada, vilão que ataca SOZINHO num relógio, atordoamento visual, golpe especial no espaço, menu de pausa (Esc), menu principal (Novo jogo/Continuar/Sair) e telas ricas de vitória (drop→escolher membro) e derrota (bloqueio+fama). O backend já estava pronto desde a F3.4 — a 5b é frontend + 2 micro-adições na ponte.
+
+### O que mudou
+- **`frontend/js/batalha.js` (reescrito):** ganhou **loop injetável** (`agora`/`agendarFrame`, núcleo `passo(dt)` determinístico — mesmo padrão do overworld) e **máquina de fases** `intro → luta ⇄ pausa → fim` (getter `fase`).
+  - **Intro (~3.2s, pulável c/ Enter/Espaço/Esc):** banda "toca" (sprites oscilam + 🎵) → vilão desliza da direita → **"FIGHT!"** → luta. Input de combate ignorado na intro.
+  - **Auto-ataque:** `AUTO_ATAQUE_MS=2500`; o relógio só anda na luta com minigame fechado; ao zerar → `turno_inimigo`; **cada hit do player rearma**. Barrinha de countdown desenhada sob o vilão (dá pra ver o golpe chegando). Removido o revide inline da 5a (`REVIDE_MS`/`esperar`).
+  - **Atordoamento visual:** `executar_acao` c/ `atordoado:true` → 💫 + vilão esmaecido; quando o relógio estoura, a vez perdida consome o stun (frase "perdeu a vez") e limpa o visual.
+  - **Especial (espaço):** núcleo rastreia `especialDisponivel`/`perfeitosSeguidos`; `especial()` → `ataque_especial` (frases próprias ⚡), consome a flag e rearma o relógio; sem flag, avisa "n/4 perfeitos".
+  - **Pausa:** `pausar()`/`retomar()` congelam relógio e input (Esc na luta; ignorada com minigame aberto — Esc ali é do modal). Callbacks novos: `aoPausar`, `aoLuta({especialDisponivel, perfeitosSeguidos, bossAtordoado})`.
+- **`bridge/api.py` (+2):** `nova_campanha()` (Novo jogo → reseta turnê/fama/bloqueios via `iniciar_campanha()`) e `sair()` (`webview.windows[0].destroy()`; sem janela → ErroDTO pelo `_ponte`).
+- **`frontend/index.html` + `estilo.css`:** `#tela-menu` (Novo jogo/Continuar/Sair, ativa no boot), `#pausa-overlay` (Voltar/Reiniciar/Menu principal), `#fim-overlay` (vitória: XP + card do drop + botões por membro respeitando `classes_permitidas` + "Deixar pra trás"; derrota: bloqueio em s + fama), `#especial-hint` no rodapé (pulsa quando pronto). Overlays seguem o visual do modal de ritmo.
+- **`frontend/js/main.js`:** boot cai no **menu principal** (não inicia jogo direto). Novo jogo = `criar_banda`+`nova_campanha`; Continuar = `carregar("slot1")` (erro → aviso no menu). Pausa: Voltar/retomar (Esc tb. fecha), **Reiniciar** re-entra na venue (boss cheio; HP da banda persiste, sem penalidade), Menu principal abandona sem penalidade. `aplicarFim` → telas ricas (`concluir_venue`→drop→`aplicar_drop`, com erro recuperável; `registrar_derrota`→bloqueio+fama). **`mostrarTela` fecha overlays modais** (bug pego no smoke: tela de fim sobrava ao sair por outro caminho). Helper `esc()` em todo HTML dinâmico novo.
+- **`frontend/test/mock-api.js`:** stun/especial **stateful** (espelha o backend: perfeito atordoa e conta; 4 liberam especial; `turno_inimigo` consome o stun; `ataque_especial` exige flag) + `nova_campanha`/`sair`.
+
+### Testes (TDD)
+- **pytest 209** (+3): `nova_campanha` reseta progresso e zera bloqueios; `sair` sem janela → ErroDTO.
+- **`batalha.harness.html`: 53/53** (+33, relógio dirigido por `passo(dt)`): intro bloqueia input/avança por tempo/pulável; auto-ataque dispara no tempo, rearma a cada hit, congela com minigame aberto e na pausa; stun (perfeito → visual → vez perdida sem dano → acorda); especial (guard sem flag, consumo, rearme, vitória); pausa (congela/retoma, ignorada no minigame); vitória/derrota pelas duas vias; reentrância; HUD.
+- **Sem regressão:** overworld 16/16, ritmo 9/9.
+- **Smoke do index (Playwright + mock):** menu → Novo jogo (`criar_banda`+`nova_campanha`) → mapa → venue → **intro** → Enter pula → **FIGHT** → auto-ataque derrota a banda mock (1 membro) → tela de derrota (bloqueio 30s + fama) → mapa → venue bloqueada avisa → pausa abre/fecha/reinicia/sai pro menu → vitória → drop "Pedal de Efeito" → membro → `aplicar_drop` ✓ → mapa. App real abre sem erro.
+
+### Defaults assumidos (não travados pelo João)
+Reiniciar/abandonar pela pausa **não** conta derrota; intro pulável; drop pode ser recusado ("Deixar pra trás"); Continuar = slot1.
+
+### Pendente de validação visual (usuário)
+`.\.venv\Scripts\python.exe bridge\app.py` → menu principal; Novo jogo → mapa → venue → intro coreografada → FIGHT; vilão ataca sozinho a cada ~2.5s (barrinha embaixo dele); combo perfeito atordoa (💫); 4 perfeitos → hint ⚡ pulsando → espaço solta o especial; Esc pausa (Voltar/Reiniciar/Menu); vencer abre a tela de drop; perder mostra bloqueio+fama. **Sair** fecha a janela.
+
+### Commitado
+`feat: F3.5b` na branch `modo-historia`.
+
+### Próxima tarefa
+**Equipamento + movesets:** domínio ganha SLOTS de equipamento reversíveis (hoje `Equipavel.usar` é bônus permanente); menu de equipar no **Tab** na van (pré-show); até 3 moves por personagem com charts variados no ritmo.js; golpes mudam com o item equipado.
+
+---
+
 ## F3.5a — Tela de batalha estilo Mortal Kombat: layout + seleção + ataque (10/06/2026)
 
 ### Contexto

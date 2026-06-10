@@ -242,6 +242,21 @@ class API:
         return self._campanha_dto()
 
     @_ponte
+    def nova_campanha(self) -> dict:
+        """Menu principal → Novo jogo: recomeça a turnê do zero (venues,
+        itens, fama, posição e bloqueios voltam ao padrão)."""
+        self._gerenciador.iniciar_campanha()
+        return {"ok": True, "campanha": self._campanha_dto()}
+
+    @_ponte
+    def sair(self) -> dict:
+        """Menu principal → Sair: fecha a janela do pywebview. Sem janela
+        aberta (testes/browser), o IndexError vira ErroDTO pelo _ponte."""
+        import webview
+        webview.windows[0].destroy()
+        return {"ok": True}
+
+    @_ponte
     def entrar_no_show(self, venue_id: str) -> dict:
         """Modo história: entrar numa venue (por id) arma a capanga definida na
         campanha e religa o Show à banda. A capanga reusa `Empresario`; nada do

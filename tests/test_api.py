@@ -116,6 +116,39 @@ def test_turno_inimigo_reduz_hp_de_musico():
     assert res["estado"]["banda"][0]["hp"] < hp0
 
 
+# ── nova_campanha (menu principal → Novo jogo) ────────────────────────────────
+
+def test_nova_campanha_reseta_progresso():
+    api = _api_com_banda()
+    api.concluir_venue("bar")
+    api.registrar_posicao(500.0)
+    res = api.nova_campanha()
+    assert res["ok"] is True
+    camp = res["campanha"]
+    json.dumps(camp)
+    assert all(not v["concluida"] for v in camp["venues"])
+    assert camp["fama_banda"] == 0
+    assert camp["posicao"] != 500.0
+
+
+def test_nova_campanha_zera_bloqueios_de_derrota():
+    api = _api_com_banda()
+    api.registrar_derrota("bar")
+    api.nova_campanha()
+    # venue volta acessível: entrar não devolve ErroDTO de bloqueio
+    res = api.entrar_no_show("bar")
+    assert res.get("ok") is not False
+
+
+# ── sair (menu principal → Sair) ──────────────────────────────────────────────
+
+def test_sair_sem_janela_retorna_erro_dto():
+    api = API()
+    r = api.sair()   # sem janela pywebview aberta → ErroDTO, nunca traceback
+    assert r["ok"] is False
+    assert "erro" in r
+
+
 # ── persistência ──────────────────────────────────────────────────────────────
 
 def test_salvar_e_carregar_round_trip(tmp_path):
