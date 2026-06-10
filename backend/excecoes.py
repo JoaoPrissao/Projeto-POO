@@ -94,6 +94,12 @@ class ItemMapaInvalidoError(CampanhaError):
         super().__init__(f"Item de mapa inexistente na campanha: '{item_id}'.")
 
 
+class CacheInsuficienteError(CampanhaError):
+    def __init__(self, saldo: int, custo: int):
+        super().__init__(f"Cachê insuficiente: tem {saldo}, precisa de {custo}. "
+                         f"Faça mais shows!")
+
+
 class VenueBloqueadaError(CampanhaError):
     def __init__(self, venue_id, segundos=None):
         extra = f" (faltam {segundos}s)" if segundos else ""

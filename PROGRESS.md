@@ -1,5 +1,32 @@
 # PROGRESS — RPG Manager (banda de rock)
 
+## F3.7 — Recuperação + van/loja: cachê por show, regen passivo e consumíveis (10/06/2026)
+
+### Contexto
+Faltava a economia ("cachê por show", decidida em 10/06) e um jeito de recuperar HP fora de batalha. A van (overlay do Tab, F3.6) vira o hub: loja + descanso. Tudo autoritativo no backend, persistido no envelope de save.
+
+### O que mudou
+- **`campanha.py`:** venues ganham `cache_recompensa` (50/120/250); `Campanha` ganha `_cache` com `get/ganhar/gastar_cache` (`CacheInsuficienteError` se faltar saldo) — serializado no `to_dict/from_dict`. `get_recompensa` inclui `cache`.
+- **Ponte:** `concluir_venue` paga o cachê na 1ª vitória (idempotente, devolve `cache_ganho`); `_campanha_dto` traz `cache`. Novos: **`regenerar_banda(segundos)`** (cura vivos a `HP_REGEN_POR_SEGUNDO=2`, teto `REGEN_MAX_SEG_POR_CHAMADA=10` por chamada — o front não acelera a cura), **`comprar({tipo,indice})`** (catálogo `LOJA = {energetico: 40, cerveja: 25}`; inventário cheio estorna o cachê), **`usar_item({indice,nome})`** (só CONSUMÍVEL — usar equipável pela van seria bônus permanente burlando os slots → ErroDTO).
+- **Frontend:** `#ow-status` no HUD do mapa ("💰 50 · ⭐ 1"); tela de vitória mostra `cache_ganho`; **regen tick** (`setInterval` 5s chama `regenerar_banda(5)` só com o mapa na tela; para em batalha/menu). Van (Tab): cachê no título, HP na aba de cada membro ("Aldric ♥72"), botão **Usar** nos consumíveis do inventário e seção **Loja** (Energético 40 / Cerveja 25, Comprar desabilitado sem saldo, compra pro membro selecionado).
+- **mock-api:** cachê no progresso (vitória paga, loja desconta), `regenerar_banda`/`comprar`/`usar_item`.
+
+### Testes (TDD)
+- **pytest 251** (+14, `test_economia.py`): cachê acumula/gasta/erro sem saldo/round-trip; venues pagam crescente; `concluir_venue` paga 1× (idempotente); DTO traz cache; regen cura vivos até o max, não cura nocauteado, capa segundos; comprar gasta e entrega (sem saldo/tipo fora da loja → ErroDTO, nada entregue); usar consumível cura e consome; usar equipável → ErroDTO.
+- **Harnesses sem regressão:** batalha 59/59 · ritmo 13/13 · overworld 16/16.
+- **Smoke (Playwright + mock):** status "💰 0 · ⭐ 0" → vence o bar → "+70 XP · 💰 +50" → status "💰 50 · ⭐ 1" → Tab: van mostra 💰 50 → compra Energético (💰 10) → Usar cura Aldric 100/100 → regen tick chamado após 5s no mapa. App real abre sem erro.
+
+### Pendente de validação visual (usuário)
+`.\.venv\Scripts\python.exe bridge\app.py` → vencer um show paga cachê (HUD do mapa + tela de vitória); na van (Tab) dá pra comprar Energético/Cerveja e usar consumíveis (cura na hora); andando no mapa o HP regenera devagar (♥ nas abas da van).
+
+### Commitado
+`feat: F3.7` na branch `modo-historia`.
+
+### Próxima tarefa
+**Mapa interativo** (van como sprite que melhora com fama, NPCs que dão item, baús/salas escondidas) — ou, se o prazo apertar, pular direto pra **pixel art + polimento** e **README/QA/entrega (26/06)**.
+
+---
+
 ## F3.6 — Equipamento (slots reversíveis + Tab na van) e movesets com charts (10/06/2026)
 
 ### Contexto

@@ -30,6 +30,7 @@
     <section id="tela-overworld" class="tela">
       <div id="overworld-hud" class="painel">
         <span id="ow-dica"><b>A</b>/<b>D</b> anda · <b>W</b> entra na venue · <b>Tab</b> equipa (na van) · ande por cima dos itens</span>
+        <span id="ow-status" class="ow-status"></span>
         <span id="ow-aviso" class="ow-aviso"></span>
         <span id="ow-acoes">
           <button id="btn-salvar">Salvar</button>
@@ -85,9 +86,10 @@
   <!-- Overlay de equipamento: Tab na van (mapa, pré-show) — F3.6 -->
   <div id="equip-overlay" class="overlay-modal">
     <div class="modal-caixa painel equip-caixa">
-      <h2>🚐 Van — equipamento</h2>
+      <h2>🚐 Van <span id="equip-cache" class="equip-cache"></span></h2>
       <div id="equip-membros" class="equip-membros"></div>
       <div id="equip-painel"></div>
+      <div id="equip-loja"></div>
       <p id="equip-aviso" class="fim-aviso"></p>
       <p class="equip-dica"><b>Tab</b>/<b>Esc</b> fecha · equipar só aqui, antes do show</p>
     </div>

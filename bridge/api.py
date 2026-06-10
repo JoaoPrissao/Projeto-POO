@@ -29,6 +29,12 @@ import persistencia
 BOSS_HP_PADRAO = 200
 BOSS_DANO_PADRAO = 20
 
+# F3.7 — recuperação + loja da van. O regen é autoritativo no backend: o front
+# manda "passaram N segundos no mapa" e a ponte aplica com teto por chamada.
+HP_REGEN_POR_SEGUNDO = 2
+REGEN_MAX_SEG_POR_CHAMADA = 10
+LOJA = {"energetico": 40, "cerveja": 25}    # tipo (ItemFactory) -> preço em cachê
+
 # Metadados de cada tipo para a tela de montar banda (vêm do Factory).
 _INFO_TIPOS = {
     "guitarrista": {"nome": "Guitarrista", "recurso": "ego",
@@ -105,6 +111,7 @@ class API:
             "posicao": camp.get_posicao(),
             "completa": camp.esta_completa(),
             "fama_banda": camp.fama_banda(),
+            "cache": camp.get_cache(),
         }
 
     def _drop_dto(self, tipo: str) -> dict | None:
@@ -290,15 +297,19 @@ class API:
         ja_vencida = camp.get_venue(venue_id)["concluida"]  # VenueInvalidaError → ErroDTO
         recompensa = camp.get_recompensa(venue_id)
         xp_ganho = 0
+        cache_ganho = 0
         if not ja_vencida:
             xp_ganho = recompensa["xp"]
             for musico in self._gerenciador.listar_jogadores():
                 musico.ganhar_xp(xp_ganho)
+            cache_ganho = recompensa["cache"]               # F3.7: cachê por show
+            camp.ganhar_cache(cache_ganho)
         camp.concluir(venue_id)
         return {
             "ok": True,
             "campanha": self._campanha_dto(),
             "xp_ganho": xp_ganho,
+            "cache_ganho": cache_ganho,
             "drop": self._drop_dto(recompensa["drop"]),
         }
 
@@ -396,6 +407,68 @@ class API:
             "ok": True,
             "bloqueada_seg": camp.segundos_bloqueio(venue_id),
             "fama_banda": camp.fama_banda(),
+        }
+
+    # ── Recuperação + loja da van (F3.7) ──────────────────────────────────────
+
+    @_ponte
+    def regenerar_banda(self, segundos) -> dict:
+        """Regen passivo no mapa: cura os VIVOS a HP_REGEN_POR_SEGUNDO. O teto
+        por chamada mantém a taxa autoritativa (o front não acelera a cura)."""
+        seg = min(max(0, int(segundos)), REGEN_MAX_SEG_POR_CHAMADA)
+        cura = seg * HP_REGEN_POR_SEGUNDO
+        banda = self._gerenciador.listar_jogadores()
+        for musico in banda:
+            if musico.esta_vivo() and cura > 0:
+                musico.curar(cura)          # capa no hp_maximo
+        return {
+            "ok": True,
+            "banda": [self._musico_dto(i, m) for i, m in enumerate(banda)],
+        }
+
+    @_ponte
+    def comprar(self, payload: dict) -> dict:
+        """Loja da van: compra um consumível com cachê e guarda no inventário
+        do membro escolhido. Sem saldo/tipo fora da loja → ErroDTO."""
+        tipo = payload["tipo"]
+        indice = int(payload.get("indice", 0))
+        if tipo not in LOJA:
+            raise JogoError(f"A loja da van não vende '{tipo}'.")
+        musico = self._gerenciador.listar_jogadores()[indice]   # IndexError → ErroDTO
+        camp = self._garantir_campanha()
+        camp.gastar_cache(LOJA[tipo])       # CacheInsuficienteError → ErroDTO
+        item = ItemFactory.criar(tipo)
+        try:
+            musico.get_inventario().adicionar(item)
+        except Exception:
+            camp.ganhar_cache(LOJA[tipo])   # inventário cheio: estorna o cachê
+            raise
+        return {
+            "ok": True,
+            "item": item.nome,
+            "cache": camp.get_cache(),
+            "musico": self._musico_dto(indice, musico),
+        }
+
+    @_ponte
+    def usar_item(self, payload: dict) -> dict:
+        """Usa um CONSUMÍVEL do inventário na van (cura/fôlego) e o consome.
+        Equipável não se 'usa' por aqui (seria bônus permanente burlando os
+        slots da F3.6) — equipar é só pelo menu de equipamento."""
+        from excecoes import ItemIncompativelError
+        indice = int(payload["indice"])
+        nome = payload["nome"]
+        musico = self._gerenciador.listar_jogadores()[indice]   # IndexError → ErroDTO
+        inv = musico.get_inventario()
+        item = next((i for i in inv.listar() if i.nome == nome), None)
+        if item is None or not getattr(item, "consumir_ao_usar", False):
+            raise ItemIncompativelError(
+                f"'{nome}' não é um consumível do inventário de {musico.get_nome()}.")
+        inv.usar(nome, musico)              # aplica efeito e consome
+        return {
+            "ok": True,
+            "item": nome,
+            "musico": self._musico_dto(indice, musico),
         }
 
     @_ponte

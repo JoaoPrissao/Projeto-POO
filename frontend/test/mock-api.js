@@ -38,8 +38,11 @@
   ];
   const progresso = {
     concluidas: new Set(), coletados: new Set(), posicao: 60,
-    fama_banda: 0, bloqueios: new Set(),   // mock: bloqueio sem timer (só liga/desliga)
+    fama_banda: 0, cache: 0,               // F3.7: cachê por show
+    bloqueios: new Set(),   // mock: bloqueio sem timer (só liga/desliga)
   };
+  const CACHE_POR_VENUE = { bar: 50, feira: 120, arena: 250 };   // espelha campanha.py
+  const LOJA_MOCK = { energetico: 40, cerveja: 25 };             // espelha LOJA da ponte
   function campanhaMock() {
     return {
       venues: VENUES.map((v) => ({
@@ -52,6 +55,7 @@
       posicao: progresso.posicao,
       completa: VENUES.every((v) => progresso.concluidas.has(v.id)),
       fama_banda: progresso.fama_banda,
+      cache: progresso.cache,
     };
   }
   function dropMock(tipo) {
@@ -115,11 +119,16 @@
         reg("concluir_venue", venueId);
         const v = VENUES.find((x) => x.id === venueId);
         const ja = progresso.concluidas.has(venueId);
-        if (!ja && v) { progresso.concluidas.add(venueId); progresso.fama_banda += v.fama; progresso.bloqueios.delete(venueId); }
+        const cacheGanho = ja || !v ? 0 : (CACHE_POR_VENUE[venueId] || 0);
+        if (!ja && v) {
+          progresso.concluidas.add(venueId); progresso.fama_banda += v.fama;
+          progresso.cache += cacheGanho; progresso.bloqueios.delete(venueId);
+        }
         return Promise.resolve({
           ok: true,
           campanha: campanhaMock(),
           xp_ganho: ja ? 0 : (v ? v.xp_recompensa : 0),
+          cache_ganho: cacheGanho,
           drop: v ? dropMock(v.drop) : null,
         });
       },
@@ -204,6 +213,31 @@
         return Promise.resolve({ ok: true, campanha: campanhaMock() });
       },
       obter_equipamento() { reg("obter_equipamento"); return Promise.resolve(equipamentoDto()); },
+      regenerar_banda(seg) {
+        reg("regenerar_banda", seg);
+        if (batalha) {   // mock: cura o estado mutável se existir
+          batalha.banda.forEach((m) => { if (m.vivo) m.hp = Math.min(m.hp_maximo, m.hp + 2 * Math.min(seg, 10)); });
+        }
+        return Promise.resolve({ ok: true, banda: batalha ? batalha.banda : bandaMock() });
+      },
+      comprar(payload) {
+        reg("comprar", payload);
+        const preco = LOJA_MOCK[payload.tipo];
+        if (preco == null) return Promise.resolve({ ok: false, erro: { tipo: "JogoError", mensagem: "a loja não vende isso" } });
+        if (progresso.cache < preco)
+          return Promise.resolve({ ok: false, erro: { tipo: "CacheInsuficienteError", mensagem: "cachê insuficiente" } });
+        progresso.cache -= preco;
+        equipState.inventario.push(itemMock(payload.tipo));
+        return Promise.resolve({ ok: true, item: itemMock(payload.tipo).nome, cache: progresso.cache, musico: bandaMock()[0] });
+      },
+      usar_item(payload) {
+        reg("usar_item", payload);
+        const i = equipState.inventario.findIndex((x) => x.nome === payload.nome && !x.equipavel);
+        if (i < 0) return Promise.resolve({ ok: false, erro: { tipo: "ItemIncompativelError", mensagem: "não é um consumível do inventário" } });
+        equipState.inventario.splice(i, 1);
+        const m = bandaMock()[0]; m.hp = 100;
+        return Promise.resolve({ ok: true, item: payload.nome, musico: m });
+      },
       equipar(payload) {
         reg("equipar", payload);
         const i = equipState.inventario.findIndex((x) => x.nome === payload.nome);

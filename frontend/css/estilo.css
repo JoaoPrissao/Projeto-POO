@@ -268,7 +268,11 @@ button:disabled { opacity: .35; cursor: not-allowed; }
 .fim-aviso { color: var(--ritmo); font-weight: 700; min-height: 1.2em; margin: 6px 0; }
 .fim-derrota-info { margin: 6px 0 14px; line-height: 1.6; }
 
+/* Status do mapa (cachê + fama — F3.7) */
+.ow-status { font-size: .85rem; font-weight: 700; color: var(--ritmo); white-space: nowrap; }
+
 /* Menu de equipamento (Tab na van — F3.6) */
+.equip-cache { font-size: .85rem; color: var(--ritmo); margin-left: 8px; }
 .equip-caixa { width: min(560px, 94vw); text-align: left; }
 .equip-caixa h2 { text-align: center; }
 .equip-membros {

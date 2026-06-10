@@ -116,7 +116,7 @@ function mostrarVitoria(res, venue) {
       <h2>${final ? "🏆 VITÓRIA FINAL!" : "🏆 Vitória!"}</h2>
       <p>${final ? "O Empresário caiu. A banda é LENDÁRIA. 🤘"
                  : `Vocês detonaram em <b>${esc(venue.nome)}</b>!`}</p>
-      <p class="fim-xp">+${esc(res.xp_ganho)} XP pra cada membro</p>
+      <p class="fim-xp">+${esc(res.xp_ganho)} XP pra cada membro · 💰 +${esc(res.cache_ganho || 0)} de cachê</p>
       ${drop ? `
         <div class="fim-drop">
           <div class="drop-nome">🎁 ${esc(drop.nome)}</div>
@@ -187,12 +187,43 @@ function sairProMenuPrincipal() {
   $("#pausa-overlay").classList.remove("aberto");
   if (batalhaHandle) { batalhaHandle.desligar(); batalhaHandle = null; }
   venueAtual = null;
+  pararRegen();
   mostrarTela("tela-menu");
 }
 
+// ── Regen passivo na estrada (F3.7): tick enquanto o mapa está aberto ───────
+let regenTimer = null;
+
+function iniciarRegen() {
+  pararRegen();
+  regenTimer = setInterval(() => {
+    // Defensivo: só cura com o mapa na tela (a taxa é capada no backend).
+    if ($("#tela-overworld").classList.contains("ativa")) {
+      window.pywebview.api.regenerar_banda(5);
+    }
+  }, 5000);
+}
+function pararRegen() {
+  if (regenTimer) { clearInterval(regenTimer); regenTimer = null; }
+}
+
+// Status do mapa: cachê + fama (F3.7).
+function atualizarStatusMapa() {
+  const el = $("#ow-status");
+  if (el && campanhaAtual) {
+    el.textContent = `💰 ${campanhaAtual.cache ?? 0} · ⭐ ${campanhaAtual.fama_banda ?? 0}`;
+  }
+}
+
 // ── Menu de equipamento (Tab na van — F3.6; só no mapa, nunca em batalha) ───
+// F3.7: a van também é loja (comprar com cachê) e descanso (usar consumível).
+const LOJA_VAN = [   // espelha LOJA da ponte (tipo → preço)
+  { tipo: "energetico", nome: "Energético", desc: "Cura 50 de HP", preco: 40 },
+  { tipo: "cerveja", nome: "Cerveja", desc: "Restaura 30 de fôlego (vocalista)", preco: 25 },
+];
 let equipBanda = null;      // último DTO de obter_equipamento
 let equipSel = 0;           // membro selecionado no menu
+let equipCache = 0;         // cachê atual (mostrado na van)
 
 function equipAberto() {
   return $("#equip-overlay").classList.contains("aberto");
@@ -204,10 +235,19 @@ async function abrirEquipamento() {
     avisoOverworld(`⚠️ ${res && res.erro ? res.erro.mensagem : "equipamento indisponível"}`);
     return;
   }
+  const camp = await window.pywebview.api.obter_campanha();
+  equipCache = (camp && camp.cache) || 0;
   equipBanda = res.banda;
   if (equipSel >= equipBanda.length) equipSel = 0;
   renderEquipamento("");
   $("#equip-overlay").classList.add("aberto");
+}
+
+// Recarrega banda + cachê depois de comprar/usar/equipar (estado no backend).
+async function recarregarEquipamento(aviso) {
+  const res = await window.pywebview.api.obter_equipamento();
+  if (res && res.ok !== false) equipBanda = res.banda;
+  renderEquipamento(aviso || "");
 }
 
 function fecharEquipamento() {
@@ -215,9 +255,10 @@ function fecharEquipamento() {
 }
 
 function renderEquipamento(aviso) {
+  $("#equip-cache").textContent = `💰 ${equipCache}`;
   const membros = $("#equip-membros");
   membros.innerHTML = equipBanda.map((m, i) =>
-    `<button data-i="${i}" class="${i === equipSel ? "ativo" : ""}">${esc(m.nome)}</button>`).join("");
+    `<button data-i="${i}" class="${i === equipSel ? "ativo" : ""}">${esc(m.nome)} ♥${esc(m.hp)}</button>`).join("");
   membros.querySelectorAll("button").forEach((b) =>
     b.addEventListener("click", () => { equipSel = Number(b.dataset.i); renderEquipamento(""); }));
 
@@ -242,13 +283,55 @@ function renderEquipamento(aviso) {
     <div class="equip-secao">Inventário</div>
     ${m.inventario.length
       ? m.inventario.map((it) => itemHtml(it,
-          it.equipavel ? `<button data-eq="${esc(it.nome)}" ${podeEquipar(it) ? "" : "disabled"}>Equipar</button>` : "")).join("")
+          it.equipavel
+            ? `<button data-eq="${esc(it.nome)}" ${podeEquipar(it) ? "" : "disabled"}>Equipar</button>`
+            : `<button data-usar="${esc(it.nome)}">Usar</button>`)).join("")
       : `<div class="equip-item vazio">inventário vazio</div>`}`;
   painel.querySelectorAll("[data-eq]").forEach((b) =>
     b.addEventListener("click", () => acaoEquipar("equipar", b.dataset.eq)));
   painel.querySelectorAll("[data-deseq]").forEach((b) =>
     b.addEventListener("click", () => acaoEquipar("desequipar", b.dataset.deseq)));
+  painel.querySelectorAll("[data-usar]").forEach((b) =>
+    b.addEventListener("click", () => acaoUsarItem(b.dataset.usar)));
+
+  // Loja da van (F3.7): compra pro membro selecionado, paga com cachê.
+  const loja = $("#equip-loja");
+  loja.innerHTML = `
+    <div class="equip-secao">Loja (compra pra ${esc(m.nome)})</div>
+    ${LOJA_VAN.map((p) => `
+      <div class="equip-item">
+        <div class="equip-info">
+          <div class="equip-nome">${esc(p.nome)}</div>
+          <div class="equip-desc">${esc(p.desc)}</div>
+        </div>
+        <span class="equip-bonus">💰 ${esc(p.preco)}</span>
+        <button data-comprar="${esc(p.tipo)}" ${equipCache >= p.preco ? "" : "disabled"}>Comprar</button>
+      </div>`).join("")}`;
+  loja.querySelectorAll("[data-comprar]").forEach((b) =>
+    b.addEventListener("click", () => acaoComprar(b.dataset.comprar)));
   $("#equip-aviso").textContent = aviso || "";
+}
+
+async function acaoComprar(tipo) {
+  const res = await window.pywebview.api.comprar({ tipo, indice: equipBanda[equipSel].id });
+  if (!res || res.ok === false) {
+    renderEquipamento(`⚠️ ${res && res.erro ? res.erro.mensagem : "não deu"}`);
+    return;
+  }
+  equipCache = res.cache;
+  if (campanhaAtual) campanhaAtual.cache = res.cache;   // HUD do mapa coerente
+  atualizarStatusMapa();
+  await recarregarEquipamento(`🛒 ${res.item} comprado!`);
+}
+
+async function acaoUsarItem(nome) {
+  const res = await window.pywebview.api.usar_item({ indice: equipBanda[equipSel].id, nome });
+  if (!res || res.ok === false) {
+    renderEquipamento(`⚠️ ${res && res.erro ? res.erro.mensagem : "não deu"}`);
+    return;
+  }
+  await recarregarEquipamento(
+    `✨ ${res.item} usado — ${res.musico.nome} com ${res.musico.hp}/${res.musico.hp_maximo} de HP.`);
 }
 
 async function acaoEquipar(metodo, nome) {
@@ -333,10 +416,13 @@ async function abrirOverworld() {
 
   const faltam = camp.venues.filter((v) => !v.concluida).length;
   avisoOverworld(faltam > 0 ? `${faltam} venue(s) restante(s) na turnê.` : "Turnê completa! 🤘");
+  atualizarStatusMapa();
+  iniciarRegen();          // F3.7: HP regenera devagar na estrada
 }
 
 // Entrar numa venue → arma o show no backend e monta a arena de batalha.
 async function entrarNaVenue(venue) {
+  pararRegen();            // regen é só na estrada (nunca em batalha)
   if (owHandle) {
     await window.pywebview.api.registrar_posicao(owHandle.mundo.estado.banda.x);
     owHandle.desligar();

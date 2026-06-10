@@ -26,13 +26,13 @@ from excecoes import VenueInvalidaError, ItemMapaInvalidoError
 # dado a cada membro ao vencer. `drop`: tipo de item (ItemFactory) que cai.
 _VENUES_PADRAO = [
     {"id": "bar",   "x": 420,  "nome": "Bar do Zé",
-     "fama": 1, "xp_recompensa": 70,  "drop": "energetico",
+     "fama": 1, "xp_recompensa": 70,  "cache_recompensa": 50,  "drop": "energetico",
      "capanga": {"nome": "Capanga do Bar", "hp": 180, "dano": 18}},
     {"id": "feira", "x": 980,  "nome": "Feira Punk",
-     "fama": 2, "xp_recompensa": 130, "drop": "pedal",
+     "fama": 2, "xp_recompensa": 130, "cache_recompensa": 120, "drop": "pedal",
      "capanga": {"nome": "Roadie Valentão", "hp": 340, "dano": 28}},
     {"id": "arena", "x": 1600, "nome": "Arena — O Empresário",
-     "fama": 3, "xp_recompensa": 240, "drop": "amplificador",
+     "fama": 3, "xp_recompensa": 240, "cache_recompensa": 250, "drop": "amplificador",
      "capanga": {"nome": "O Empresário", "hp": 600, "dano": 40}},
 ]
 _ITENS_PADRAO = [
@@ -48,7 +48,8 @@ BONUS_DANO_POR_FAMA = 0.02      # +2% de dano por ponto de fama da banda
 
 class Campanha:
     def __init__(self, venues, itens, posicao=POSICAO_INICIAL,
-                 concluidas=None, coletados=None, fama_banda=0, bloqueios=None):
+                 concluidas=None, coletados=None, fama_banda=0, bloqueios=None,
+                 cache=0):
         # Cópias defensivas das definições (não compartilha listas/dicts externos).
         self._venues = [dict(v) for v in venues]
         self._itens = [dict(i) for i in itens]
@@ -56,6 +57,7 @@ class Campanha:
         self._coletados = set(coletados or ())
         self._posicao = float(posicao)
         self._fama_banda = int(fama_banda)
+        self._cache = int(cache)        # F3.7: dinheiro da banda (cachê por show)
         # venue_id -> timestamp (epoch) em que o bloqueio expira
         self._bloqueios = {k: float(v) for k, v in (bloqueios or {}).items()}
 
@@ -89,7 +91,23 @@ class Campanha:
 
     def get_recompensa(self, venue_id: str) -> dict:
         v = self.get_venue(venue_id)        # valida (→ VenueInvalidaError)
-        return {"xp": v.get("xp_recompensa", 0), "drop": v.get("drop")}
+        return {"xp": v.get("xp_recompensa", 0), "drop": v.get("drop"),
+                "cache": v.get("cache_recompensa", 0)}
+
+    # ── Cachê (F3.7 — economia: dinheiro por show, gasto na loja) ────
+
+    def get_cache(self) -> int:
+        return self._cache
+
+    def ganhar_cache(self, valor: int) -> None:
+        self._cache += max(0, int(valor))
+
+    def gastar_cache(self, valor: int) -> None:
+        from excecoes import CacheInsuficienteError
+        valor = max(0, int(valor))
+        if valor > self._cache:
+            raise CacheInsuficienteError(self._cache, valor)
+        self._cache -= valor
 
     # ── Fama da banda ────────────────────────────────────────────────
 
@@ -172,6 +190,7 @@ class Campanha:
             "coletados": sorted(self._coletados),
             "posicao": self._posicao,
             "fama_banda": self._fama_banda,
+            "cache": self._cache,
             "bloqueios": dict(self._bloqueios),
         }
 
@@ -185,4 +204,5 @@ class Campanha:
             coletados=dados.get("coletados", ()),
             fama_banda=dados.get("fama_banda", 0),
             bloqueios=dados.get("bloqueios", {}),
+            cache=dados.get("cache", 0),
         )
