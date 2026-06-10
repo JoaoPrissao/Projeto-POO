@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Harness — batalha (arena MK)</title>
+  <style>
+    body { font-family: monospace; background:#14111c; color:#ece6f5; padding:16px; }
+    .ok { color:#5be08a; } .falhou { color:#e23b4e; }
+    h1 { font-size:1.1rem; } li { margin:2px 0; }
+  </style>
+</head>
+<body>
+  <h1>Harness da batalha (arena MK)</h1>
+  <div id="resumo">rodando…</div>
+  <ul id="casos"></ul>
+
+  <script src="../js/batalha.js"></script>
+  <script>
+  (async function () {
+    "use strict";
+    const B = window.Batalha;
+    const casos = [];
+    const clone = (o) => JSON.parse(JSON.stringify(o));
+    function checar(nome, atual, esperado) {
+      casos.push({ nome, ok: JSON.stringify(atual) === JSON.stringify(esperado), atual, esperado });
+    }
+
+    function membro(id, tipo, nome, hp, vivo) {
+      return { id, tipo, nome, nivel: 1, hp, hp_maximo: 100, xp: 0,
+               vivo: vivo !== false, recurso: { tipo: null, valor: 0, max: null } };
+    }
+    function estadoBase(over) {
+      return Object.assign({
+        banda: [
+          membro(0, "guitarrista", "Aldric", 100),
+          membro(1, "vocalista", "Selene", 100),
+          membro(2, "baixista", "Paul", 100),
+        ],
+        boss: { id: "empresario", nome: "Capanga", hp: 90, hp_maximo: 90 },
+        turno: "banda", fim_de_jogo: false, resultado: null,
+      }, over || {});
+    }
+
+    // API fake determinística: mexe no `estado` (mutável) e devolve clones.
+    function fakeApi(estado, opts) {
+      opts = opts || {};
+      const chamadas = [];
+      return {
+        chamadas,
+        executar_acao(p) {
+          chamadas.push(["executar_acao", p]);
+          estado.boss.hp = Math.max(0, estado.boss.hp - (opts.danoBoss || 30));
+          const fim = estado.boss.hp <= 0 ? "vitoria" : null;
+          estado.fim_de_jogo = !!fim; estado.resultado = fim; estado.turno = "boss";
+          return Promise.resolve({ ok: true, estado: clone(estado), fim_de_jogo: !!fim, resultado_final: fim });
+        },
+        turno_inimigo() {
+          chamadas.push(["turno_inimigo"]);
+          const i = opts.alvo != null ? opts.alvo : 0;
+          const m = estado.banda[i];
+          if (m) { m.hp = Math.max(0, m.hp - (opts.danoMembro || 20)); m.vivo = m.hp > 0; }
+          const fim = estado.banda.every((x) => !x.vivo) ? "derrota" : null;
+          estado.fim_de_jogo = !!fim; estado.resultado = fim; estado.turno = "banda";
+          return Promise.resolve({ ok: true, alvo: m ? m.nome : null, estado: clone(estado),
+                                   fim_de_jogo: !!fim, resultado_final: fim });
+        },
+      };
+    }
+
+    const ritmoOk = () => Promise.resolve({ acertos: 8, total_notas: 10, combo_max: 5 });
+    const ritmoCancel = () => Promise.resolve(null);
+
+    function mk(estado, o) {
+      o = o || {};
+      return B.criarBatalha({
+        ctx: null, estado, api: o.api, jogarRitmo: o.jogarRitmo || ritmoOk,
+        aoFim: o.aoFim || function () {}, aoAtualizar: o.aoAtualizar || function () {},
+      });
+    }
+
+    // ── 1. Estado inicial: banda + boss + seleção no 1º vivo ───────────────────
+    {
+      const est = estadoBase();
+      const b = mk(est, { api: fakeApi(est) });
+      checar("init: 3 membros na banda", b.estado.banda.length, 3);
+      checar("init: boss presente", b.estado.boss.nome, "Capanga");
+      checar("init: seleciona o 1º vivo", b.selecionado, 0);
+    }
+
+    // ── 2. Seleção anda entre vivos (com wrap) ─────────────────────────────────
+    {
+      const est = estadoBase();
+      const b = mk(est, { api: fakeApi(est) });
+      b.selecionar(1); checar("sel: →1", b.selecionado, 1);
+      b.selecionar(1); checar("sel: →2", b.selecionado, 2);
+      b.selecionar(1); checar("sel: dá a volta p/ 0", b.selecionado, 0);
+      b.selecionar(-1); checar("sel: ←2 (wrap pra trás)", b.selecionado, 2);
+    }
+
+    // ── 3. Seleção pula membro nocauteado ──────────────────────────────────────
+    {
+      const est = estadoBase({ banda: [
+        membro(0, "guitarrista", "Aldric", 100),
+        membro(1, "vocalista", "Selene", 0, false),  // KO
+        membro(2, "baixista", "Paul", 100),
+      ] });
+      const b = mk(est, { api: fakeApi(est) });
+      b.selecionar(1); checar("sel: pula o KO (0→2)", b.selecionado, 2);
+    }
+
+    // ── 4. Ataque chama executar_acao com o índice selecionado ─────────────────
+    {
+      const est = estadoBase();
+      const api = fakeApi(est);
+      const b = mk(est, { api });
+      b.selecionarIndice(2);
+      await b.atacar();
+      const ult = api.chamadas.find((c) => c[0] === "executar_acao");
+      checar("atk: executar_acao com indice=2", ult[1].indice, 2);
+      checar("atk: HP do boss caiu", b.estado.boss.hp, 60);   // 90 - 30 (um ataque)
+    }
+
+    // ── 5. Vilão revida na hora (turno_inimigo) ────────────────────────────────
+    {
+      const est = estadoBase();
+      const api = fakeApi(est, { alvo: 0, danoMembro: 20 });
+      const b = mk(est, { api });
+      await b.atacar();
+      checar("revide: turno_inimigo foi chamado",
+        api.chamadas.some((c) => c[0] === "turno_inimigo"), true);
+      checar("revide: HP de um membro caiu", b.estado.banda[0].hp, 80);
+    }
+
+    // ── 6. Esc no minigame (null) não gasta a vez ──────────────────────────────
+    {
+      const est = estadoBase();
+      const api = fakeApi(est);
+      const b = mk(est, { api, jogarRitmo: ritmoCancel });
+      await b.atacar();
+      checar("cancela: nenhum executar_acao", api.chamadas.length, 0);
+      checar("cancela: boss intacto", b.estado.boss.hp, 90);
+    }
+
+    // ── 7. Vitória chama aoFim('vitoria') e o vilão não revida ─────────────────
+    {
+      const est = estadoBase({ boss: { id: "e", nome: "Fraco", hp: 30, hp_maximo: 30 } });
+      const api = fakeApi(est, { danoBoss: 30 });   // 1 ataque derruba
+      let fim = null;
+      const b = mk(est, { api, aoFim: (r) => { fim = r; } });
+      await b.atacar();
+      checar("vitória: aoFim('vitoria')", fim, "vitoria");
+      checar("vitória: sem revide após morte do boss",
+        api.chamadas.some((c) => c[0] === "turno_inimigo"), false);
+    }
+
+    // ── 8. Derrota chama aoFim('derrota') ──────────────────────────────────────
+    {
+      const est = estadoBase({
+        banda: [membro(0, "guitarrista", "Aldric", 20)],
+        boss: { id: "e", nome: "Forte", hp: 500, hp_maximo: 500 },
+      });
+      const api = fakeApi(est, { danoBoss: 30, alvo: 0, danoMembro: 20 }); // revide mata
+      let fim = null;
+      const b = mk(est, { api, aoFim: (r) => { fim = r; } });
+      await b.atacar();
+      checar("derrota: aoFim('derrota')", fim, "derrota");
+    }
+
+    // ── 9. Reentrância: 2º ataque é ignorado enquanto ocupado ──────────────────
+    {
+      const est = estadoBase();
+      const api = fakeApi(est);
+      let resolver;
+      const lento = () => new Promise((r) => { resolver = r; });
+      const b = mk(est, { api, jogarRitmo: lento });
+      const p1 = b.atacar();                 // começa e trava no minigame
+      checar("ocupado: flag durante o ataque", b.ocupado, true);
+      b.atacar();                            // 2ª chamada deve ser ignorada
+      resolver({ acertos: 8, total_notas: 10, combo_max: 5 });
+      await p1;
+      checar("ocupado: só 1 executar_acao",
+        api.chamadas.filter((c) => c[0] === "executar_acao").length, 1);
+    }
+
+    // ── 10. aoAtualizar recebe o estado novo (hook do HUD) ─────────────────────
+    {
+      const est = estadoBase();
+      const api = fakeApi(est);
+      const vistos = [];
+      const b = mk(est, { api, aoAtualizar: (e) => vistos.push(e.boss.hp) });
+      await b.atacar();
+      checar("hud: aoAtualizar viu o boss com HP menor",
+        vistos[vistos.length - 1] < 90, true);
+    }
+
+    // ── Relatório ──────────────────────────────────────────────────────────────
+    const ul = document.getElementById("casos");
+    let todosOk = true;
+    for (const c of casos) {
+      if (!c.ok) todosOk = false;
+      const li = document.createElement("li");
+      li.className = c.ok ? "ok" : "falhou";
+      li.textContent = (c.ok ? "PASS " : "FAIL ") + c.nome +
+        (c.ok ? "" : ` | atual=${JSON.stringify(c.atual)} esperado=${JSON.stringify(c.esperado)}`);
+      ul.appendChild(li);
+    }
+    const resumo = document.getElementById("resumo");
+    resumo.textContent = todosOk ? `TODOS PASSARAM (${casos.length})`
+                                 : `FALHAS: ${casos.filter((c) => !c.ok).length}/${casos.length}`;
+    resumo.className = todosOk ? "ok" : "falhou";
+    window.__testes = { ok: todosOk, total: casos.length, casos };
+  })();
+  </script>
+</body>
+</html>

@@ -44,6 +44,65 @@
   height: auto;
   image-rendering: pixelated;     /* mantém os pixels crus quando escalar (F3.4) */
 }
+#ow-acoes { display: inline-flex; gap: 8px; margin-left: auto; }
+#ow-acoes button { padding: 5px 12px; font-size: .8rem; }
+
+/* ── Arena de batalha (estilo Mortal Kombat) ──────────────────────────────── */
+.arena-wrap {
+  position: relative;
+  background: #0d0a14;
+  border-radius: 10px;
+  overflow: hidden;
+}
+#batalha-canvas {
+  display: block;
+  width: 100%;
+  max-width: 800px;
+  height: auto;
+  margin: 0 auto;
+  image-rendering: pixelated;
+}
+.hud-batalha {                     /* barras de vida sobrepostas ao canvas */
+  position: absolute;
+  top: 12px;
+  width: min(40%, 290px);
+  pointer-events: none;
+}
+.hud-esq { left: 14px; }
+.hud-dir { right: 14px; }
+.hud-membro { margin-bottom: 6px; }
+.hud-membro.ko { opacity: .4; filter: grayscale(1); }
+.hud-membro .barra { height: 16px; }
+.hud-nome {
+  display: block;
+  font-size: .72rem;
+  font-weight: 700;
+  text-shadow: 0 1px 2px #000;
+  margin-bottom: 1px;
+}
+#hud-boss #boss-nome {
+  display: block;
+  text-align: right;
+  font-size: .92rem;
+  font-weight: 700;
+  text-shadow: 0 1px 2px #000;
+  margin-bottom: 4px;
+}
+#hud-boss .barra-boss { height: 26px; }
+
+#batalha-rodape {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+#batalha-dica b {
+  background: #0d0a14;
+  border-radius: 5px;
+  padding: 1px 7px;
+  color: var(--acento);
+}
+#batalha-rodape .log { flex: 1; min-width: 160px; }
 
 body {
   font-family: "Segoe UI", system-ui, sans-serif;

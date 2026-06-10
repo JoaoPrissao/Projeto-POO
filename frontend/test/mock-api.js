@@ -57,6 +57,16 @@
     return { tipo, nome: NOMES[tipo] || tipo, descricao: "", classes_permitidas: EQUIP[tipo] || null };
   }
 
+  // Estado de batalha mutável (mock) — criado em entrar_no_show; executar_acao
+  // tira HP do boss e turno_inimigo tira de um membro, pro HUD refletir mudança.
+  let batalha = null;
+  function estadoDaBatalha(turno, fim) {
+    return {
+      banda: batalha.banda, boss: batalha.boss,
+      turno: turno || "banda", fim_de_jogo: !!fim, resultado: fim || null,
+    };
+  }
+
   window.pywebview = {
     api: {
       criar_banda(comp) { reg("criar_banda", comp); return Promise.resolve(estadoMock()); },
@@ -69,8 +79,8 @@
         if (!v) return Promise.resolve({ ok: false, erro: { tipo: "VenueInvalidaError", mensagem: "venue inválida" } });
         if (progresso.bloqueios.has(venueId))
           return Promise.resolve({ ok: false, erro: { tipo: "VenueBloqueadaError", mensagem: "venue bloqueada" } });
-        return Promise.resolve(estadoMock(
-          { id: "empresario", nome: v.capanga.nome, hp: v.capanga.hp, hp_maximo: v.capanga.hp }, "banda", null));
+        batalha = { banda: bandaMock(), boss: { id: "empresario", nome: v.capanga.nome, hp: v.capanga.hp, hp_maximo: v.capanga.hp } };
+        return Promise.resolve(estadoDaBatalha("banda", null));
       },
       concluir_venue(venueId) {
         reg("concluir_venue", venueId);
@@ -117,19 +127,29 @@
         reg("executar_acao", payload);
         const r = payload && payload.ritmo;
         const perfeito = !!(r && r.acertos >= r.total_notas);
+        if (batalha) batalha.boss.hp = Math.max(0, batalha.boss.hp - 30);
+        const fim = batalha && batalha.boss.hp <= 0 ? "vitoria" : null;
         return Promise.resolve({
-          ok: true, dano: 0, critico: false, modo_refrao_ativo: false,
+          ok: true, dano: 30, critico: false, modo_refrao_ativo: false,
           multiplicador_aplicado: 1.0, atacante: "mock",
           perfeito, atordoado: perfeito, perfeitos_seguidos: perfeito ? 1 : 0,
           especial_disponivel: false,
-          estado: estadoMock({ id: "empresario", nome: "mock", hp: 200, hp_maximo: 200 }, "boss", null),
-          fim_de_jogo: false, resultado_final: null,
+          estado: batalha ? estadoDaBatalha("boss", fim)
+                          : estadoMock({ id: "empresario", nome: "mock", hp: 200, hp_maximo: 200 }, "boss", null),
+          fim_de_jogo: !!fim, resultado_final: fim,
         });
       },
       turno_inimigo() {
         reg("turno_inimigo");
-        return Promise.resolve({ ok: true, atacante: "mock", alvo: "Aldric", dano: 0,
-          estado: estadoMock(null, "banda", null), fim_de_jogo: false, resultado_final: null });
+        let alvo = "mock";
+        if (batalha && batalha.banda[0]) {
+          const m = batalha.banda[0];
+          m.hp = Math.max(0, m.hp - 20); m.vivo = m.hp > 0; alvo = m.nome;
+        }
+        const fim = batalha && batalha.banda.every((m) => !m.vivo) ? "derrota" : null;
+        return Promise.resolve({ ok: true, atacante: "mock", alvo, dano: 20, atordoado: false,
+          estado: batalha ? estadoDaBatalha("banda", fim) : estadoMock(null, "banda", null),
+          fim_de_jogo: !!fim, resultado_final: fim });
       },
       salvar(slot) { reg("salvar", slot); return Promise.resolve({ ok: true, slot }); },
       carregar(slot) { reg("carregar", slot); return Promise.resolve({ ok: true, estado: estadoMock() }); },

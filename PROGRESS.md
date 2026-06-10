@@ -1,5 +1,33 @@
 # PROGRESS — RPG Manager (banda de rock)
 
+## F3.5a — Tela de batalha estilo Mortal Kombat: layout + seleção + ataque (10/06/2026)
+
+### Contexto
+A F3.4 botou o combate-RPG no backend sem tocar na UI. A F3.5 (tela MK completa) é grande demais → **dividida**: a **5a** entrega o esqueleto jogável da arena; a **5b** traz intro, auto-ataque por tempo/atordoamento, especial, menu de pausa, menu principal e telas de vitória(drop)/derrota(bloqueio). Decisões: setas/AD selecionam, **Enter** ataca, espaço=especial (5b), Esc=pausa (5b); Save/Load saem da batalha (na 5a vão pro HUD do mapa).
+
+### O que mudou (só frontend; backend/ponte intocados)
+- **`frontend/js/batalha.js` (novo):** motor da arena com shell injetável (ctx/api/jogarRitmo) — mesmo padrão do overworld/ritmo. Banda à **esquerda** (cada um com "instrumento", encarando o vilão), vilão à **direita**; render placeholder em canvas (pixel art é F3.7, troca só `desenhar()`). `selecionar(dir)`/`selecionarIndice` andam só entre vivos; `atacar()` abre o minigame de ritmo (modal atual) → `executar_acao` → aplica estado → **vilão revida 1×** (`turno_inimigo`); `aoFim` no fim. `montar()` liga canvas + teclado (setas/AD, Enter, clique) + `RitmoMinigame` + ponte; expõe `window.__batalha`.
+- **`frontend/index.html`:** `#tela-show` virou a arena — `#batalha-canvas` + HUD em DOM (`#hud-banda` topo-esq., `#hud-boss` topo-dir.). **Removidos** os botões de turno/salvar/carregar/banda-demo da batalha; **Salvar/Carregar movidos pro `#overworld-hud`** (mapa). Inclui `batalha.js`.
+- **`frontend/css/estilo.css`:** `.arena-wrap` + `#batalha-canvas`; HUD sobreposto (`.hud-batalha`/`.hud-esq`/`.hud-dir`, mini-barras por membro com KO esmaecido, barra grossa do boss); rodapé com dica/log; `#ow-acoes` no mapa.
+- **`frontend/js/main.js`:** `entrarNaVenue` monta a arena (em vez dos cards); `atualizarHud(estado)` pinta as barras; `aplicarFim` (vitória→`concluir_venue`+volta; derrota→volta — telas ricas são 5b). Save/Load ligados no HUD do mapa; removidas as funções de card (`render/renderBanda/executarAcao/turnoInimigo/atualizarBotoes`).
+- **`frontend/test/mock-api.js`:** `executar_acao`/`turno_inimigo` agora mexem no HP (boss/membro) — mock fiel pro HUD refletir mudança.
+
+### Testes (padrão de harness mantido)
+- **`frontend/test/batalha.harness.html` (novo): 20/20** — asserts determinísticos (injeta `jogarRitmo` fake + api fake): init banda+boss+seleção; setas andam só entre vivos (com wrap) e pulam KO; Enter chama `executar_acao` com o índice certo e baixa o HP; vilão revida; Esc não gasta a vez; vitória/derrota chamam `aoFim`; reentrância (2º ataque ignorado enquanto ocupado); `aoAtualizar` recebe o estado novo.
+- **Sem regressão:** overworld **16/16**, ritmo **9/9**, **pytest 206** (5a não toca backend).
+- **Smoke do `index.html` (Playwright + mock):** boot abre o mapa (canvas ok, `criar_banda`+`obter_campanha`), andar+W entra na venue → troca pra arena (canvas 800×360, boss "Capanga do Bar" 90/90, HUD populado, `entrar_no_show` chamado).
+
+### Pendente de validação visual (usuário)
+`.\.venv\Scripts\python.exe bridge\app.py` → entrar numa venue abre a **arena MK** (banda esq., vilão dir., barras no topo); setas/AD escolhem, Enter abre o ritmo, acertar baixa o HP do vilão e ele revida; vencer volta ao mapa. Salvar/Carregar agora no HUD do mapa.
+
+### Nada commitado
+✓ (na branch `modo-historia`)
+
+### Próxima tarefa
+**F3.5b** — intro coreografada, auto-ataque por tempo (2–3s) + atordoamento visual, especial (espaço), menu de pausa (voltar/reiniciar/menu principal), menu principal (Novo jogo/Continuar/Sair), telas de vitória (drop→escolher membro) e derrota (bloqueio+fama).
+
+---
+
 ## F3.4 — Combate no backend: stun, especial, XP/drop, fama dupla, bloqueio (09/06/2026)
 
 ### Contexto
