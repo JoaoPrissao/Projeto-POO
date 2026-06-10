@@ -37,6 +37,12 @@ class ItemIncompativelError(InventarioError):
     pass
 
 
+class SlotsOcupadosError(InventarioError):
+    def __init__(self, nome_musico: str, slots: int):
+        super().__init__(f"{nome_musico} já está com os {slots} slots de "
+                         f"equipamento ocupados. Desequipe algo antes.")
+
+
 # ── Persistência ──────────────────────────────────────────────────
 
 class PersistenciaError(JogoError):
@@ -59,6 +65,12 @@ class TipoInvalidoError(JogoError):
 
 
 # ── Combate (F3.4) ────────────────────────────────────────────────
+
+class MoveInvalidoError(JogoError):
+    def __init__(self, move_id):
+        super().__init__(f"Golpe inválido ou indisponível: '{move_id}' "
+                         f"(confira o equipamento do músico).")
+
 
 class EspecialIndisponivelError(JogoError):
     def __init__(self):

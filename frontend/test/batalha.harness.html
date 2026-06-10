@@ -110,7 +110,7 @@
       const b = B.criarBatalha({
         ctx: null, estado, api: o.api, jogarRitmo: o.jogarRitmo || ritmoOk,
         aoFim: o.aoFim || function () {}, aoAtualizar: o.aoAtualizar || function () {},
-        aoPausar: o.aoPausar, aoLuta: o.aoLuta,
+        aoPausar: o.aoPausar, aoLuta: o.aoLuta, aoSelecionar: o.aoSelecionar,
       });
       if (!o.comIntro) b.pularIntro();
       return b;
@@ -347,6 +347,49 @@
       await p1;
       checar("ocupado: só 1 executar_acao",
         api.chamadas.filter((c) => c[0] === "executar_acao").length, 1);
+    }
+
+    // ── 16b. Moves (F3.6b): move escolhido vira move_id + chart no minigame ────
+    {
+      const MOVES = [
+        { id: "solo_rapido", nome: "Solo Rápido", mult: 1.0, chart: "rapido" },
+        { id: "riff_pesado", nome: "Riff Pesado", mult: 1.3, chart: "pesado" },
+        { id: "solo_distorcido", nome: "Solo Distorcido", mult: 1.6, chart: "caotico" },
+      ];
+      const est = estadoBase();
+      est.banda[0].moves = MOVES;
+      const api = fakeApi(est);
+      const charts = [];
+      const ritmoSpy = (o) => { charts.push(o && o.chart); return ritmoOk(); };
+      const b = mk(est, { api, jogarRitmo: ritmoSpy });
+      await b.atacar(1);                          // move 2 (riff_pesado)
+      const chamada = api.chamadas.find((c) => c[0] === "executar_acao");
+      checar("move: payload leva move_id", chamada[1].move_id, "riff_pesado");
+      checar("move: minigame recebe o chart do move", charts[0], "pesado");
+      await b.atacar(9);                          // índice fora do moveset → move 1
+      const c2 = api.chamadas.filter((c) => c[0] === "executar_acao")[1];
+      checar("move: índice inválido cai no move 1", c2[1].move_id, "solo_rapido");
+    }
+    {
+      const est = estadoBase();                   // membro SEM moves (compat)
+      const api = fakeApi(est);
+      const charts = [];
+      const ritmoSpy = (o) => { charts.push(o && o.chart); return ritmoOk(); };
+      const b = mk(est, { api, jogarRitmo: ritmoSpy });
+      await b.atacar();
+      const chamada = api.chamadas.find((c) => c[0] === "executar_acao");
+      checar("move: sem moveset não manda move_id", "move_id" in chamada[1], false);
+      checar("move: sem moveset usa chart padrão", charts[0], undefined);
+    }
+    {
+      const MOVES = [{ id: "solo_rapido", nome: "Solo", mult: 1.0, chart: "rapido" }];
+      const est = estadoBase();
+      est.banda[1].moves = MOVES;
+      const vistos = [];
+      const b = mk(est, { api: fakeApi(est), aoSelecionar: (m) => vistos.push(m && m.nome) });
+      b.selecionar(1);                            // vai pro membro 1 (Selene)
+      checar("move: aoSelecionar avisa o HUD do membro novo",
+        vistos[vistos.length - 1], "Selene");
     }
 
     // ── 17. aoAtualizar recebe o estado novo (hook do HUD) ─────────────────────

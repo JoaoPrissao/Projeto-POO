@@ -35,12 +35,13 @@ class Baterista(Musico):
         print("========================================")
 
     def atacar(self) -> int:
+        agilidade = self.__agilidade + self.bonus_equipamento("agilidade")  # F3.6
         if random.random() < self.__chance_critico:
             self._foi_virada = True
-            dano = int(self.__agilidade * 3.0)
+            dano = int(agilidade * 3.0)
             print(f"  {self._nome} VIRADA DE BATERIA! Dano base: {dano}")
         else:
             self._foi_virada = False
-            dano = int(self.__agilidade * 1.0)
+            dano = int(agilidade * 1.0)
             print(f"  {self._nome} mantém o ritmo. Dano base: {dano}")
         return dano

@@ -92,9 +92,10 @@ class Show:
     def especial_disponivel(self) -> bool:
         return self._perfeitos_seguidos >= self.LIMIAR_ESPECIAL
 
-    def _dano_de(self, musico, ritmo=None) -> dict:
+    def _dano_de(self, musico, ritmo=None, mult_extra: float = 1.0) -> dict:
         """Calcula (e aplica os efeitos colaterais de) o ataque de um músico,
-        SEM aplicar o dano ao boss. Devolve dano final + flags."""
+        SEM aplicar o dano ao boss. Devolve dano final + flags.
+        `mult_extra` vem do move escolhido (F3.6b)."""
         dano_base = musico.atacar()                      # D2: só o dano base
         ego = getattr(musico, 'get_ego', lambda: 0)()
         ego_bonus = int(ego / 10)
@@ -104,21 +105,21 @@ class Show:
         if modo_refrao:
             mult *= 1.5
 
-        dano_final = max(1, int((dano_base + ego_bonus) * mult * self._mult_banda))
+        dano_final = max(1, int((dano_base + ego_bonus) * mult * mult_extra * self._mult_banda))
         critico = getattr(musico, 'foi_virada_de_bateria', lambda: False)()
         return {
             "dano": dano_final, "dano_base": dano_base, "critico": critico,
             "modo_refrao_ativo": modo_refrao, "multiplicador_aplicado": mult,
         }
 
-    def acao_musico(self, indice: int, ritmo=None) -> dict:
+    def acao_musico(self, indice: int, ritmo=None, mult_extra: float = 1.0) -> dict:
         """Resolve o ataque de um músico contra o boss.
 
         `ritmo`: instância de Ritmo opcional. Se None, nenhum modificador
-        de ritmo é aplicado.
+        de ritmo é aplicado. `mult_extra`: multiplicador do move (F3.6b).
         """
         musico = self._banda[indice]
-        calc = self._dano_de(musico, ritmo)
+        calc = self._dano_de(musico, ritmo, mult_extra)
         self._inimigo.receber_dano(calc["dano"])
 
         # Combo perfeito → atordoa o vilão e conta na sequência do especial.

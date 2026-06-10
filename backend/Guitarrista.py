@@ -36,7 +36,8 @@ class Guitarrista(Musico):
         print("========================================")
 
     def atacar(self) -> int:
-        dano = int(self.__forca * 1.5)
+        forca = self.__forca + self.bonus_equipamento("forca")   # F3.6: slots
+        dano = int(forca * 1.5)
         self.__ego = min(self.__ego + self.EGO_BONUS_POR_ATAQUE, self.EGO_MAX)
         print(f"  {self._nome} rasga no palco! Dano base: {dano} (ego: {self.__ego})")
         return dano

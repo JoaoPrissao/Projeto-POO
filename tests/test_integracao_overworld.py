@@ -184,15 +184,17 @@ def test_concluir_venue_e_idempotente_no_xp():
     assert [(m["nivel"], m["xp"]) for m in api.obter_estado()["banda"]] == snap
 
 
-def test_aplicar_drop_equipavel_melhora_o_membro():
+def test_aplicar_drop_equipavel_vai_pro_inventario():
+    # F3.6: drop NÃO equipa mais na hora — guarda no inventário do membro
+    # escolhido (equipar é na van, via Tab). Atributo base fica intocado.
     api = _api_com_banda()
-    # Guitarrista (índice 0) pode equipar o pedal (+forca).
     g0 = api._gerenciador.listar_jogadores()[0]
     forca_antes = g0.get_forca()
     res = _serializavel(api.aplicar_drop({"tipo": "pedal", "indice": 0}))
     assert res["ok"] is True
-    assert res["aplicado"] == "equipado"
-    assert g0.get_forca() > forca_antes
+    assert res["aplicado"] == "guardado"
+    assert g0.get_forca() == forca_antes
+    assert any(i.nome == "Pedal de Efeito" for i in g0.get_inventario().listar())
 
 
 def test_aplicar_drop_incompativel_vira_erro_dto():

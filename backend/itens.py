@@ -45,16 +45,22 @@ class Equipavel(Item):
         self.bonus = bonus
         self.classes_permitidas = tuple(classes_permitidas) if classes_permitidas else None
 
-    def usar(self, alvo) -> None:
+    def validar_alvo(self, alvo) -> None:
+        """Levanta ItemIncompativelError se `alvo` não puder usar/equipar este
+        item. Regra compartilhada entre `usar` (bônus permanente, F1/F2) e os
+        slots de equipamento reversíveis (F3.6)."""
         classe_alvo = type(alvo).__name__
         if self.classes_permitidas is not None and classe_alvo not in self.classes_permitidas:
             raise ItemIncompativelError(
                 f"{classe_alvo} não pode equipar '{self.nome}'."
             )
+
+    def usar(self, alvo) -> None:
+        self.validar_alvo(alvo)
         aplicar = getattr(alvo, f"aumentar_{self.atributo}", None)
         if aplicar is None:
             raise ItemIncompativelError(
-                f"{classe_alvo} não pode receber bônus de {self.atributo}."
+                f"{type(alvo).__name__} não pode receber bônus de {self.atributo}."
             )
         aplicar(self.bonus)
 

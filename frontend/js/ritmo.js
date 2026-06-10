@@ -28,6 +28,29 @@
     pista,
   }));
 
+  // ── Charts nomeados (F3.6b) — cada move tem seu padrão de barrinhas ─────────
+  // Gerador determinístico: `intervalos` cicla (permite síncope), `pistas` cicla.
+  function gerarChart({ notas, intervalos, pistas, inicio = 1800 }) {
+    const chart = [];
+    let t = inicio;
+    for (let i = 0; i < notas; i++) {
+      chart.push({ tempo_ms: t, pista: pistas[i % pistas.length] });
+      t += intervalos[i % intervalos.length];
+    }
+    return chart;
+  }
+  const CHARTS = {
+    padrao:     CHART,
+    constante:  gerarChart({ notas: 14, intervalos: [450], pistas: PADRAO_PISTAS }),
+    rapido:     gerarChart({ notas: 18, intervalos: [300], pistas: PADRAO_PISTAS }),
+    pesado:     gerarChart({ notas: 16, intervalos: [350], pistas: [0, 0, 2, 2, 1, 1, 3, 3] }),
+    denso:      gerarChart({ notas: 22, intervalos: [250], pistas: PADRAO_PISTAS }),
+    sincopado:  gerarChart({ notas: 16, intervalos: [250, 550], pistas: [1, 3, 0, 2] }),
+    sustentada: gerarChart({ notas: 10, intervalos: [600], pistas: [0, 1, 2, 3] }),
+    caotico:    gerarChart({ notas: 20, intervalos: [300, 200, 450, 250],
+                             pistas: [2, 0, 3, 1, 1, 3, 0, 2, 3, 0] }),
+  };
+
   // ── Pontuação pura (sem timing, sem DOM) ────────────────────────────────────
   function criarPlacar(totalNotas) {
     let acertos = 0;
@@ -208,13 +231,13 @@
 
   // ── Entrada de produção: monta o overlay e resolve com a contagem crua ──────
   // Retorna Promise<{acertos,total_notas,combo_max} | null>. null = cancelado.
-  function jogarRitmo({ tipoMusico, cor } = {}) {
+  function jogarRitmo({ tipoMusico, cor, chart, nomeMove } = {}) {
     const overlay = document.getElementById("ritmo-overlay");
     const pistas = document.getElementById("ritmo-pistas");
     const hudCombo = document.getElementById("ritmo-combo");
     const hudAcertos = document.getElementById("ritmo-acertos");
     const titulo = document.getElementById("ritmo-titulo");
-    if (titulo) titulo.textContent = `Ritmo — ${tipoMusico || "banda"}`;
+    if (titulo) titulo.textContent = nomeMove ? `${nomeMove}` : `Ritmo — ${tipoMusico || "banda"}`;
 
     function aoAtualizar(estado) {
       if (hudCombo) hudCombo.textContent = `Combo ${estado.combo}`;
@@ -231,7 +254,7 @@
       audio,
       container: pistas,
       cor: cor || "#e0457b",
-      chart: CHART,
+      chart: (chart && CHARTS[chart]) || CHART,   // F3.6b: chart do move escolhido
       aoAtualizar,
     });
 
@@ -263,6 +286,7 @@
     jogarRitmo,
     audioNulo,
     CHART,
+    CHARTS,
     TECLAS,
     CONFIG,
   };

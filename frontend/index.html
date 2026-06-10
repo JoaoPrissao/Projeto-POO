@@ -29,7 +29,7 @@
     <!-- ── Tela 1: Overworld (mapa side-scroll) ──────────────────────────── -->
     <section id="tela-overworld" class="tela">
       <div id="overworld-hud" class="painel">
-        <span id="ow-dica"><b>A</b>/<b>D</b> anda · <b>W</b> entra na venue · ande por cima dos itens</span>
+        <span id="ow-dica"><b>A</b>/<b>D</b> anda · <b>W</b> entra na venue · <b>Tab</b> equipa (na van) · ande por cima dos itens</span>
         <span id="ow-aviso" class="ow-aviso"></span>
         <span id="ow-acoes">
           <button id="btn-salvar">Salvar</button>
@@ -56,7 +56,8 @@
         </div>
       </div>
       <div id="batalha-rodape" class="painel">
-        <span id="batalha-dica"><b>←</b>/<b>→</b> escolhem · <b>Enter</b> ataca · <b>Espaço</b> especial · <b>Esc</b> pausa</span>
+        <span id="batalha-dica"><b>←</b>/<b>→</b> escolhem · <b>1</b>–<b>3</b>/<b>Enter</b> golpe · <b>Espaço</b> especial · <b>Esc</b> pausa</span>
+        <span id="moves-hud" class="moves-hud"></span>
         <span id="especial-hint" class="especial-hint"></span>
         <span id="log" class="log"></span>
         <button id="btn-voltar-mapa" hidden>← Voltar ao mapa</button>
@@ -79,6 +80,17 @@
   <!-- Overlay de fim de batalha: vitória (drop) / derrota (bloqueio) — F3.5b -->
   <div id="fim-overlay" class="overlay-modal">
     <div id="fim-caixa" class="modal-caixa painel"></div>
+  </div>
+
+  <!-- Overlay de equipamento: Tab na van (mapa, pré-show) — F3.6 -->
+  <div id="equip-overlay" class="overlay-modal">
+    <div class="modal-caixa painel equip-caixa">
+      <h2>🚐 Van — equipamento</h2>
+      <div id="equip-membros" class="equip-membros"></div>
+      <div id="equip-painel"></div>
+      <p id="equip-aviso" class="fim-aviso"></p>
+      <p class="equip-dica"><b>Tab</b>/<b>Esc</b> fecha · equipar só aqui, antes do show</p>
+    </div>
   </div>
 
   <!-- Overlay do minigame de ritmo (oculto até clicar num músico) -->

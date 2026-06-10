@@ -136,6 +136,48 @@ class Musico(ABC):
             self._inventario = Inventario(CAPACIDADE_INVENTARIO_PADRAO)
         return self._inventario
 
+    # ── Equipamento (F3.6 — slots reversíveis) ────────────────────
+    # Equipar NÃO muta o atributo base: o item fica num slot e cada
+    # atacar() soma `bonus_equipamento(atributo)` na hora. Desequipar
+    # é reversível por construção (só tira o item do slot).
+
+    SLOTS_EQUIPAMENTO = 2
+
+    def _equipados(self) -> list:
+        if not hasattr(self, "_slots_equipamento"):
+            self._slots_equipamento = []
+        return self._slots_equipamento
+
+    def listar_equipados(self) -> list:
+        return list(self._equipados())
+
+    def bonus_equipamento(self, atributo: str) -> int:
+        return sum(i.bonus for i in self._equipados() if i.atributo == atributo)
+
+    def equipar(self, item) -> None:
+        from excecoes import ItemIncompativelError, SlotsOcupadosError
+        validar = getattr(item, "validar_alvo", None)
+        if validar is None or getattr(item, "consumir_ao_usar", False):
+            raise ItemIncompativelError(
+                f"'{item.nome}' não é equipável.")
+        validar(self)                       # classes_permitidas → ItemIncompativelError
+        slots = self._equipados()
+        if len(slots) >= self.SLOTS_EQUIPAMENTO:
+            raise SlotsOcupadosError(self._nome, self.SLOTS_EQUIPAMENTO)
+        slots.append(item)
+        print(f"  {self._nome} equipou '{item.nome}' (+{item.bonus} {item.atributo}).")
+
+    def desequipar(self, nome_item: str):
+        from excecoes import ItemNaoEncontradoError
+        slots = self._equipados()
+        for i, item in enumerate(slots):
+            if item.nome == nome_item:
+                slots.pop(i)
+                print(f"  {self._nome} desequipou '{item.nome}'.")
+                return item
+        raise ItemNaoEncontradoError(
+            f"{self._nome} não está com '{nome_item}' equipado.")
+
     # ── Serialização (persistência) ───────────────────────────────
 
     def to_dict(self) -> dict:
@@ -151,6 +193,7 @@ class Musico(ABC):
                 "capacidade": inv.capacidade if inv else CAPACIDADE_INVENTARIO_PADRAO,
                 "itens": [item.to_dict() for item in inv.listar()] if inv else [],
             },
+            "equipados": [item.to_dict() for item in self._equipados()],
         }
 
     @classmethod
@@ -162,6 +205,7 @@ class Musico(ABC):
         tipo = dados.pop("tipo")
         hp_atual = dados.pop("hp")
         inv_dados = dados.pop("inventario", None)
+        equipados = dados.pop("equipados", [])
 
         musico = MusicoFactory.criar(tipo, **dados)
         musico._hp = hp_atual
@@ -171,4 +215,6 @@ class Musico(ABC):
             inv.capacidade = inv_dados.get("capacidade", inv.capacidade)
             for item_d in inv_dados.get("itens", []):
                 inv.adicionar(item_from_dict(item_d))
+        for item_d in equipados:
+            musico.equipar(item_from_dict(item_d))
         return musico

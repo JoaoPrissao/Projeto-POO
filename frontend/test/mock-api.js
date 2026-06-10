@@ -8,7 +8,11 @@
   function bandaMock() {
     return [{ id: 0, tipo: "guitarrista", nome: "Aldric", nivel: 1, hp: 100,
               hp_maximo: 100, xp: 0, vivo: true,
-              recurso: { tipo: "ego", valor: 0, max: 100 } }];
+              recurso: { tipo: "ego", valor: 0, max: 100 },
+              moves: [   // F3.6b: moveset base do guitarrista (espelha moves.py)
+                { id: "solo_rapido", nome: "Solo Rápido", mult: 1.0, chart: "rapido" },
+                { id: "riff_pesado", nome: "Riff Pesado", mult: 1.3, chart: "pesado" },
+              ] }];
   }
   function estadoMock(boss, turno, fim) {
     return {
@@ -55,6 +59,26 @@
     const NOMES = { energetico: "Energético", pedal: "Pedal de Efeito", amplificador: "Amplificador" };
     const EQUIP = { pedal: ["Guitarrista", "Baixista"], amplificador: ["Guitarrista", "Baixista"] };
     return { tipo, nome: NOMES[tipo] || tipo, descricao: "", classes_permitidas: EQUIP[tipo] || null };
+  }
+
+  // Equipamento mock (F3.6): inventário/slots mutáveis do membro 0 (Aldric).
+  function itemMock(tipo) {
+    const d = dropMock(tipo);
+    const equipavel = !!d.classes_permitidas;
+    return {
+      nome: d.nome, descricao: d.descricao, equipavel,
+      ...(equipavel ? { atributo: "forca", bonus: tipo === "amplificador" ? 8 : 5,
+                        classes_permitidas: d.classes_permitidas } : {}),
+    };
+  }
+  const equipState = { equipados: [], inventario: [itemMock("pedal")] };
+  function equipamentoDto() {
+    return {
+      ok: true,
+      banda: [{ ...bandaMock()[0], slots: 2,
+                equipados: equipState.equipados.map((i) => ({ ...i })),
+                inventario: equipState.inventario.map((i) => ({ ...i })) }],
+    };
   }
 
   // Estado de batalha mutável (mock) — criado em entrar_no_show; executar_acao
@@ -116,8 +140,8 @@
       },
       aplicar_drop(payload) {
         reg("aplicar_drop", payload);
-        const equip = payload.tipo === "pedal" || payload.tipo === "amplificador";
-        return Promise.resolve({ ok: true, aplicado: equip ? "equipado" : "guardado", item: payload.tipo,
+        equipState.inventario.push(itemMock(payload.tipo));   // F3.6: drop vai pro inventário
+        return Promise.resolve({ ok: true, aplicado: "guardado", item: payload.tipo,
           musico: bandaMock()[0] });
       },
       registrar_derrota(venueId) {
@@ -132,7 +156,9 @@
         const it = ITENS.find((x) => x.id === payload.id);
         if (!it) return Promise.resolve({ ok: false, erro: { tipo: "ItemMapaInvalidoError", mensagem: "item inválido" } });
         progresso.coletados.add(it.id);
-        return Promise.resolve({ ok: true, musico: "Aldric", item: it.tipo, tamanho_inventario: 1, campanha: campanhaMock() });
+        equipState.inventario.push(itemMock(it.tipo));        // F3.6: vai pro inventário
+        return Promise.resolve({ ok: true, musico: "Aldric", item: it.tipo,
+          tamanho_inventario: equipState.inventario.length, campanha: campanhaMock() });
       },
       executar_acao(payload) {
         reg("executar_acao", payload);
@@ -176,6 +202,23 @@
         progresso.concluidas.clear(); progresso.coletados.clear();
         progresso.bloqueios.clear(); progresso.posicao = 60; progresso.fama_banda = 0;
         return Promise.resolve({ ok: true, campanha: campanhaMock() });
+      },
+      obter_equipamento() { reg("obter_equipamento"); return Promise.resolve(equipamentoDto()); },
+      equipar(payload) {
+        reg("equipar", payload);
+        const i = equipState.inventario.findIndex((x) => x.nome === payload.nome);
+        if (i < 0) return Promise.resolve({ ok: false, erro: { tipo: "ItemNaoEncontradoError", mensagem: "item não está no inventário" } });
+        if (equipState.equipados.length >= 2)
+          return Promise.resolve({ ok: false, erro: { tipo: "SlotsOcupadosError", mensagem: "slots ocupados" } });
+        equipState.equipados.push(equipState.inventario.splice(i, 1)[0]);
+        return Promise.resolve(equipamentoDto());
+      },
+      desequipar(payload) {
+        reg("desequipar", payload);
+        const i = equipState.equipados.findIndex((x) => x.nome === payload.nome);
+        if (i < 0) return Promise.resolve({ ok: false, erro: { tipo: "ItemNaoEncontradoError", mensagem: "item não está equipado" } });
+        equipState.inventario.push(equipState.equipados.splice(i, 1)[0]);
+        return Promise.resolve(equipamentoDto());
       },
       sair() { reg("sair"); return Promise.resolve({ ok: true }); },
       salvar(slot) { reg("salvar", slot); return Promise.resolve({ ok: true, slot }); },

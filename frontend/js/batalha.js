@@ -121,6 +121,7 @@
     const aoLog = opts.aoLog || function () {};
     const aoPausar = opts.aoPausar || function () {};
     const aoLuta = opts.aoLuta || function () {};
+    const aoSelecionar = opts.aoSelecionar || function () {};
 
     let estado = opts.estado;
     let selecionado = 0;
@@ -154,7 +155,12 @@
       if (novo) estado = novo;
       normalizarSelecao();
       aoAtualizar(estado);
+      emitirSelecao();
       desenhar();
+    }
+
+    function emitirSelecao() {
+      aoSelecionar(membros()[selecionado] || null);   // HUD de moves (F3.6b)
     }
 
     function emitirLuta() {
@@ -254,7 +260,7 @@
     function selecionarIndice(i) {
       if (fase !== "luta") return;
       const m = membros()[i];
-      if (m && m.vivo) { selecionado = i; desenhar(); }
+      if (m && m.vivo) { selecionado = i; emitirSelecao(); desenhar(); }
     }
     function selecionar(dir) {
       if (fase !== "luta") return;
@@ -265,6 +271,7 @@
         i = (i + dir + ms.length) % ms.length;
         if (ms[i] && ms[i].vivo) { selecionado = i; break; }
       }
+      emitirSelecao();
       desenhar();
     }
 
@@ -335,19 +342,29 @@
     }
 
     // ── Ataque do player (abre o minigame; hit rearma o relógio) ───────────────
-    async function atacar() {
+    // `moveIdx`: qual golpe do moveset usar (0..2; teclas 1/2/3 — Enter = 1º).
+    // Membro sem moveset (compat/harness antigo) ataca sem move_id/chart.
+    async function atacar(moveIdx) {
       if (fase !== "luta" || ocupado || encerrado || !estado || estado.fim_de_jogo) return;
       normalizarSelecao();
       const m = membros()[selecionado];
       if (!m || !m.vivo) return;
+      const moves = m.moves || [];
+      const move = moves[moveIdx] || moves[0] || null;
 
       ocupado = true;
       try {
         const alvoBoss = (estado.boss && estado.boss.nome) || "Vilão";
-        const ritmo = await jogarRitmo({ tipoMusico: m.tipo, cor: corPorTipo[m.tipo] });
+        const ritmo = await jogarRitmo({
+          tipoMusico: m.tipo, cor: corPorTipo[m.tipo],
+          chart: move ? move.chart : undefined,
+          nomeMove: move ? `${m.nome} — ${move.nome}` : undefined,
+        });
         if (ritmo === null) return;                 // Esc cancelou: não gasta a vez
 
-        const res = await api.executar_acao({ indice: m.id, ritmo });
+        const payload = { indice: m.id, ritmo };
+        if (move) payload.move_id = move.id;
+        const res = await api.executar_acao(payload);
         if (!res || res.ok === false) return;
         const pool = res.critico ? FRASES_CRITICO
                    : res.modo_refrao_ativo ? FRASES_REFRAO : FRASES_ATAQUE;
@@ -419,6 +436,7 @@
     // Primeira pintura.
     normalizarSelecao();
     aoAtualizar(estado);
+    emitirSelecao();
     desenhar();
 
     return {
@@ -438,7 +456,7 @@
 
   // ── Entrada de produção: liga canvas + teclado + minigame real ──────────────
   function montar({ canvas, api, estado, corPorTipo,
-                    aoAtualizar, aoFim, aoLog, aoPausar, aoLuta } = {}) {
+                    aoAtualizar, aoFim, aoLog, aoPausar, aoLuta, aoSelecionar } = {}) {
     const ctx = canvas ? canvas.getContext("2d") : null;
     if (canvas) { canvas.width = CONFIG.LARGURA; canvas.height = CONFIG.ALTURA; }
     const jogarRitmo = (window.RitmoMinigame && window.RitmoMinigame.jogarRitmo)
@@ -447,7 +465,7 @@
 
     const batalha = criarBatalha({
       ctx, api, jogarRitmo, estado, corPorTipo,
-      aoAtualizar, aoFim, aoLog, aoPausar, aoLuta,
+      aoAtualizar, aoFim, aoLog, aoPausar, aoLuta, aoSelecionar,
     });
 
     function onKeyDown(e) {
@@ -460,7 +478,10 @@
       if (batalha.fase === "pausa") return;  // overlay de pausa (main.js) cuida
       if (t === "arrowleft" || t === "a") { e.preventDefault(); batalha.selecionar(-1); }
       else if (t === "arrowright" || t === "d") { e.preventDefault(); batalha.selecionar(1); }
-      else if (t === "enter") { e.preventDefault(); batalha.atacar(); }
+      else if (t === "enter") { e.preventDefault(); batalha.atacar(0); }
+      else if (t === "1" || t === "2" || t === "3") {   // F3.6b: golpe direto
+        e.preventDefault(); batalha.atacar(Number(t) - 1);
+      }
       else if (t === " ") { e.preventDefault(); batalha.especial(); }
       else if (t === "escape") { e.preventDefault(); batalha.pausar(); }
     }

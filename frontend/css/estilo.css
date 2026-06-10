@@ -268,6 +268,51 @@ button:disabled { opacity: .35; cursor: not-allowed; }
 .fim-aviso { color: var(--ritmo); font-weight: 700; min-height: 1.2em; margin: 6px 0; }
 .fim-derrota-info { margin: 6px 0 14px; line-height: 1.6; }
 
+/* Menu de equipamento (Tab na van — F3.6) */
+.equip-caixa { width: min(560px, 94vw); text-align: left; }
+.equip-caixa h2 { text-align: center; }
+.equip-membros {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  justify-content: center;
+  margin-bottom: 12px;
+}
+.equip-membros button {
+  font-size: .8rem;
+  padding: 6px 12px;
+  opacity: .55;
+}
+.equip-membros button.ativo { opacity: 1; outline: 2px solid #fff3; }
+.equip-secao { font-size: .72rem; font-weight: 700; opacity: .6; margin: 10px 0 4px; text-transform: uppercase; }
+.equip-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: #0d0a14;
+  border-radius: 8px;
+  padding: 8px 10px;
+  margin-bottom: 6px;
+}
+.equip-item .equip-info { flex: 1; }
+.equip-item .equip-nome { font-weight: 700; font-size: .85rem; }
+.equip-item .equip-desc { font-size: .72rem; opacity: .65; }
+.equip-item .equip-bonus { font-size: .72rem; color: var(--ritmo); font-weight: 700; }
+.equip-item button { font-size: .72rem; padding: 5px 10px; }
+.equip-item.vazio { opacity: .45; font-size: .8rem; justify-content: center; }
+.equip-dica { text-align: center; font-size: .72rem; opacity: .55; margin-top: 10px; }
+.equip-dica b { background: #0d0a14; border-radius: 5px; padding: 1px 7px; color: var(--acento); }
+
+/* Moveset do músico selecionado (F3.6b) */
+.moves-hud { font-size: .78rem; }
+.moves-hud b {
+  background: #0d0a14;
+  border-radius: 5px;
+  padding: 1px 7px;
+  color: var(--ritmo);
+}
+.moves-hud .mv-mult { color: var(--ritmo); font-weight: 700; font-size: .7rem; }
+
 /* Aviso de especial no rodapé da batalha */
 .especial-hint { font-size: .8rem; font-weight: 700; }
 .especial-hint.pronto {

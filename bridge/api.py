@@ -21,6 +21,7 @@ from gerenciador import GerenciadorJogo
 from fabricas import MusicoFactory, ItemFactory
 from show import Show, Empresario
 from ritmo import Ritmo
+from moves import moves_de, get_move
 from excecoes import JogoError, VenueBloqueadaError
 import persistencia
 
@@ -143,6 +144,7 @@ class API:
             "xp": musico.get_xp(),
             "vivo": musico.esta_vivo(),
             "recurso": self._recurso_dto(musico),
+            "moves": moves_de(musico),     # F3.6b: muda com o equipamento
         }
 
     def _estado_dto(self) -> dict:
@@ -198,7 +200,13 @@ class API:
         if payload.get("ritmo"):
             ritmo = Ritmo.de_payload(payload["ritmo"])
 
-        resultado = self._show.acao_musico(indice, ritmo=ritmo)
+        mult_extra = 1.0
+        if payload.get("move_id"):                       # F3.6b: golpe escolhido
+            musico = self._gerenciador.listar_jogadores()[indice]
+            move = get_move(musico, payload["move_id"])  # MoveInvalidoError → ErroDTO
+            mult_extra = move["mult"]
+
+        resultado = self._show.acao_musico(indice, ritmo=ritmo, mult_extra=mult_extra)
         self._gerenciador.set_turno("boss")
         fim = resultado["fim"]
         return {
@@ -296,24 +304,86 @@ class API:
 
     @_ponte
     def aplicar_drop(self, payload: dict) -> dict:
-        """Aplica o item dropado a um membro escolhido. Equipável → aplica o
-        bônus na hora (sobe atributo); consumível → guarda no inventário."""
+        """Entrega o item dropado a um membro escolhido — vai pro INVENTÁRIO
+        (equipar é na van, via Tab — F3.6). Equipável incompatível com a classe
+        ainda é recusado (o item ficaria preso: não há transferência)."""
         tipo = payload["tipo"]
         indice = int(payload.get("indice", 0))
         musico = self._gerenciador.listar_jogadores()[indice]   # IndexError → ErroDTO
         item = ItemFactory.criar(tipo)                          # TipoInvalidoError → ErroDTO
-        if getattr(item, "consumir_ao_usar", False):
-            musico.get_inventario().adicionar(item)             # InventarioCheioError → ErroDTO
-            aplicado = "guardado"
-        else:
-            item.usar(musico)                                   # ItemIncompativelError → ErroDTO
-            aplicado = "equipado"
+        if not getattr(item, "consumir_ao_usar", False):
+            item.validar_alvo(musico)                           # ItemIncompativelError → ErroDTO
+        musico.get_inventario().adicionar(item)                 # InventarioCheioError → ErroDTO
         return {
             "ok": True,
-            "aplicado": aplicado,
+            "aplicado": "guardado",
             "item": item.nome,
             "musico": self._musico_dto(indice, musico),
         }
+
+    # ── Equipamento (F3.6 — equipar na van via Tab, nunca em batalha) ─────────
+
+    def _item_dto(self, item) -> dict:
+        equipavel = (hasattr(item, "validar_alvo")
+                     and not getattr(item, "consumir_ao_usar", False))
+        dto = {
+            "nome": item.nome,
+            "descricao": item.descricao,
+            "equipavel": equipavel,
+        }
+        if equipavel:
+            dto["atributo"] = item.atributo
+            dto["bonus"] = item.bonus
+            dto["classes_permitidas"] = (list(item.classes_permitidas)
+                                         if item.classes_permitidas else None)
+        return dto
+
+    def _equipamento_dto(self) -> dict:
+        banda = self._gerenciador.listar_jogadores()
+        return {
+            "ok": True,
+            "banda": [{
+                **self._musico_dto(i, m),
+                "slots": m.SLOTS_EQUIPAMENTO,
+                "equipados": [self._item_dto(it) for it in m.listar_equipados()],
+                "inventario": [self._item_dto(it) for it in m.get_inventario().listar()],
+            } for i, m in enumerate(banda)],
+        }
+
+    @_ponte
+    def obter_equipamento(self) -> dict:
+        """Banda completa com slots, itens equipados e inventário (menu Tab)."""
+        return self._equipamento_dto()
+
+    @_ponte
+    def equipar(self, payload: dict) -> dict:
+        """Move um item do inventário do músico pro slot de equipamento.
+        Se equipar falhar (classe/slots), o item VOLTA pro inventário."""
+        indice = int(payload["indice"])
+        nome = payload["nome"]
+        musico = self._gerenciador.listar_jogadores()[indice]   # IndexError → ErroDTO
+        item = musico.get_inventario().remover(nome)            # ItemNaoEncontrado → ErroDTO
+        try:
+            musico.equipar(item)        # Incompatível/SlotsOcupados → ErroDTO
+        except Exception:
+            musico.get_inventario().adicionar(item)             # não some com o item
+            raise
+        return self._equipamento_dto()
+
+    @_ponte
+    def desequipar(self, payload: dict) -> dict:
+        """Tira um item do slot e devolve pro inventário do músico.
+        Se o inventário estiver cheio, o item permanece equipado."""
+        indice = int(payload["indice"])
+        nome = payload["nome"]
+        musico = self._gerenciador.listar_jogadores()[indice]   # IndexError → ErroDTO
+        item = musico.desequipar(nome)                          # ItemNaoEncontrado → ErroDTO
+        try:
+            musico.get_inventario().adicionar(item)             # InventarioCheio → ErroDTO
+        except Exception:
+            musico.equipar(item)        # devolve pro slot: nada se perde
+            raise
+        return self._equipamento_dto()
 
     @_ponte
     def registrar_derrota(self, venue_id: str) -> dict:

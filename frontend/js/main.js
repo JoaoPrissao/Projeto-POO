@@ -62,6 +62,16 @@ function atualizarHud(estado) {
   $("#boss-hp-label").textContent = `${b.hp} / ${b.hp_maximo}`;
 }
 
+// Moveset do músico selecionado no rodapé (alimentado pelo `aoSelecionar`).
+function atualizarMovesHud(membro) {
+  const el = $("#moves-hud");
+  if (!el) return;
+  const moves = (membro && membro.moves) || [];
+  el.innerHTML = moves.map((mv, i) =>
+    `<b>${i + 1}</b> ${esc(mv.nome)}${mv.mult > 1 ? ` <span class="mv-mult">×${esc(mv.mult)}</span>` : ""}`
+  ).join(" · ");
+}
+
 // Aviso do golpe especial no rodapé (alimentado pelo `aoLuta` da batalha).
 function atualizarEspecialHint(info) {
   const el = $("#especial-hint");
@@ -180,6 +190,77 @@ function sairProMenuPrincipal() {
   mostrarTela("tela-menu");
 }
 
+// ── Menu de equipamento (Tab na van — F3.6; só no mapa, nunca em batalha) ───
+let equipBanda = null;      // último DTO de obter_equipamento
+let equipSel = 0;           // membro selecionado no menu
+
+function equipAberto() {
+  return $("#equip-overlay").classList.contains("aberto");
+}
+
+async function abrirEquipamento() {
+  const res = await window.pywebview.api.obter_equipamento();
+  if (!res || res.ok === false) {
+    avisoOverworld(`⚠️ ${res && res.erro ? res.erro.mensagem : "equipamento indisponível"}`);
+    return;
+  }
+  equipBanda = res.banda;
+  if (equipSel >= equipBanda.length) equipSel = 0;
+  renderEquipamento("");
+  $("#equip-overlay").classList.add("aberto");
+}
+
+function fecharEquipamento() {
+  $("#equip-overlay").classList.remove("aberto");
+}
+
+function renderEquipamento(aviso) {
+  const membros = $("#equip-membros");
+  membros.innerHTML = equipBanda.map((m, i) =>
+    `<button data-i="${i}" class="${i === equipSel ? "ativo" : ""}">${esc(m.nome)}</button>`).join("");
+  membros.querySelectorAll("button").forEach((b) =>
+    b.addEventListener("click", () => { equipSel = Number(b.dataset.i); renderEquipamento(""); }));
+
+  const m = equipBanda[equipSel];
+  const podeEquipar = (it) => it.equipavel &&
+    (!it.classes_permitidas || it.classes_permitidas.some((c) => String(c).toLowerCase() === m.tipo));
+  const itemHtml = (it, acao) => `
+    <div class="equip-item">
+      <div class="equip-info">
+        <div class="equip-nome">${esc(it.nome)}</div>
+        <div class="equip-desc">${esc(it.descricao || "")}</div>
+      </div>
+      ${it.equipavel ? `<span class="equip-bonus">+${esc(it.bonus)} ${esc(it.atributo)}</span>` : ""}
+      ${acao}
+    </div>`;
+  const painel = $("#equip-painel");
+  painel.innerHTML = `
+    <div class="equip-secao">Equipado (${m.equipados.length}/${esc(m.slots)})</div>
+    ${m.equipados.length
+      ? m.equipados.map((it) => itemHtml(it, `<button data-deseq="${esc(it.nome)}">Desequipar</button>`)).join("")
+      : `<div class="equip-item vazio">nenhum item equipado</div>`}
+    <div class="equip-secao">Inventário</div>
+    ${m.inventario.length
+      ? m.inventario.map((it) => itemHtml(it,
+          it.equipavel ? `<button data-eq="${esc(it.nome)}" ${podeEquipar(it) ? "" : "disabled"}>Equipar</button>` : "")).join("")
+      : `<div class="equip-item vazio">inventário vazio</div>`}`;
+  painel.querySelectorAll("[data-eq]").forEach((b) =>
+    b.addEventListener("click", () => acaoEquipar("equipar", b.dataset.eq)));
+  painel.querySelectorAll("[data-deseq]").forEach((b) =>
+    b.addEventListener("click", () => acaoEquipar("desequipar", b.dataset.deseq)));
+  $("#equip-aviso").textContent = aviso || "";
+}
+
+async function acaoEquipar(metodo, nome) {
+  const res = await window.pywebview.api[metodo]({ indice: equipBanda[equipSel].id, nome });
+  if (!res || res.ok === false) {
+    renderEquipamento(`⚠️ ${res && res.erro ? res.erro.mensagem : "não deu"}`);
+    return;
+  }
+  equipBanda = res.banda;
+  renderEquipamento(metodo === "equipar" ? `✅ ${nome} equipado!` : `↩️ ${nome} voltou pro inventário.`);
+}
+
 // ── Menu principal ──────────────────────────────────────────────────────────
 function avisoMenu(texto) {
   const el = $("#menu-aviso");
@@ -282,6 +363,7 @@ async function entrarNaVenue(venue) {
     aoFim: (res) => aplicarFim(res, venue),
     aoPausar,
     aoLuta: atualizarEspecialHint,
+    aoSelecionar: atualizarMovesHud,
   });
 }
 
@@ -308,10 +390,20 @@ function bind() {
   $("#btn-carregar").addEventListener("click", carregar);
   $("#btn-voltar-mapa").addEventListener("click", voltarAoMapa);
   // Esc com o menu de pausa aberto = Voltar (a batalha ignora teclas na pausa).
+  // Tab no mapa abre/fecha o menu de equipamento (van) — nunca em batalha.
   window.addEventListener("keydown", (e) => {
     if (e.key === "Escape" && $("#pausa-overlay").classList.contains("aberto")) {
       e.preventDefault();
       retomarBatalha();
+    } else if (e.key === "Tab") {
+      if (equipAberto()) { e.preventDefault(); fecharEquipamento(); }
+      else if ($("#tela-overworld").classList.contains("ativa")) {
+        e.preventDefault();
+        abrirEquipamento();
+      }
+    } else if (e.key === "Escape" && equipAberto()) {
+      e.preventDefault();
+      fecharEquipamento();
     }
   });
 }

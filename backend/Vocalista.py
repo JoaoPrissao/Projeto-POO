@@ -37,9 +37,10 @@ class Vocalista(Musico):
         print("========================================")
 
     def atacar(self) -> int:
+        intel = self.__inteligencia + self.bonus_equipamento("inteligencia")  # F3.6
         if self.__folego >= CUSTO_FOLEGO:
             self.__folego -= CUSTO_FOLEGO
-            dano = int(self.__inteligencia * 2.0)
+            dano = int(intel * 2.0)
             print(f"  {self._nome} solta a voz! Dano base: {dano} (fôlego: {self.__folego})")
         else:
             dano = DANO_BASE_MINIMO

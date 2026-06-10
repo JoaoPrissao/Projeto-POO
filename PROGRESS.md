@@ -1,5 +1,40 @@
 # PROGRESS — RPG Manager (banda de rock)
 
+## F3.6 — Equipamento (slots reversíveis + Tab na van) e movesets com charts (10/06/2026)
+
+### Contexto
+Até a 5b, `Equipavel.usar()` aplicava bônus PERMANENTE no atributo e o drop equipava na hora. A F3.6 traz a visão do João: **equipar só na van (Tab, no mapa, nunca em batalha)**, slots reversíveis, e **até 3 golpes por músico** — cada um com seu chart de barrinhas no ritmo, mudando com o item equipado.
+
+### O que mudou — F3.6a (slots + Tab)
+- **Domínio (`musico.py`):** `SLOTS_EQUIPAMENTO = 2`, `equipar(item)` / `desequipar(nome)` / `listar_equipados()` / `bonus_equipamento(atributo)`. Decisão central: equipar **não muta o atributo base** — cada `atacar()` soma `bonus_equipamento("forca"/"agilidade"/"inteligencia")` na hora (4 classes ajustadas), então desequipar é reversível por construção. Serialização: `to_dict/from_dict` carregam `equipados` (save/load preserva). `Equipavel` ganhou `validar_alvo()` (regra de classes compartilhada com o `usar` legado, que continua existindo). Exceção nova: `SlotsOcupadosError`.
+- **Ponte:** `obter_equipamento()` (banda com slots/equipados/inventário), `equipar({indice,nome})` (inventário→slot; falha devolve o item pro inventário), `desequipar({indice,nome})` (slot→inventário; inventário cheio devolve pro slot — nada se perde). **`aplicar_drop` mudou de contrato:** equipável agora vai pro INVENTÁRIO (`aplicado:"guardado"`), mantendo a recusa de classe incompatível (item ficaria preso — não há transferência).
+- **Frontend:** `#equip-overlay` ("🚐 Van — equipamento") — **Tab abre no mapa** (Tab/Esc fecham; em batalha não abre): abas por membro, seção Equipado (n/slots) com Desequipar, seção Inventário com Equipar (desabilitado p/ incompatível). Dica de Tab no HUD do mapa.
+
+### O que mudou — F3.6b (movesets)
+- **`backend/moves.py` (novo):** `MOVES_BASE` (2 golpes por tipo, ex.: guitarrista = Solo Rápido ×1.0/chart `rapido` + Riff Pesado ×1.3/`pesado`) e `MOVES_DE_ITEM` (Pedal → Solo Distorcido ×1.6/`caotico`; Amplificador → Wall of Sound ×1.8/`denso`). `moves_de(musico)` = base + extras dos equipados, **capado nos 3 últimos** (2º item empurra o golpe mais fraco pra fora). `get_move` valida pertencimento (golpe de item sem o item → `MoveInvalidoError`).
+- **`show.py`:** `acao_musico`/`_dano_de` ganham `mult_extra` (multiplicador do move).
+- **Ponte:** `_musico_dto` traz `moves`; `executar_acao` aceita `move_id` (valida e aplica o mult).
+- **`ritmo.js`:** `gerarChart` paramétrico (intervalos cíclicos = síncope) + catálogo `CHARTS` (constante/rapido/pesado/denso/sincopado/sustentada/caotico); `jogarRitmo` aceita `chart` (id) e `nomeMove` (vira o título do modal).
+- **`batalha.js`:** `atacar(moveIdx)` — teclas **1/2/3** disparam o golpe (Enter = 1º); payload leva `move_id`, minigame abre com o chart do move; callback novo `aoSelecionar(membro)` alimenta o `#moves-hud` no rodapé ("1 Solo Rápido · 2 Riff Pesado ×1.3"). Membro sem moveset (compat) ataca como antes.
+- **mock-api:** equipamento stateful (equipar/desequipar/obter_equipamento; drop e coleta alimentam o inventário) + moves no membro mock.
+
+### Testes (TDD)
+- **pytest 237** (+28): `test_equipamento.py` (12 domínio: bônus reversível/acúmulo/validações/atributos variados/round-trip + 7 ponte: DTO, equipar/desequipar com devolução, save/load) · `test_moves.py` (9: catálogo, desbloqueio por item, cap em 3, validação, mult na ponta, move de item via API) · contrato novo do `aplicar_drop`.
+- **Harnesses:** batalha **59/59** (+6: move_id no payload, chart no minigame, fallback de índice, compat sem moveset, aoSelecionar) · ritmo **13/13** (+4: catálogo de charts variado/ordenado/determinístico) · overworld 16/16.
+- **Smoke (Playwright + mock):** novo jogo → Tab abre a van → equipa o pedal → fecha → venue → intro → moves no rodapé → tecla 2 abre "Aldric — Riff Pesado" (chart pesado, 16 notas) → Esc cancela sem gastar a vez. App real abre sem erro.
+- Pegadinha de ambiente: o browser do Playwright cacheia `.js` servido pelo http.server — harness atualizado não recarregava; resolvido servindo em porta nova.
+
+### Pendente de validação visual (usuário)
+`.\.venv\Scripts\python.exe bridge\app.py` → no mapa, **Tab** abre a van (equipar/desequipar pedal/amplificador no Aldric/Paul); na batalha o rodapé mostra os golpes do selecionado (**1/2/3**; item equipado adiciona o 3º golpe mais forte com chart próprio — barrinhas visivelmente diferentes); dano maior com mult do golpe.
+
+### Commitado
+`feat: F3.6` na branch `modo-historia`.
+
+### Próxima tarefa
+**Recuperação + van/loja:** regen passivo de HP na van + loja (comida/bebida) com **cachê por show** (sistema de economia novo).
+
+---
+
 ## F3.5b — Intro, auto-ataque por tempo, especial, pausa, menus e telas de fim (10/06/2026)
 
 ### Contexto

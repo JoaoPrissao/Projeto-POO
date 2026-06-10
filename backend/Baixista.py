@@ -25,7 +25,8 @@ class Baixista(Guitarrista):
         print("========================================")
 
     def atacar(self) -> int:
-        dano = int(self.get_forca() * 1.5)
+        forca = self.get_forca() + self.bonus_equipamento("forca")   # F3.6: slots
+        dano = int(forca * 1.5)
         if self.__fe >= 5:
             self.__fe -= 5
             cura = int(dano * 0.5)
