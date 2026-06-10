@@ -1,5 +1,37 @@
 # PROGRESS — RPG Manager (banda de rock)
 
+## F3.4 — Combate no backend: stun, especial, XP/drop, fama dupla, bloqueio (09/06/2026)
+
+### Contexto
+O João pediu um RPG de verdade (batalha estilo Mortal Kombat, vilões mais duros, atordoamento por combo, golpe especial, XP/drop ao vencer, fama, van, NPCs, pixel art). É grande demais p/ uma fase → virou roadmap **F3.4→F3.8**. Decisões: minigame de ritmo modal mantido (vilão contra-ataca *entre* ataques); **F3.4 = só domínio** (UI de batalha intocada, redesenho MK é F3.5); fama dupla + cooldown curto em segundos; perfeito (todas as notas) atordoa, 4 perfeitos seguidos liberam o especial.
+
+### O que mudou (tudo no backend + ponte; nenhuma mudança de UI)
+- **`backend/ritmo.py`:** `Ritmo.perfeito()` (acertou todas as notas) — gatilho do atordoamento.
+- **`backend/show.py`:** `Empresario` ganha estado de **atordoamento** (`atordoar/esta_atordoado/acordar`, persistido no `to_dict`). `Show` ganha `mult_banda` (fama escala o dano), contador de **perfeitos seguidos** (`especial_disponivel` em 4), `ataque_especial()` (todos atacam ×2.0, zera a sequência → `EspecialIndisponivelError` se indisponível) e `turno_inimigo()` que **perde a vez** quando o vilão está atordoado (consome o stun). `acao_musico` agora devolve `perfeito/atordoado/perfeitos_seguidos/especial_disponivel`.
+- **`backend/campanha.py`:** venues com `fama` (1/2/3), `xp_recompensa`, `drop` e capangas mais duras (90/150/280 HP). Estado novo **persistido**: `fama_banda` (sobe ao vencer, cai ao perder) e `bloqueios` (`{venue_id: timestamp}`). Métodos: `get_recompensa`, `ganhar/perder_fama`, `mult_banda`, `bloquear_venue`/`venue_bloqueada`/`segundos_bloqueio` (**clock injetável** p/ teste), `registrar_derrota`. `concluir` virou idempotente (não dobra fama) e limpa o bloqueio.
+- **`backend/excecoes.py`:** `EspecialIndisponivelError`, `VenueBloqueadaError`.
+- **`bridge/api.py` (aditivo, id-based):** `ataque_especial()`, `aplicar_drop({tipo,indice})` (equipável→aplica bônus; consumível→inventário), `registrar_derrota(venue_id)`. `entrar_no_show` recusa venue bloqueada e injeta `mult_banda`. `concluir_venue` virou `{ok, campanha, xp_ganho, drop}` — dá XP a todos (idempotente) e descreve o drop. `obter_campanha` traz `fama_banda` + flags de bloqueio.
+- **`frontend/test/mock-api.js`:** espelha o contrato F3.4 (novos métodos/campos). **Produção (`main.js`/`overworld.js`) intocada** — a tela de batalha só muda na F3.5.
+
+### Testes (TDD)
+- **`tests/test_show.py` (+13):** stun em perfeito, `turno_inimigo` consome o stun, streak sobe/zera, especial em 4, `ataque_especial` soma e zera (+ indisponível levanta), `mult_banda` escala, round-trip do atordoamento.
+- **`tests/test_campanha.py` (+13):** fama/xp/drop nas venues, `get_recompensa`, ganhar/perder fama (piso 0), `concluir` dá fama idempotente, bloqueio com clock injetado (escala com fama, expira), `registrar_derrota`, round-trip preserva fama+bloqueios.
+- **`tests/test_integracao_overworld.py` (+8):** especial via API, `concluir_venue` dá XP a todos + drop (idempotente), `aplicar_drop` melhora o membro (incompatível→ErroDTO), `registrar_derrota` bloqueia e impede entrar; **save/load preserva fama + bloqueio**.
+
+### Contagem de testes
+**206 pytest, 100% verdes** (+32) · **16/16 overworld** + **9/9 ritmo** (Playwright).
+
+### Pendente de validação visual (usuário)
+`.\.venv\Scripts\python.exe bridge\app.py` — o fluxo de batalha atual segue funcionando; os efeitos novos (stun/especial/drop/bloqueio) só ganham tela na **F3.5**.
+
+### Nada commitado
+✓ (na branch `modo-historia`)
+
+### Próxima tarefa
+**F3.5** — Tela de batalha estilo Mortal Kombat (layout, intro, menu de pausa, seleção por setas, relógio de contra-ataque, botão de especial, tela de derrota com bloqueio). Pixel art passou p/ **F3.7**.
+
+---
+
 ## F3.3 — Campanha no backend autoritativo (09/06/2026)
 
 ### O que mudou (a turnê virou estado do domínio; save/load retoma a história)

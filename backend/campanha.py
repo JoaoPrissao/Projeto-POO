@@ -8,18 +8,32 @@ from_dict) pra entrar no envelope de save e a história ser retomada no load.
 As definições (venues/itens) são dados, não objetos de domínio: a capanga é só
 `{nome, hp, dano}` que a API usa pra montar um `Empresario`; o item é `{tipo}`
 que a API passa pra `ItemFactory`. Assim a Campanha não acopla show nem itens.
+
+F3.4 acrescenta a economia de fama: cada venue tem uma `fama` fixa (1..3) que
+define a recompensa, a dificuldade e quanto tempo a venue fica BLOQUEADA se a
+banda perder lá. A banda tem a sua própria fama (sobe ao vencer, cai ao perder),
+que dá um pequeno multiplicador de dano. Tudo é serializável pra sobreviver ao
+save/load — inclusive os bloqueios (guardados como timestamps absolutos).
 """
+import math
+import time
+
 from excecoes import VenueInvalidaError, ItemMapaInvalidoError
 
 
-# Turnê padrão — espelha a campanha provisória que vivia no main.js (F3.2).
+# Turnê padrão — vilões progressivamente mais duros (exigem evoluir nível/itens).
+# `fama`: nível da venue (recompensa/dificuldade/bloqueio). `xp_recompensa`: XP
+# dado a cada membro ao vencer. `drop`: tipo de item (ItemFactory) que cai.
 _VENUES_PADRAO = [
     {"id": "bar",   "x": 420,  "nome": "Bar do Zé",
-     "capanga": {"nome": "Capanga do Bar", "hp": 60, "dano": 8}},
+     "fama": 1, "xp_recompensa": 60,  "drop": "energetico",
+     "capanga": {"nome": "Capanga do Bar", "hp": 90, "dano": 10}},
     {"id": "feira", "x": 980,  "nome": "Feira Punk",
-     "capanga": {"nome": "Roadie Valentão", "hp": 95, "dano": 12}},
+     "fama": 2, "xp_recompensa": 110, "drop": "pedal",
+     "capanga": {"nome": "Roadie Valentão", "hp": 150, "dano": 16}},
     {"id": "arena", "x": 1600, "nome": "Arena — O Empresário",
-     "capanga": {"nome": "O Empresário", "hp": 200, "dano": 20}},
+     "fama": 3, "xp_recompensa": 200, "drop": "amplificador",
+     "capanga": {"nome": "O Empresário", "hp": 280, "dano": 24}},
 ]
 _ITENS_PADRAO = [
     {"id": "i1", "x": 250,  "tipo": "energetico"},
@@ -27,16 +41,23 @@ _ITENS_PADRAO = [
 ]
 POSICAO_INICIAL = 60.0
 
+DURACAO_BASE_BLOQUEIO = 30      # segundos de bloqueio por nível de fama da venue
+PENALIDADE_FAMA_DERROTA = 1     # fama que a banda perde ao ser nocauteada
+BONUS_DANO_POR_FAMA = 0.02      # +2% de dano por ponto de fama da banda
+
 
 class Campanha:
     def __init__(self, venues, itens, posicao=POSICAO_INICIAL,
-                 concluidas=None, coletados=None):
+                 concluidas=None, coletados=None, fama_banda=0, bloqueios=None):
         # Cópias defensivas das definições (não compartilha listas/dicts externos).
         self._venues = [dict(v) for v in venues]
         self._itens = [dict(i) for i in itens]
         self._concluidas = set(concluidas or ())
         self._coletados = set(coletados or ())
         self._posicao = float(posicao)
+        self._fama_banda = int(fama_banda)
+        # venue_id -> timestamp (epoch) em que o bloqueio expira
+        self._bloqueios = {k: float(v) for k, v in (bloqueios or {}).items()}
 
     @classmethod
     def padrao(cls) -> "Campanha":
@@ -44,8 +65,12 @@ class Campanha:
 
     # ── Consulta (defs + flags de progresso) ─────────────────────────
 
-    def listar_venues(self) -> list:
-        return [{**v, "concluida": v["id"] in self._concluidas} for v in self._venues]
+    def listar_venues(self, agora=None) -> list:
+        return [{**v,
+                 "concluida": v["id"] in self._concluidas,
+                 "bloqueada": self.venue_bloqueada(v["id"], agora),
+                 "bloqueada_seg": self.segundos_bloqueio(v["id"], agora)}
+                for v in self._venues]
 
     def listar_itens(self) -> list:
         return [{**i, "coletado": i["id"] in self._coletados} for i in self._itens]
@@ -62,11 +87,65 @@ class Campanha:
                 return {**i, "coletado": item_id in self._coletados}
         raise ItemMapaInvalidoError(item_id)
 
+    def get_recompensa(self, venue_id: str) -> dict:
+        v = self.get_venue(venue_id)        # valida (→ VenueInvalidaError)
+        return {"xp": v.get("xp_recompensa", 0), "drop": v.get("drop")}
+
+    # ── Fama da banda ────────────────────────────────────────────────
+
+    def fama_banda(self) -> int:
+        return self._fama_banda
+
+    def ganhar_fama(self, n: int) -> None:
+        self._fama_banda += max(0, int(n))
+
+    def perder_fama(self, n: int) -> None:
+        self._fama_banda = max(0, self._fama_banda - max(0, int(n)))
+
+    def mult_banda(self) -> float:
+        """Multiplicador de dano derivado da fama (banda famosa bate mais forte;
+        ao perder fama, fica mais fraca)."""
+        return 1.0 + BONUS_DANO_POR_FAMA * self._fama_banda
+
+    # ── Bloqueio de venue (cooldown após derrota) ────────────────────
+
+    def _fama_venue(self, venue_id: str) -> int:
+        return self.get_venue(venue_id).get("fama", 1)
+
+    def _restante(self, venue_id: str, agora=None) -> float:
+        agora = time.time() if agora is None else agora
+        expira = self._bloqueios.get(venue_id)
+        return max(0.0, expira - agora) if expira is not None else 0.0
+
+    def bloquear_venue(self, venue_id: str, agora=None) -> float:
+        """Bloqueia a venue por um tempo proporcional à fama dela. Devolve o
+        timestamp de expiração. `agora` é injetável pra teste determinístico."""
+        agora = time.time() if agora is None else agora
+        expira = agora + DURACAO_BASE_BLOQUEIO * self._fama_venue(venue_id)
+        self._bloqueios[venue_id] = expira
+        return expira
+
+    def venue_bloqueada(self, venue_id: str, agora=None) -> bool:
+        return self._restante(venue_id, agora) > 0
+
+    def segundos_bloqueio(self, venue_id: str, agora=None) -> int:
+        return math.ceil(self._restante(venue_id, agora))
+
+    def registrar_derrota(self, venue_id: str, agora=None) -> float:
+        """Perdeu o show: bloqueia a venue (escala com a fama dela) e a banda
+        perde fama (fica mais fraca). Devolve o timestamp de expiração."""
+        expira = self.bloquear_venue(venue_id, agora)
+        self.perder_fama(PENALIDADE_FAMA_DERROTA)
+        return expira
+
     # ── Mutação de progresso ─────────────────────────────────────────
 
     def concluir(self, venue_id: str) -> None:
         self.get_venue(venue_id)            # valida (→ VenueInvalidaError)
-        self._concluidas.add(venue_id)
+        if venue_id not in self._concluidas:
+            self._concluidas.add(venue_id)
+            self.ganhar_fama(self._fama_venue(venue_id))  # vencer dá fama
+        self._bloqueios.pop(venue_id, None)               # e limpa o bloqueio
 
     def coletar(self, item_id: str) -> str:
         """Marca o item como pego e devolve seu `tipo` (pra ItemFactory)."""
@@ -92,6 +171,8 @@ class Campanha:
             "concluidas": sorted(self._concluidas),
             "coletados": sorted(self._coletados),
             "posicao": self._posicao,
+            "fama_banda": self._fama_banda,
+            "bloqueios": dict(self._bloqueios),
         }
 
     @classmethod
@@ -102,4 +183,6 @@ class Campanha:
             posicao=dados.get("posicao", POSICAO_INICIAL),
             concluidas=dados.get("concluidas", ()),
             coletados=dados.get("coletados", ()),
+            fama_banda=dados.get("fama_banda", 0),
+            bloqueios=dados.get("bloqueios", {}),
         )

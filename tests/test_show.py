@@ -11,7 +11,11 @@ from Vocalista import Vocalista
 from Baterista import Baterista
 from Baixista import Baixista
 from gerenciador import GerenciadorJogo
-from excecoes import JogadorMortoError
+from excecoes import JogadorMortoError, EspecialIndisponivelError
+
+
+PERFEITO = Ritmo(acertos=10, total_notas=10, combo_max=10)   # todas as notas
+QUASE = Ritmo(acertos=8, total_notas=10, combo_max=5)        # errou alguma
 
 
 @pytest.fixture(autouse=True)
@@ -314,3 +318,117 @@ def test_turno_inimigo_com_morto_em_posicao_zero():
     show = Show([g1, g2], emp)
     resultado = show.turno_inimigo()
     assert resultado["alvo"] == "Vivo"
+
+
+# ── F3.4: atordoamento (combo perfeito) ───────────────────────────────────────
+
+def test_empresario_comeca_sem_atordoamento():
+    assert Empresario("Boss", hp=100, dano=10).esta_atordoado() is False
+
+
+def test_empresario_round_trip_preserva_atordoamento():
+    emp = Empresario("Boss", hp=100, dano=10)
+    emp.atordoar()
+    copia = Empresario.from_dict(emp.to_dict())
+    assert copia.esta_atordoado() is True
+
+
+def test_acao_musico_perfeita_atordoa_o_boss():
+    g = Guitarrista("Aldric", forca=10)
+    emp = Empresario("Boss", hp=1000, dano=10)
+    show = Show([g], emp)
+    res = show.acao_musico(0, ritmo=PERFEITO)
+    assert res["perfeito"] is True
+    assert res["atordoado"] is True
+    assert emp.esta_atordoado() is True
+
+
+def test_acao_musico_imperfeita_nao_atordoa():
+    g = Guitarrista("Aldric", forca=10)
+    emp = Empresario("Boss", hp=1000, dano=10)
+    show = Show([g], emp)
+    res = show.acao_musico(0, ritmo=QUASE)
+    assert res["perfeito"] is False
+    assert emp.esta_atordoado() is False
+
+
+def test_turno_inimigo_atordoado_perde_a_vez_e_acorda():
+    g = Guitarrista("Aldric", forca=10)
+    hp_antes = g.get_hp()
+    emp = Empresario("Boss", hp=1000, dano=20)
+    show = Show([g], emp)
+    show.acao_musico(0, ritmo=PERFEITO)          # atordoa
+    res = show.turno_inimigo()
+    assert res["atordoado"] is True
+    assert res["dano"] == 0
+    assert g.get_hp() == hp_antes                # não levou dano
+    assert emp.esta_atordoado() is False         # consumiu o stun
+    # próxima rodada o vilão volta a atacar normalmente
+    res2 = show.turno_inimigo()
+    assert res2["dano"] == 20
+    assert g.get_hp() == hp_antes - 20
+
+
+# ── F3.4: sequência de perfeitos → golpe especial ─────────────────────────────
+
+def test_streak_de_perfeitos_sobe_e_zera_ao_errar():
+    g = Guitarrista("Aldric", forca=10)
+    emp = Empresario("Boss", hp=100000, dano=10)
+    show = Show([g], emp)
+    show.acao_musico(0, ritmo=PERFEITO)
+    show.acao_musico(0, ritmo=PERFEITO)
+    assert show._perfeitos_seguidos == 2
+    res = show.acao_musico(0, ritmo=QUASE)       # errou → zera
+    assert res["perfeitos_seguidos"] == 0
+
+
+def test_especial_disponivel_apos_quatro_perfeitos():
+    g = Guitarrista("Aldric", forca=10)
+    emp = Empresario("Boss", hp=100000, dano=10)
+    show = Show([g], emp)
+    for _ in range(3):
+        assert show.acao_musico(0, ritmo=PERFEITO)["especial_disponivel"] is False
+    assert show.acao_musico(0, ritmo=PERFEITO)["especial_disponivel"] is True
+
+
+def test_ataque_especial_indisponivel_levanta():
+    g = Guitarrista("Aldric", forca=10)
+    emp = Empresario("Boss", hp=1000, dano=10)
+    show = Show([g], emp)
+    with pytest.raises(EspecialIndisponivelError):
+        show.ataque_especial()
+
+
+def test_ataque_especial_soma_dano_de_todos_e_zera_streak():
+    banda = [Guitarrista("G", forca=10), Baixista("P", forca=10, fe=20)]
+    emp = Empresario("Boss", hp=100000, dano=10)
+    show = Show(banda, emp)
+    show._perfeitos_seguidos = 4                 # libera o especial direto
+    hp0 = emp.get_hp()
+    res = show.ataque_especial()
+    assert len(res["por_membro"]) == 2
+    assert res["dano"] == sum(m["dano"] for m in res["por_membro"])
+    assert res["dano"] > 0
+    assert emp.get_hp() == hp0 - res["dano"]
+    assert show.especial_disponivel() is False   # zerou a sequência
+
+
+def test_ataque_especial_ignora_membro_nocauteado():
+    morto = Guitarrista("Morto", hp_maximo=10, forca=10)
+    morto.receber_dano(10)
+    vivo = Guitarrista("Vivo", forca=10)
+    emp = Empresario("Boss", hp=100000, dano=10)
+    show = Show([morto, vivo], emp)
+    show._perfeitos_seguidos = 4
+    res = show.ataque_especial()
+    assert [m["atacante"] for m in res["por_membro"]] == ["Vivo"]
+
+
+# ── F3.4: multiplicador de fama da banda ──────────────────────────────────────
+
+def test_mult_banda_escala_o_dano():
+    g = Guitarrista("Aldric", forca=10)          # base 15, ego 0
+    emp = Empresario("Boss", hp=1000, dano=10)
+    show = Show([g], emp, mult_banda=2.0)
+    res = show.acao_musico(0)                     # sem ritmo: 15 * 1.0 * 2.0
+    assert res["dano"] == 30

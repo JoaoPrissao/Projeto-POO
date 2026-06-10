@@ -21,7 +21,7 @@ from gerenciador import GerenciadorJogo
 from fabricas import MusicoFactory, ItemFactory
 from show import Show, Empresario
 from ritmo import Ritmo
-from excecoes import JogoError
+from excecoes import JogoError, VenueBloqueadaError
 import persistencia
 
 
@@ -103,6 +103,21 @@ class API:
             "itens": camp.listar_itens(),
             "posicao": camp.get_posicao(),
             "completa": camp.esta_completa(),
+            "fama_banda": camp.fama_banda(),
+        }
+
+    def _drop_dto(self, tipo: str) -> dict | None:
+        """Metadados do item que cai ao vencer (sem adicioná-lo a ninguém ainda;
+        o jogador escolhe o membro depois via `aplicar_drop`)."""
+        if not tipo:
+            return None
+        item = ItemFactory.criar(tipo)
+        classes = getattr(item, "classes_permitidas", None)
+        return {
+            "tipo": tipo,
+            "nome": item.nome,
+            "descricao": item.descricao,
+            "classes_permitidas": list(classes) if classes else None,
         }
 
     def _recurso_dto(self, musico) -> dict:
@@ -192,6 +207,28 @@ class API:
             "critico": resultado["critico"],
             "modo_refrao_ativo": resultado["modo_refrao_ativo"],
             "multiplicador_aplicado": resultado["multiplicador_aplicado"],
+            "perfeito": resultado["perfeito"],
+            "atordoado": resultado["atordoado"],
+            "perfeitos_seguidos": resultado["perfeitos_seguidos"],
+            "especial_disponivel": resultado["especial_disponivel"],
+            "atacante": resultado["atacante"],
+            "estado": self._estado_dto(),
+            "fim_de_jogo": fim is not None,
+            "resultado_final": fim,
+        }
+
+    @_ponte
+    def ataque_especial(self) -> dict:
+        """Golpe coletivo da banda (todos atacam de uma vez). Só funciona com o
+        especial liberado (4 combos perfeitos seguidos) — senão vira ErroDTO."""
+        self._garantir_show()
+        resultado = self._show.ataque_especial()   # EspecialIndisponivelError → ErroDTO
+        self._gerenciador.set_turno("boss")
+        fim = resultado["fim"]
+        return {
+            "ok": True,
+            "dano": resultado["dano"],
+            "por_membro": resultado["por_membro"],
             "atacante": resultado["atacante"],
             "estado": self._estado_dto(),
             "fim_de_jogo": fim is not None,
@@ -210,19 +247,71 @@ class API:
         campanha e religa o Show à banda. A capanga reusa `Empresario`; nada do
         fluxo de combate muda — só quem é o inimigo da vez."""
         camp = self._garantir_campanha()
+        if camp.venue_bloqueada(venue_id):           # cooldown após derrota
+            raise VenueBloqueadaError(venue_id, camp.segundos_bloqueio(venue_id))
         venue = camp.get_venue(venue_id)             # VenueInvalidaError → ErroDTO
         capanga = venue["capanga"]
         boss = Empresario(capanga["nome"], hp=int(capanga["hp"]), dano=int(capanga["dano"]))
         self._gerenciador.iniciar_show(boss)
-        self._show = Show(self._gerenciador.listar_jogadores(), boss)
+        # A fama da banda escala o dano (banda mais famosa bate mais forte).
+        self._show = Show(self._gerenciador.listar_jogadores(), boss,
+                          mult_banda=camp.mult_banda())
         return self._estado_dto()
 
     @_ponte
     def concluir_venue(self, venue_id: str) -> dict:
-        """Marca a venue como vencida na campanha (chamado após a vitória).
-        Devolve o estado novo da campanha (mesmo formato de `obter_campanha`)."""
-        self._garantir_campanha().concluir(venue_id)  # VenueInvalidaError → ErroDTO
-        return {"ok": True, **self._campanha_dto()}
+        """Vitória numa venue: marca como vencida, dá XP a todos os membros e
+        descreve o item que cai (drop). Idempotente — concluir de novo não dá
+        XP/fama em dobro. Devolve `{campanha, xp_ganho, drop}`."""
+        camp = self._garantir_campanha()
+        ja_vencida = camp.get_venue(venue_id)["concluida"]  # VenueInvalidaError → ErroDTO
+        recompensa = camp.get_recompensa(venue_id)
+        xp_ganho = 0
+        if not ja_vencida:
+            xp_ganho = recompensa["xp"]
+            for musico in self._gerenciador.listar_jogadores():
+                musico.ganhar_xp(xp_ganho)
+        camp.concluir(venue_id)
+        return {
+            "ok": True,
+            "campanha": self._campanha_dto(),
+            "xp_ganho": xp_ganho,
+            "drop": self._drop_dto(recompensa["drop"]),
+        }
+
+    @_ponte
+    def aplicar_drop(self, payload: dict) -> dict:
+        """Aplica o item dropado a um membro escolhido. Equipável → aplica o
+        bônus na hora (sobe atributo); consumível → guarda no inventário."""
+        tipo = payload["tipo"]
+        indice = int(payload.get("indice", 0))
+        musico = self._gerenciador.listar_jogadores()[indice]   # IndexError → ErroDTO
+        item = ItemFactory.criar(tipo)                          # TipoInvalidoError → ErroDTO
+        if getattr(item, "consumir_ao_usar", False):
+            musico.get_inventario().adicionar(item)             # InventarioCheioError → ErroDTO
+            aplicado = "guardado"
+        else:
+            item.usar(musico)                                   # ItemIncompativelError → ErroDTO
+            aplicado = "equipado"
+        return {
+            "ok": True,
+            "aplicado": aplicado,
+            "item": item.nome,
+            "musico": self._musico_dto(indice, musico),
+        }
+
+    @_ponte
+    def registrar_derrota(self, venue_id: str) -> dict:
+        """Derrota numa venue: bloqueia o local por um tempo (escala com a fama
+        da venue) e a banda perde fama (fica mais fraca)."""
+        camp = self._garantir_campanha()
+        camp.get_venue(venue_id)                     # VenueInvalidaError → ErroDTO
+        camp.registrar_derrota(venue_id)
+        return {
+            "ok": True,
+            "bloqueada_seg": camp.segundos_bloqueio(venue_id),
+            "fama_banda": camp.fama_banda(),
+        }
 
     @_ponte
     def registrar_posicao(self, x: float) -> dict:

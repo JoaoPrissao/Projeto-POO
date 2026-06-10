@@ -94,8 +94,8 @@ def test_entrar_no_show_permite_atacar_a_capanga():
 def test_concluir_venue_marca_na_campanha():
     api = _api_com_banda()
     venue = _primeira_venue(api)
-    camp = _serializavel(api.concluir_venue(venue["id"]))
-    marcada = next(v for v in camp["venues"] if v["id"] == venue["id"])
+    res = _serializavel(api.concluir_venue(venue["id"]))
+    marcada = next(v for v in res["campanha"]["venues"] if v["id"] == venue["id"])
     assert marcada["concluida"] is True
 
 
@@ -131,6 +131,95 @@ def test_registrar_posicao_guarda_na_campanha():
     assert api.obter_campanha()["posicao"] == 512.5
 
 
+# ── F3.4: golpe especial ──────────────────────────────────────────────────────
+
+PERFEITO = {"acertos": 10, "total_notas": 10, "combo_max": 10}
+
+
+def test_ataque_especial_indisponivel_vira_erro_dto():
+    api = _api_com_banda()
+    api.entrar_no_show(_primeira_venue(api)["id"])
+    res = api.ataque_especial()                  # sem combos perfeitos ainda
+    assert res["ok"] is False
+
+
+def test_ataque_especial_disponivel_danifica_o_boss():
+    api = _api_com_banda()
+    arena = api.obter_campanha()["venues"][-1]    # vilão mais resistente (aguenta 4 ataques)
+    api.entrar_no_show(arena["id"])
+    # 4 ataques perfeitos liberam o especial (cada perfeito também atordoa, então
+    # o vilão não revida e a banda sobrevive pra encadear).
+    estado = None
+    for _ in range(4):
+        estado = api.executar_acao({"indice": 0, "ritmo": PERFEITO})
+    assert estado["especial_disponivel"] is True
+    hp_antes = estado["estado"]["boss"]["hp"]
+    res = _serializavel(api.ataque_especial())
+    assert res["ok"] is True
+    assert res["dano"] > 0
+    assert res["estado"]["boss"]["hp"] < hp_antes
+
+
+# ── F3.4: XP + drop ao vencer ─────────────────────────────────────────────────
+
+def test_concluir_venue_da_xp_a_todos_e_devolve_drop():
+    api = _api_com_banda()
+    venue = _primeira_venue(api)
+    antes = [(m["nivel"], m["xp"]) for m in api.obter_estado()["banda"]]
+    res = _serializavel(api.concluir_venue(venue["id"]))
+    assert res["xp_ganho"] > 0
+    assert res["drop"] and res["drop"]["tipo"]
+    depois = [(m["nivel"], m["xp"]) for m in api.obter_estado()["banda"]]
+    assert depois != antes                        # XP subiu pra todo mundo
+    assert all(d != a for d, a in zip(depois, antes))
+
+
+def test_concluir_venue_e_idempotente_no_xp():
+    api = _api_com_banda()
+    venue = _primeira_venue(api)
+    api.concluir_venue(venue["id"])
+    snap = [(m["nivel"], m["xp"]) for m in api.obter_estado()["banda"]]
+    res = api.concluir_venue(venue["id"])         # de novo
+    assert res["xp_ganho"] == 0
+    assert [(m["nivel"], m["xp"]) for m in api.obter_estado()["banda"]] == snap
+
+
+def test_aplicar_drop_equipavel_melhora_o_membro():
+    api = _api_com_banda()
+    # Guitarrista (índice 0) pode equipar o pedal (+forca).
+    g0 = api._gerenciador.listar_jogadores()[0]
+    forca_antes = g0.get_forca()
+    res = _serializavel(api.aplicar_drop({"tipo": "pedal", "indice": 0}))
+    assert res["ok"] is True
+    assert res["aplicado"] == "equipado"
+    assert g0.get_forca() > forca_antes
+
+
+def test_aplicar_drop_incompativel_vira_erro_dto():
+    # Pedal só pode em Guitarrista/Baixista; num Vocalista vira ErroDTO.
+    api = API()
+    api.criar_banda([{"tipo": "vocalista", "nome": "Selene", "folego": 50, "inteligencia": 12}])
+    res = api.aplicar_drop({"tipo": "pedal", "indice": 0})
+    assert res["ok"] is False
+
+
+# ── F3.4: derrota bloqueia a venue ────────────────────────────────────────────
+
+def test_registrar_derrota_bloqueia_e_impede_entrar():
+    api = _api_com_banda()
+    venue = _primeira_venue(api)
+    res = api.registrar_derrota(venue["id"])
+    assert res["ok"] is True
+    assert res["bloqueada_seg"] > 0
+    bloqueada = api.entrar_no_show(venue["id"])
+    assert bloqueada["ok"] is False              # venue bloqueada → ErroDTO
+
+
+def test_registrar_derrota_venue_invalida_vira_erro_dto():
+    api = _api_com_banda()
+    assert api.registrar_derrota("fantasma")["ok"] is False
+
+
 # ── save/load retoma a história (teste-chave da fase) ─────────────────────────
 
 def test_save_load_retoma_a_campanha(tmp_path):
@@ -139,9 +228,12 @@ def test_save_load_retoma_a_campanha(tmp_path):
     venue = _primeira_venue(api)
     item = _primeiro_item(api)
 
-    api.concluir_venue(venue["id"])
+    api.concluir_venue(venue["id"])              # vence a 1ª (ganha fama)
     api.coletar_item({"id": item["id"]})
     api.registrar_posicao(777.0)
+    outra = api.obter_campanha()["venues"][1]    # 2ª venue
+    api.registrar_derrota(outra["id"])           # bloqueia a 2ª + perde fama
+    fama_salva = api.obter_campanha()["fama_banda"]
     api.salvar("slot1", pasta)
 
     # Nova sessão limpa: recarrega do save.
@@ -153,3 +245,5 @@ def test_save_load_retoma_a_campanha(tmp_path):
     assert next(v for v in camp["venues"] if v["id"] == venue["id"])["concluida"] is True
     assert next(i for i in camp["itens"] if i["id"] == item["id"])["coletado"] is True
     assert camp["posicao"] == 777.0
+    assert camp["fama_banda"] == fama_salva
+    assert next(v for v in camp["venues"] if v["id"] == outra["id"])["bloqueada"] is True

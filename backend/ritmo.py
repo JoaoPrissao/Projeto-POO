@@ -27,6 +27,10 @@ class Ritmo:
     def modo_refrao(self) -> bool:
         return self.precisao >= self.LIMIAR_REFRAO
 
+    def perfeito(self) -> bool:
+        """Acertou TODAS as notas — gatilho de atordoamento do vilão (F3.4)."""
+        return self._acertos >= self._total_notas
+
     @classmethod
     def de_payload(cls, dto: dict) -> "Ritmo":
         return cls(

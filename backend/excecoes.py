@@ -58,6 +58,14 @@ class TipoInvalidoError(JogoError):
         super().__init__(f"Tipo de músico inválido: '{tipo}'.")
 
 
+# ── Combate (F3.4) ────────────────────────────────────────────────
+
+class EspecialIndisponivelError(JogoError):
+    def __init__(self):
+        super().__init__("Golpe especial ainda não está disponível "
+                         "(precisa de uma sequência de combos perfeitos).")
+
+
 # ── Campanha (modo história) ──────────────────────────────────────
 
 class CampanhaError(JogoError):
@@ -72,3 +80,9 @@ class VenueInvalidaError(CampanhaError):
 class ItemMapaInvalidoError(CampanhaError):
     def __init__(self, item_id):
         super().__init__(f"Item de mapa inexistente na campanha: '{item_id}'.")
+
+
+class VenueBloqueadaError(CampanhaError):
+    def __init__(self, venue_id, segundos=None):
+        extra = f" (faltam {segundos}s)" if segundos else ""
+        super().__init__(f"A venue '{venue_id}' está bloqueada após a derrota{extra}.")

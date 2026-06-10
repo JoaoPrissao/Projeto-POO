@@ -123,3 +123,118 @@ def test_round_trip_preserva_defs_e_progresso():
 def test_to_dict_e_serializavel_em_json():
     import json
     json.dumps(Campanha.padrao().to_dict())  # não levanta
+
+
+# ── F3.4: recompensa por venue (XP + drop) ────────────────────────────────────
+
+def test_venues_tem_fama_xp_e_drop():
+    c = Campanha.padrao()
+    for v in c.listar_venues():
+        assert v["fama"] >= 1
+    rec = c.get_recompensa(c.listar_venues()[0]["id"])
+    assert rec["xp"] > 0
+    assert rec["drop"]
+
+
+def test_get_recompensa_venue_invalida_levanta():
+    with pytest.raises(VenueInvalidaError):
+        Campanha.padrao().get_recompensa("fantasma")
+
+
+# ── F3.4: fama da banda ───────────────────────────────────────────────────────
+
+def test_fama_banda_comeca_zero():
+    assert Campanha.padrao().fama_banda() == 0
+
+
+def test_ganhar_e_perder_fama_com_piso_zero():
+    c = Campanha.padrao()
+    c.ganhar_fama(3)
+    assert c.fama_banda() == 3
+    c.perder_fama(10)                 # não passa de 0
+    assert c.fama_banda() == 0
+
+
+def test_concluir_da_fama_da_venue_e_e_idempotente():
+    c = Campanha.padrao()
+    v = c.listar_venues()[0]          # fama 1
+    c.concluir(v["id"])
+    assert c.fama_banda() == v["fama"]
+    c.concluir(v["id"])               # de novo não dobra a fama
+    assert c.fama_banda() == v["fama"]
+
+
+def test_mult_banda_cresce_com_a_fama():
+    c = Campanha.padrao()
+    base = c.mult_banda()
+    c.ganhar_fama(5)
+    assert c.mult_banda() > base
+
+
+# ── F3.4: bloqueio de venue (clock injetado) ──────────────────────────────────
+
+def test_bloquear_venue_fica_bloqueada_antes_de_expirar():
+    c = Campanha.padrao()
+    vid = c.listar_venues()[0]["id"]
+    c.bloquear_venue(vid, agora=1000.0)
+    assert c.venue_bloqueada(vid, agora=1001.0) is True
+    assert c.segundos_bloqueio(vid, agora=1001.0) > 0
+
+
+def test_bloqueio_expira_depois_do_tempo():
+    c = Campanha.padrao()
+    vid = c.listar_venues()[0]["id"]
+    c.bloquear_venue(vid, agora=1000.0)
+    # passou muito tempo (bem além de DURACAO_BASE * fama)
+    assert c.venue_bloqueada(vid, agora=999999.0) is False
+    assert c.segundos_bloqueio(vid, agora=999999.0) == 0
+
+
+def test_bloqueio_escala_com_a_fama_da_venue():
+    c = Campanha.padrao()
+    venues = c.listar_venues()
+    fraca = min(venues, key=lambda v: v["fama"])
+    forte = max(venues, key=lambda v: v["fama"])
+    c.bloquear_venue(fraca["id"], agora=0.0)
+    c.bloquear_venue(forte["id"], agora=0.0)
+    assert c.segundos_bloqueio(forte["id"], agora=0.0) > c.segundos_bloqueio(fraca["id"], agora=0.0)
+
+
+def test_registrar_derrota_bloqueia_e_reduz_fama():
+    c = Campanha.padrao()
+    c.ganhar_fama(2)
+    vid = c.listar_venues()[0]["id"]
+    c.registrar_derrota(vid, agora=0.0)
+    assert c.venue_bloqueada(vid, agora=1.0) is True
+    assert c.fama_banda() == 1        # perdeu 1 de fama
+
+
+def test_concluir_limpa_bloqueio():
+    c = Campanha.padrao()
+    vid = c.listar_venues()[0]["id"]
+    c.bloquear_venue(vid, agora=0.0)
+    c.concluir(vid)
+    assert c.venue_bloqueada(vid, agora=1.0) is False
+
+
+def test_listar_venues_traz_flags_de_bloqueio():
+    c = Campanha.padrao()
+    vid = c.listar_venues()[0]["id"]
+    c.bloquear_venue(vid, agora=0.0)
+    v = next(v for v in c.listar_venues(agora=1.0) if v["id"] == vid)
+    assert v["bloqueada"] is True
+    assert v["bloqueada_seg"] > 0
+
+
+# ── F3.4: round-trip preserva fama + bloqueios ────────────────────────────────
+
+def test_round_trip_preserva_fama_e_bloqueios():
+    c = Campanha.padrao()
+    vid = c.listar_venues()[0]["id"]
+    c.ganhar_fama(4)
+    c.bloquear_venue(vid, agora=1000.0)
+
+    clone = Campanha.from_dict(c.to_dict())
+    assert clone.fama_banda() == 4
+    assert clone.venue_bloqueada(vid, agora=1001.0) is True
+    assert clone.venue_bloqueada(vid, agora=999999.0) is False
