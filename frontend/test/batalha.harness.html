@@ -75,6 +75,7 @@
       return B.criarBatalha({
         ctx: null, estado, api: o.api, jogarRitmo: o.jogarRitmo || ritmoOk,
         aoFim: o.aoFim || function () {}, aoAtualizar: o.aoAtualizar || function () {},
+        esperar: () => Promise.resolve(),     // sem respiro real nos testes
       });
     }
 

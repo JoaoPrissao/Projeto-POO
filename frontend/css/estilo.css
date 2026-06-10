@@ -64,31 +64,43 @@
 }
 .hud-batalha {                     /* barras de vida sobrepostas ao canvas */
   position: absolute;
-  top: 12px;
-  width: min(40%, 290px);
+  top: 10px;
+  width: min(30%, 210px);
   pointer-events: none;
 }
-.hud-esq { left: 14px; }
-.hud-dir { right: 14px; }
-.hud-membro { margin-bottom: 6px; }
+.hud-esq { left: 12px; }
+.hud-dir { right: 12px; }
+.hud-membro { margin-bottom: 4px; }
 .hud-membro.ko { opacity: .4; filter: grayscale(1); }
-.hud-membro .barra { height: 16px; }
+.hud-membro .barra.mini { height: 12px; }
+.hud-membro .barra.mini .barra-label { font-size: .62rem; }
 .hud-nome {
-  display: block;
-  font-size: .72rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-size: .68rem;
   font-weight: 700;
   text-shadow: 0 1px 2px #000;
   margin-bottom: 1px;
 }
+.hud-nv {
+  font-size: .58rem;
+  font-weight: 700;
+  opacity: .8;
+  background: #0d0a14;
+  border-radius: 4px;
+  padding: 0 5px;
+}
 #hud-boss #boss-nome {
   display: block;
   text-align: right;
-  font-size: .92rem;
+  font-size: .82rem;
   font-weight: 700;
   text-shadow: 0 1px 2px #000;
-  margin-bottom: 4px;
+  margin-bottom: 3px;
 }
-#hud-boss .barra-boss { height: 26px; }
+#hud-boss .barra-boss { height: 18px; }
+#hud-boss .barra-boss .barra-label { font-size: .66rem; }
 
 #batalha-rodape {
   display: flex;

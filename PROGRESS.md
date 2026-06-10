@@ -17,14 +17,25 @@ A F3.4 botou o combate-RPG no backend sem tocar na UI. A F3.5 (tela MK completa)
 - **Sem regressão:** overworld **16/16**, ritmo **9/9**, **pytest 206** (5a não toca backend).
 - **Smoke do `index.html` (Playwright + mock):** boot abre o mapa (canvas ok, `criar_banda`+`obter_campanha`), andar+W entra na venue → troca pra arena (canvas 800×360, boss "Capanga do Bar" 90/90, HUD populado, `entrar_no_show` chamado).
 
+### Ajustes pós-feedback visual do João (10/06)
+Depois de testar a arena, o João apontou correções — aplicadas ainda na 5a:
+- **Layout de palco** (banda de rock): vocal na frente no microfone, guitarra/baixo nas laterais, bateria atrás (antes ficavam amontoados). `PALCO`/`layoutBanda` em `batalha.js`, desenho de trás-pra-frente.
+- **Barras compactas + nível:** boss 26→18px, membros 12px, chip `Nv X` por membro (antes ocupavam muito e não mostravam nível).
+- **Legenda de combate:** `aoLog` mostra cada golpe (`🎸 Aldric → Capanga: 54 🔥` / `🎤 Capanga → Selene: 28`).
+- **Rebalance dos vilões:** HP 90/150/280 → **180/340/600**, dano 10/16/24 → **18/28/40** (estavam fáceis demais e davam pouco dano). Em `campanha.py` + mock.
+- **Respiro no contra-ataque:** `esperar(~0.9s)` injetável antes do `turno_inimigo` (antes o vilão batia no mesmo instante). O auto-ataque por tempo real (2–3s) é a 5b.
+- Harness atualizado (injeta `esperar` instantâneo): **batalha 20/20**, overworld 16/16, ritmo 9/9, pytest 206.
+
+Feedback que virou fase própria (decidido 10/06): **menu de pausa (Esc)** e **auto-ataque por tempo** → F3.5b; **equipar itens (Tab) + movesets que mudam com o equipamento + charts variados** → fase nova; **recuperação (regen na van + loja com cachê)** → fase nova. Economia confirmada: **cachê por show**.
+
 ### Pendente de validação visual (usuário)
-`.\.venv\Scripts\python.exe bridge\app.py` → entrar numa venue abre a **arena MK** (banda esq., vilão dir., barras no topo); setas/AD escolhem, Enter abre o ritmo, acertar baixa o HP do vilão e ele revida; vencer volta ao mapa. Salvar/Carregar agora no HUD do mapa.
+`.\.venv\Scripts\python.exe bridge\app.py` → entrar numa venue abre a **arena MK** (banda no palco, vilão dir., barras compactas no topo com nível); setas/AD escolhem, Enter abre o ritmo, acertar baixa o HP do vilão e ele revida ~0.9s depois (com legenda); vencer volta ao mapa. Salvar/Carregar no HUD do mapa.
 
 ### Nada commitado
 ✓ (na branch `modo-historia`)
 
 ### Próxima tarefa
-**F3.5b** — intro coreografada, auto-ataque por tempo (2–3s) + atordoamento visual, especial (espaço), menu de pausa (voltar/reiniciar/menu principal), menu principal (Novo jogo/Continuar/Sair), telas de vitória (drop→escolher membro) e derrota (bloqueio+fama).
+**F3.5b** (priorizada pelo João) — intro coreografada, **auto-ataque por tempo (2–3s, reinicia a cada hit)** + atordoamento visual, especial (espaço), **menu de pausa no Esc** (voltar/reiniciar/menu principal), **menu principal** (Novo jogo/Continuar/Sair), telas de vitória (drop→escolher membro) e derrota (bloqueio+fama). Depois: equipamento+movesets (Tab) e recuperação+van/loja (cachê).
 
 ---
 

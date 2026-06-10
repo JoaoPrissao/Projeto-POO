@@ -16,23 +16,80 @@
 (function () {
   "use strict";
 
+  // Escapa valores dinâmicos antes de montar HTML pra legenda (nomes podem virar
+  // editáveis com os movesets/menu principal — defesa contra XSS por innerHTML).
+  const esc = (s) => String(s).replace(/[&<>"']/g, (c) =>
+    ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
   const COR_POR_TIPO = {
     guitarrista: "#e23b4e", vocalista: "#b04ad8",
     baixista: "#4a78d8", baterista: "#e0b341",
   };
 
+  // Legendas com pegada rock — sorteadas pra não repetir sempre a mesma frase.
+  // {a}=atacante, {v}=alvo, {d}=dano. Valores escapados em `_frase`.
+  const FRASES_ATAQUE = [
+    "🎸 {a} DETONOU {v} — {d} de dano!",
+    "🤘 {a} mandou um SOLO insano em {v} (-{d})!",
+    "🎸 {a} fez {v} sentir o riff na veia: {d}!",
+    "🔊 {a} estourou a caixa na cara de {v} — {d}!",
+    "🎶 {a} rasgou os tímpanos de {v}: {d}!",
+  ];
+  const FRASES_CRITICO = [
+    "🥁 VIRADA DE BATERIA! {a} ARREBENTOU {v} — {d}!",
+    "🥁 {a} mandou um FILL mortal em {v}: {d}!",
+    "💥 SOLO ÉPICO! {a} pulverizou {v} com {d}!",
+  ];
+  const FRASES_REFRAO = [
+    "🔥 REFRÃO! {a} incendiou {v} com {d}!",
+    "🔥 A galera cantou junto e {a} esmagou {v}: {d}!",
+    "🎉 ENCORE! {a} mandou {v} pro chão — {d}!",
+  ];
+  const FRASES_VILAO = [
+    "🎤 {a} abafou o som de {v} (-{d})",
+    "🍺 {a} jogou uma garrafa em {v} — {d}!",
+    "🚫 {a} mandou {v} parar o show (-{d})",
+    "📉 {a} vaiou {v} sem dó: {d} de dano!",
+  ];
+  function _frase(pool, a, v, d) {
+    return pool[Math.floor(Math.random() * pool.length)]
+      .replace("{a}", `<b>${esc(a)}</b>`)
+      .replace("{v}", esc(v))
+      .replace("{d}", `<b>${esc(d)}</b>`);
+  }
+
   const CONFIG = {
     LARGURA: 800,
     ALTURA: 360,
     CHAO_Y: 300,
-    MEMBRO_W: 54, MEMBRO_H: 92,
-    BANDA_X: 96,        // x base da coluna da banda (esquerda)
-    BOSS_W: 96, BOSS_H: 156,
-    BOSS_X: 632,        // x do vilão (direita)
+    MEMBRO_W: 50, MEMBRO_H: 86,
+    BOSS_W: 104, BOSS_H: 168,
+    BOSS_X: 628,        // x do vilão (direita)
+    REVIDE_MS: 900,     // respiro antes do vilão revidar (5a; auto-ataque real é 5b)
   };
 
+  // Disposição de palco (banda de rock): cada papel no seu lugar — vocal na
+  // frente no microfone, guitarra/baixo nas laterais, bateria atrás. Quem repetir
+  // papel ou for de tipo desconhecido cai num slot de reserva.
+  const PALCO = {
+    baterista:   { x: 132, y: 110 },   // fundo, centro (bateria atrás)
+    vocalista:   { x: 134, y: 200 },   // frente, centro (microfone)
+    guitarrista: { x: 40,  y: 168 },   // frente, esquerda
+    baixista:    { x: 224, y: 168 },   // frente, direita
+  };
+  function layoutBanda(ms) {
+    const usados = {};
+    let reserva = 0;
+    return ms.map((m) => {
+      const base = PALCO[m.tipo];
+      if (base && !usados[m.tipo]) { usados[m.tipo] = true; return base; }
+      const k = reserva++;
+      return { x: 36 + k * 30, y: 150 + (k % 2) * 44 };  // fallback
+    });
+  }
+
   // ── Núcleo (shell injetável) ────────────────────────────────────────────────
-  // opts: { ctx, api, jogarRitmo, estado, corPorTipo, aoAtualizar, aoFim }
+  // opts: { ctx, api, jogarRitmo, estado, corPorTipo, aoAtualizar, aoFim, aoLog, esperar }
   function criarBatalha(opts) {
     const ctx = opts.ctx || null;
     const api = opts.api;
@@ -40,6 +97,8 @@
     const corPorTipo = opts.corPorTipo || COR_POR_TIPO;
     const aoAtualizar = opts.aoAtualizar || function () {};
     const aoFim = opts.aoFim || function () {};
+    const aoLog = opts.aoLog || function () {};
+    const esperar = opts.esperar || ((ms) => new Promise((r) => setTimeout(r, ms)));
 
     let estado = opts.estado;
     let selecionado = 0;
@@ -64,19 +123,11 @@
       desenhar();
     }
 
-    // Posição (canto sup. esq. do sprite) de cada membro — coluna à esquerda,
-    // levemente escalonada em profundidade.
-    function posMembro(i) {
-      return {
-        x: CONFIG.BANDA_X + (i % 2) * 40,
-        y: CONFIG.CHAO_Y - CONFIG.MEMBRO_H - i * 6,
-      };
-    }
-
     function membroNoPonto(x, y) {
       const ms = membros();
+      const pos = layoutBanda(ms);
       for (let i = 0; i < ms.length; i++) {
-        const p = posMembro(i);
+        const p = pos[i];
         if (x >= p.x - 4 && x <= p.x + CONFIG.MEMBRO_W + 20 &&
             y >= p.y - 8 && y <= p.y + CONFIG.MEMBRO_H + 4) return i;
       }
@@ -89,11 +140,14 @@
       const C = CONFIG;
       ctx.clearRect(0, 0, C.LARGURA, C.ALTURA);
       ctx.fillStyle = "#14111c"; ctx.fillRect(0, 0, C.LARGURA, C.ALTURA);
+      ctx.fillStyle = "#1b1526"; ctx.fillRect(0, 0, C.LARGURA, 70);   // fundo do palco
       ctx.fillStyle = "#211b2e"; ctx.fillRect(0, C.CHAO_Y, C.LARGURA, C.ALTURA - C.CHAO_Y);
 
-      // Banda (esquerda, encarando a direita).
-      membros().forEach((m, i) => {
-        const p = posMembro(i);
+      // Banda no palco (de trás pra frente, pra sobreposição ficar certa).
+      const ms = membros();
+      const pos = layoutBanda(ms);
+      ms.map((m, i) => i).sort((a, b) => pos[a].y - pos[b].y).forEach((i) => {
+        const m = ms[i], p = pos[i];
         ctx.globalAlpha = m.vivo ? 1 : 0.3;
         ctx.fillStyle = corPorTipo[m.tipo] || "#e0457b";
         ctx.fillRect(p.x, p.y, C.MEMBRO_W, C.MEMBRO_H);
@@ -104,9 +158,11 @@
         if (i === selecionado && m.vivo) {
           ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 3;
           ctx.strokeRect(p.x - 3, p.y - 3, C.MEMBRO_W + 6, C.MEMBRO_H + 6);
+          ctx.fillStyle = "#ffffff"; ctx.font = "10px monospace"; ctx.textAlign = "center";
+          ctx.fillText("▼", p.x + C.MEMBRO_W / 2, p.y - 18);
         }
-        ctx.fillStyle = "#ece6f5"; ctx.font = "11px monospace"; ctx.textAlign = "center";
-        ctx.fillText(m.nome, p.x + C.MEMBRO_W / 2, p.y - 7);
+        ctx.fillStyle = "#ece6f5"; ctx.font = "10px monospace"; ctx.textAlign = "center";
+        ctx.fillText(m.nome, p.x + C.MEMBRO_W / 2, p.y - 6);
       });
 
       // Vilão (direita).
@@ -144,16 +200,23 @@
 
       ocupado = true;
       try {
+        const alvoBoss = (estado.boss && estado.boss.nome) || "Vilão";
         const ritmo = await jogarRitmo({ tipoMusico: m.tipo, cor: corPorTipo[m.tipo] });
         if (ritmo === null) return;                 // Esc cancelou: não gasta a vez
 
         const res = await api.executar_acao({ indice: m.id, ritmo });
         if (!res || res.ok === false) return;
+        const pool = res.critico ? FRASES_CRITICO
+                   : res.modo_refrao_ativo ? FRASES_REFRAO : FRASES_ATAQUE;
+        aoLog(_frase(pool, m.nome, alvoBoss, res.dano));
         aplicarEstado(res.estado);
         if (res.fim_de_jogo) return finalizar(res.resultado_final);
 
-        const cont = await api.turno_inimigo();     // vilão revida (5a)
+        // Respiro antes do contra-ataque (5a; o auto-ataque por tempo real é 5b).
+        await esperar(CONFIG.REVIDE_MS);
+        const cont = await api.turno_inimigo();
         if (cont && cont.ok !== false) {
+          if (cont.alvo) aoLog(_frase(FRASES_VILAO, cont.atacante, cont.alvo, cont.dano));
           aplicarEstado(cont.estado);
           if (cont.fim_de_jogo) return finalizar(cont.resultado_final);
         }
@@ -183,14 +246,14 @@
   }
 
   // ── Entrada de produção: liga canvas + teclado + minigame real ──────────────
-  function montar({ canvas, api, estado, corPorTipo, aoAtualizar, aoFim } = {}) {
+  function montar({ canvas, api, estado, corPorTipo, aoAtualizar, aoFim, aoLog } = {}) {
     const ctx = canvas ? canvas.getContext("2d") : null;
     if (canvas) { canvas.width = CONFIG.LARGURA; canvas.height = CONFIG.ALTURA; }
     const jogarRitmo = (window.RitmoMinigame && window.RitmoMinigame.jogarRitmo)
       ? window.RitmoMinigame.jogarRitmo
       : (() => Promise.resolve(null));
 
-    const batalha = criarBatalha({ ctx, api, jogarRitmo, estado, corPorTipo, aoAtualizar, aoFim });
+    const batalha = criarBatalha({ ctx, api, jogarRitmo, estado, corPorTipo, aoAtualizar, aoFim, aoLog });
 
     function onKeyDown(e) {
       if (batalha.ocupado) return;        // durante o minigame, as teclas são dele

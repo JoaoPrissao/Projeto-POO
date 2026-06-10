@@ -26,14 +26,14 @@ from excecoes import VenueInvalidaError, ItemMapaInvalidoError
 # dado a cada membro ao vencer. `drop`: tipo de item (ItemFactory) que cai.
 _VENUES_PADRAO = [
     {"id": "bar",   "x": 420,  "nome": "Bar do Zé",
-     "fama": 1, "xp_recompensa": 60,  "drop": "energetico",
-     "capanga": {"nome": "Capanga do Bar", "hp": 90, "dano": 10}},
+     "fama": 1, "xp_recompensa": 70,  "drop": "energetico",
+     "capanga": {"nome": "Capanga do Bar", "hp": 180, "dano": 18}},
     {"id": "feira", "x": 980,  "nome": "Feira Punk",
-     "fama": 2, "xp_recompensa": 110, "drop": "pedal",
-     "capanga": {"nome": "Roadie Valentão", "hp": 150, "dano": 16}},
+     "fama": 2, "xp_recompensa": 130, "drop": "pedal",
+     "capanga": {"nome": "Roadie Valentão", "hp": 340, "dano": 28}},
     {"id": "arena", "x": 1600, "nome": "Arena — O Empresário",
-     "fama": 3, "xp_recompensa": 200, "drop": "amplificador",
-     "capanga": {"nome": "O Empresário", "hp": 280, "dano": 24}},
+     "fama": 3, "xp_recompensa": 240, "drop": "amplificador",
+     "capanga": {"nome": "O Empresário", "hp": 600, "dano": 40}},
 ]
 _ITENS_PADRAO = [
     {"id": "i1", "x": 250,  "tipo": "energetico"},

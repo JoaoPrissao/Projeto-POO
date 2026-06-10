@@ -42,8 +42,8 @@ function barraMembro(m) {
   const cor = COR_POR_TIPO[m.tipo] || "var(--acento)";
   return `
     <div class="hud-membro${m.vivo ? "" : " ko"}">
-      <span class="hud-nome">${m.nome}</span>
-      <div class="barra">
+      <span class="hud-nome">${m.nome}<span class="hud-nv">Nv ${m.nivel}</span></span>
+      <div class="barra mini">
         <div class="fill" style="width:${pct(m.hp, m.hp_maximo)}%;background:${cor}"></div>
         <span class="barra-label">${m.hp}/${m.hp_maximo}</span>
       </div>
@@ -141,6 +141,7 @@ async function entrarNaVenue(venue) {
     estado,
     corPorTipo: COR_POR_TIPO,
     aoAtualizar: atualizarHud,
+    aoLog: (html) => log(html),
     aoFim: (res) => aplicarFim(res, venue),
   });
 }
