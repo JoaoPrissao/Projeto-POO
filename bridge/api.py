@@ -29,9 +29,11 @@ import persistencia
 BOSS_HP_PADRAO = 200
 BOSS_DANO_PADRAO = 20
 
-# F3.7 — recuperação + loja da van. O regen é autoritativo no backend: o front
-# manda "passaram N segundos no mapa" e a ponte aplica com teto por chamada.
+# F3.7/F3.8 — recuperação + loja (agora um PONTO do mapa; a van só armazena).
+# O regen é autoritativo no backend: o front manda "passaram N segundos no
+# mapa" e a ponte aplica com teto por chamada. Energia regenera junto.
 HP_REGEN_POR_SEGUNDO = 2
+ENERGIA_REGEN_POR_SEGUNDO = 2
 REGEN_MAX_SEG_POR_CHAMADA = 10
 LOJA = {"energetico": 40, "cerveja": 25}    # tipo (ItemFactory) -> preço em cachê
 
@@ -39,8 +41,8 @@ LOJA = {"energetico": 40, "cerveja": 25}    # tipo (ItemFactory) -> preço em ca
 _INFO_TIPOS = {
     "guitarrista": {"nome": "Guitarrista", "recurso": "ego",
                     "descricao": "Dano alto. Acumula Ego a cada ataque."},
-    "vocalista":   {"nome": "Vocalista", "recurso": "folego",
-                    "descricao": "Gasta fôlego para soltar a voz com força."},
+    "vocalista":   {"nome": "Vocalista", "recurso": "inteligencia",
+                    "descricao": "Solta a voz com força (inteligência)."},
     "baterista":   {"nome": "Baterista", "recurso": "ritmo",
                     "descricao": "Viradas de bateria são golpes críticos."},
     "baixista":    {"nome": "Baixista", "recurso": "groove",
@@ -112,6 +114,7 @@ class API:
             "completa": camp.esta_completa(),
             "fama_banda": camp.fama_banda(),
             "cache": camp.get_cache(),
+            "loja": camp.get_loja(),        # F3.8: ponto da loja no mapa
         }
 
     def _drop_dto(self, tipo: str) -> dict | None:
@@ -135,7 +138,7 @@ class API:
         if tipo == "guitarrista":
             return {"tipo": "ego", "valor": musico.get_ego(), "max": musico.EGO_MAX}
         if tipo == "vocalista":
-            return {"tipo": "folego", "valor": musico.get_folego(), "max": None}
+            return {"tipo": "inteligencia", "valor": musico.get_inteligencia(), "max": None}
         if tipo == "baterista":
             return {"tipo": "ritmo", "valor": musico.get_agilidade(), "max": None}
         return {"tipo": None, "valor": 0, "max": None}
@@ -150,6 +153,9 @@ class API:
             "hp_maximo": musico.get_hp_maximo(),
             "xp": musico.get_xp(),
             "vivo": musico.esta_vivo(),
+            "energia": musico.get_energia(),            # F3.8
+            "energia_maxima": musico.ENERGIA_MAXIMA,
+            "cansado": musico.esta_cansado(),
             "recurso": self._recurso_dto(musico),
             "moves": moves_de(musico),     # F3.6b: muda com o equipamento
         }
@@ -207,13 +213,17 @@ class API:
         if payload.get("ritmo"):
             ritmo = Ritmo.de_payload(payload["ritmo"])
 
-        mult_extra = 1.0
+        mult_extra, custo, cansa = 1.0, 0, False
         if payload.get("move_id"):                       # F3.6b: golpe escolhido
             musico = self._gerenciador.listar_jogadores()[indice]
             move = get_move(musico, payload["move_id"])  # MoveInvalidoError → ErroDTO
             mult_extra = move["mult"]
+            custo = move.get("custo", 0)                 # F3.8: energia do golpe
+            cansa = move.get("cansa", False)
 
-        resultado = self._show.acao_musico(indice, ritmo=ritmo, mult_extra=mult_extra)
+        # Cansado/sem energia → ErroDTO antes de qualquer efeito (F3.8).
+        resultado = self._show.acao_musico(indice, ritmo=ritmo, mult_extra=mult_extra,
+                                           custo_energia=custo, cansa=cansa)
         self._gerenciador.set_turno("boss")
         fim = resultado["fim"]
         return {
@@ -283,6 +293,8 @@ class API:
         capanga = venue["capanga"]
         boss = Empresario(capanga["nome"], hp=int(capanga["hp"]), dano=int(capanga["dano"]))
         self._gerenciador.iniciar_show(boss)
+        for musico in self._gerenciador.listar_jogadores():
+            musico.descansar()              # F3.8: ninguém entra cansado no show
         # A fama da banda escala o dano (banda mais famosa bate mais forte).
         self._show = Show(self._gerenciador.listar_jogadores(), boss,
                           mult_banda=camp.mult_banda())
@@ -413,14 +425,18 @@ class API:
 
     @_ponte
     def regenerar_banda(self, segundos) -> dict:
-        """Regen passivo no mapa: cura os VIVOS a HP_REGEN_POR_SEGUNDO. O teto
-        por chamada mantém a taxa autoritativa (o front não acelera a cura)."""
+        """Regen passivo no mapa: cura os VIVOS a HP_REGEN_POR_SEGUNDO e
+        recupera energia (F3.8) — na estrada todo mundo também descansa.
+        O teto por chamada mantém a taxa autoritativa (o front não acelera)."""
         seg = min(max(0, int(segundos)), REGEN_MAX_SEG_POR_CHAMADA)
         cura = seg * HP_REGEN_POR_SEGUNDO
+        energia = seg * ENERGIA_REGEN_POR_SEGUNDO
         banda = self._gerenciador.listar_jogadores()
         for musico in banda:
+            musico.descansar()              # cansaço é coisa de batalha
             if musico.esta_vivo() and cura > 0:
                 musico.curar(cura)          # capa no hp_maximo
+                musico.recuperar_energia(energia)
         return {
             "ok": True,
             "banda": [self._musico_dto(i, m) for i, m in enumerate(banda)],
@@ -428,12 +444,13 @@ class API:
 
     @_ponte
     def comprar(self, payload: dict) -> dict:
-        """Loja da van: compra um consumível com cachê e guarda no inventário
-        do membro escolhido. Sem saldo/tipo fora da loja → ErroDTO."""
+        """Loja do mapa (F3.8 — o jogador vai até o ponto 🏪): compra um
+        consumível com cachê e guarda no inventário do membro escolhido.
+        Sem saldo/tipo fora da loja → ErroDTO."""
         tipo = payload["tipo"]
         indice = int(payload.get("indice", 0))
         if tipo not in LOJA:
-            raise JogoError(f"A loja da van não vende '{tipo}'.")
+            raise JogoError(f"A loja não vende '{tipo}'.")
         musico = self._gerenciador.listar_jogadores()[indice]   # IndexError → ErroDTO
         camp = self._garantir_campanha()
         camp.gastar_cache(LOJA[tipo])       # CacheInsuficienteError → ErroDTO

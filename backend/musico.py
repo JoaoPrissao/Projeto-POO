@@ -7,6 +7,7 @@ CAPACIDADE_INVENTARIO_PADRAO = 20
 
 class Musico(ABC):
     XP_BASE = 100
+    ENERGIA_MAXIMA = 100   # F3.8: recurso unificado dos golpes (ex-fôlego)
     TIPO = None  # discriminador de serialização; cada subclasse define o seu
 
     def __init__(self, nome: str, nivel: int = 1, hp_maximo: int = 100, xp: int = 0):
@@ -16,6 +17,8 @@ class Musico(ABC):
         self._hp               = hp_maximo
         self._xp               = xp
         self._xp_proximo_nivel = nivel * self.XP_BASE
+        self._energia          = self.ENERGIA_MAXIMA
+        self._cansado          = False
         print(f"  [+] Músico '{self._nome}' criado (nível {self._nivel}).")
 
     @classmethod
@@ -123,6 +126,35 @@ class Musico(ABC):
         print(f"  {self._nome} subiu para o nível {self._nivel}! "
               f"HP máximo: {self._hp_maximo} (+{bonus_hp})")
 
+    # ── Energia + cansaço (F3.8) ─────────────────────────────────
+    # Energia é o recurso unificado dos golpes: o move escolhido consome
+    # `custo`; o golpe pesado deixa CANSADO (perde a próxima vez da banda —
+    # o descanso acontece quando o vilão age, virando a rodada).
+
+    def get_energia(self) -> int:
+        return self._energia
+
+    def gastar_energia(self, qtd: int) -> None:
+        from excecoes import EnergiaInsuficienteError
+        qtd = max(0, int(qtd))
+        if qtd > self._energia:
+            raise EnergiaInsuficienteError(self._nome, self._energia, qtd)
+        self._energia -= qtd
+
+    def recuperar_energia(self, qtd: int) -> None:
+        if qtd > 0:
+            self._energia = min(self._energia + int(qtd), self.ENERGIA_MAXIMA)
+
+    def esta_cansado(self) -> bool:
+        return self._cansado
+
+    def cansar(self) -> None:
+        self._cansado = True
+        print(f"  {self._nome} ficou cansado do golpe pesado!")
+
+    def descansar(self) -> None:
+        self._cansado = False
+
     @abstractmethod
     def atacar(self) -> int:
         """Retorna o dano base sem aplicá-lo (D2). O Show aplica modificadores
@@ -194,6 +226,8 @@ class Musico(ABC):
                 "itens": [item.to_dict() for item in inv.listar()] if inv else [],
             },
             "equipados": [item.to_dict() for item in self._equipados()],
+            "energia": self._energia,
+            "cansado": self._cansado,
         }
 
     @classmethod
@@ -206,9 +240,14 @@ class Musico(ABC):
         hp_atual = dados.pop("hp")
         inv_dados = dados.pop("inventario", None)
         equipados = dados.pop("equipados", [])
+        energia = dados.pop("energia", None)    # F3.8 (save antigo: None → máx)
+        cansado = dados.pop("cansado", False)
 
         musico = MusicoFactory.criar(tipo, **dados)
         musico._hp = hp_atual
+        if energia is not None:
+            musico._energia = int(energia)
+        musico._cansado = bool(cansado)
 
         if inv_dados:
             inv = musico.get_inventario()

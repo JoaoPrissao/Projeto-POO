@@ -41,15 +41,18 @@ function log(html) {
   if (el) el.innerHTML = html;
 }
 
-// ── HUD da batalha (barras de vida estilo MK) ───────────────────────────────
+// ── HUD da batalha (barras de vida + energia estilo MK) ─────────────────────
 function barraMembro(m) {
   const cor = COR_POR_TIPO[m.tipo] || "var(--acento)";
   return `
     <div class="hud-membro${m.vivo ? "" : " ko"}">
-      <span class="hud-nome">${esc(m.nome)}<span class="hud-nv">Nv ${esc(m.nivel)}</span></span>
+      <span class="hud-nome">${esc(m.nome)}<span class="hud-nv">Nv ${esc(m.nivel)}</span>${m.cansado ? `<span class="hud-cansado">💤</span>` : ""}</span>
       <div class="barra mini">
         <div class="fill" style="width:${pct(m.hp, m.hp_maximo)}%;background:${cor}"></div>
         <span class="barra-label">${esc(m.hp)}/${esc(m.hp_maximo)}</span>
+      </div>
+      <div class="barra energia">
+        <div class="fill" style="width:${pct(m.energia, m.energia_maxima)}%"></div>
       </div>
     </div>`;
 }
@@ -62,18 +65,48 @@ function atualizarHud(estado) {
   $("#boss-hp-label").textContent = `${b.hp} / ${b.hp_maximo}`;
 }
 
-// Moveset do músico selecionado no rodapé (alimentado pelo `aoSelecionar`).
+// ── Painel de golpes (F3.8): 3 botões por músico selecionado ────────────────
+// Estrelas de dificuldade = densidade do chart do minigame.
+const DIFICULDADE_CHART = {
+  facil: "★", padrao: "★★", constante: "★★", sustentada: "★★", rapido: "★★",
+  sincopado: "★★", pesado: "★★★", denso: "★★★", caotico: "★★★",
+};
+let membroSelecionado = null;   // último membro emitido pelo `aoSelecionar`
+let lutaInfo = { turno: "banda" };
+
 function atualizarMovesHud(membro) {
+  membroSelecionado = membro;
   const el = $("#moves-hud");
   if (!el) return;
   const moves = (membro && membro.moves) || [];
-  el.innerHTML = moves.map((mv, i) =>
-    `<b>${i + 1}</b> ${esc(mv.nome)}${mv.mult > 1 ? ` <span class="mv-mult">×${esc(mv.mult)}</span>` : ""}`
-  ).join(" · ");
+  if (!moves.length) { el.innerHTML = ""; return; }
+  const vezDoVilao = lutaInfo.turno === "vilao";
+  el.innerHTML = moves.map((mv, i) => {
+    const semEnergia = mv.custo != null && membro.energia != null && membro.energia < mv.custo;
+    const off = vezDoVilao || membro.cansado || semEnergia;
+    return `
+      <button class="move-btn" data-move="${i}" ${off ? "disabled" : ""}
+              title="${semEnergia ? "sem energia" : membro.cansado ? "cansado" : ""}">
+        <b>${i + 1}</b> ${esc(mv.nome)}
+        <span class="mv-meta">×${esc(mv.mult)} · ⚡${esc(mv.custo ?? 0)} · ${DIFICULDADE_CHART[mv.chart] || "★★"}${mv.cansa ? " · 💤" : ""}</span>
+      </button>`;
+  }).join("");
+  el.querySelectorAll(".move-btn").forEach((b) =>
+    b.addEventListener("click", () => {
+      if (batalhaHandle) batalhaHandle.batalha.atacar(Number(b.dataset.move));
+    }));
 }
 
-// Aviso do golpe especial no rodapé (alimentado pelo `aoLuta` da batalha).
-function atualizarEspecialHint(info) {
+// Rodapé alimentado pelo `aoLuta`: turno (F3.8) + golpe especial.
+function atualizarLuta(info) {
+  lutaInfo = info;
+  const turnoEl = $("#turno-hint");
+  if (turnoEl) {
+    turnoEl.textContent = info.fase !== "luta" ? ""
+      : info.turno === "vilao" ? "🎤 Vez do vilão…" : "🎸 Sua vez!";
+    turnoEl.classList.toggle("vilao", info.turno === "vilao");
+  }
+  atualizarMovesHud(membroSelecionado);   // habilita/desabilita os botões
   const el = $("#especial-hint");
   if (!el) return;
   if (info.especialDisponivel) {
@@ -171,13 +204,30 @@ async function fecharFimEVoltar() {
   await abrirOverworld();
 }
 
-// ── Menu de pausa (Esc na batalha) ──────────────────────────────────────────
-function aoPausar() {
+// ── Menu de pausa (Esc na batalha E no mapa — F3.8) ─────────────────────────
+// `pausaContexto` adapta os botões: "Reiniciar" só faz sentido em batalha.
+let pausaContexto = "batalha";
+
+function aoPausar() {                      // Esc dentro da batalha (batalha.js)
+  pausaContexto = "batalha";
+  $("#btn-pausa-reiniciar").hidden = false;
   $("#pausa-overlay").classList.add("aberto");
 }
-function retomarBatalha() {
+function pausarMapa() {                    // Esc no overworld (bug F3.8)
+  pausaContexto = "mapa";
+  if (owHandle) owHandle.mundo.parar();    // congela o passeio…
+  pararRegen();                            // …e a cura passiva
+  $("#btn-pausa-reiniciar").hidden = true;
+  $("#pausa-overlay").classList.add("aberto");
+}
+function retomarPausa() {
   $("#pausa-overlay").classList.remove("aberto");
-  if (batalhaHandle) batalhaHandle.batalha.retomar();
+  if (pausaContexto === "mapa") {
+    if (owHandle) owHandle.mundo.iniciar();
+    iniciarRegen();
+  } else if (batalhaHandle) {
+    batalhaHandle.batalha.retomar();
+  }
 }
 async function reiniciarBatalha() {
   $("#pausa-overlay").classList.remove("aberto");
@@ -186,6 +236,7 @@ async function reiniciarBatalha() {
 function sairProMenuPrincipal() {
   $("#pausa-overlay").classList.remove("aberto");
   if (batalhaHandle) { batalhaHandle.desligar(); batalhaHandle = null; }
+  if (owHandle) { owHandle.desligar(); owHandle = null; }   // mapa não fica ouvindo teclas
   venueAtual = null;
   pararRegen();
   mostrarTela("tela-menu");
@@ -216,10 +267,11 @@ function atualizarStatusMapa() {
 }
 
 // ── Menu de equipamento (Tab na van — F3.6; só no mapa, nunca em batalha) ───
-// F3.7: a van também é loja (comprar com cachê) e descanso (usar consumível).
-const LOJA_VAN = [   // espelha LOJA da ponte (tipo → preço)
+// F3.8: a van é só ARMAZENAMENTO (equipar/usar/guardar) — a loja virou um
+// ponto do mapa (🏪), com overlay próprio mais abaixo.
+const LOJA_CATALOGO = [   // espelha LOJA da ponte (tipo → preço)
   { tipo: "energetico", nome: "Energético", desc: "Cura 50 de HP", preco: 40 },
-  { tipo: "cerveja", nome: "Cerveja", desc: "Restaura 30 de fôlego (vocalista)", preco: 25 },
+  { tipo: "cerveja", nome: "Cerveja", desc: "Restaura 30 de energia", preco: 25 },
 ];
 let equipBanda = null;      // último DTO de obter_equipamento
 let equipSel = 0;           // membro selecionado no menu
@@ -293,35 +345,7 @@ function renderEquipamento(aviso) {
     b.addEventListener("click", () => acaoEquipar("desequipar", b.dataset.deseq)));
   painel.querySelectorAll("[data-usar]").forEach((b) =>
     b.addEventListener("click", () => acaoUsarItem(b.dataset.usar)));
-
-  // Loja da van (F3.7): compra pro membro selecionado, paga com cachê.
-  const loja = $("#equip-loja");
-  loja.innerHTML = `
-    <div class="equip-secao">Loja (compra pra ${esc(m.nome)})</div>
-    ${LOJA_VAN.map((p) => `
-      <div class="equip-item">
-        <div class="equip-info">
-          <div class="equip-nome">${esc(p.nome)}</div>
-          <div class="equip-desc">${esc(p.desc)}</div>
-        </div>
-        <span class="equip-bonus">💰 ${esc(p.preco)}</span>
-        <button data-comprar="${esc(p.tipo)}" ${equipCache >= p.preco ? "" : "disabled"}>Comprar</button>
-      </div>`).join("")}`;
-  loja.querySelectorAll("[data-comprar]").forEach((b) =>
-    b.addEventListener("click", () => acaoComprar(b.dataset.comprar)));
   $("#equip-aviso").textContent = aviso || "";
-}
-
-async function acaoComprar(tipo) {
-  const res = await window.pywebview.api.comprar({ tipo, indice: equipBanda[equipSel].id });
-  if (!res || res.ok === false) {
-    renderEquipamento(`⚠️ ${res && res.erro ? res.erro.mensagem : "não deu"}`);
-    return;
-  }
-  equipCache = res.cache;
-  if (campanhaAtual) campanhaAtual.cache = res.cache;   // HUD do mapa coerente
-  atualizarStatusMapa();
-  await recarregarEquipamento(`🛒 ${res.item} comprado!`);
 }
 
 async function acaoUsarItem(nome) {
@@ -342,6 +366,72 @@ async function acaoEquipar(metodo, nome) {
   }
   equipBanda = res.banda;
   renderEquipamento(metodo === "equipar" ? `✅ ${nome} equipado!` : `↩️ ${nome} voltou pro inventário.`);
+}
+
+// ── Loja do mapa (F3.8): ponto 🏪 no overworld — W perto dela abre aqui ─────
+let lojaBanda = null;
+let lojaSel = 0;
+let lojaCache = 0;
+
+function lojaAberta() {
+  return $("#loja-overlay").classList.contains("aberto");
+}
+
+async function abrirLoja() {
+  const res = await window.pywebview.api.obter_equipamento();
+  if (!res || res.ok === false) {
+    avisoOverworld(`⚠️ ${res && res.erro ? res.erro.mensagem : "loja indisponível"}`);
+    return;
+  }
+  const camp = await window.pywebview.api.obter_campanha();
+  lojaCache = (camp && camp.cache) || 0;
+  lojaBanda = res.banda;
+  if (lojaSel >= lojaBanda.length) lojaSel = 0;
+  renderLoja("");
+  $("#loja-overlay").classList.add("aberto");
+}
+
+function fecharLoja() {
+  $("#loja-overlay").classList.remove("aberto");
+}
+
+function renderLoja(aviso) {
+  $("#loja-cache").textContent = `💰 ${lojaCache}`;
+  const membros = $("#loja-membros");
+  membros.innerHTML = lojaBanda.map((m, i) =>
+    `<button data-i="${i}" class="${i === lojaSel ? "ativo" : ""}">${esc(m.nome)} ♥${esc(m.hp)}</button>`).join("");
+  membros.querySelectorAll("button").forEach((b) =>
+    b.addEventListener("click", () => { lojaSel = Number(b.dataset.i); renderLoja(""); }));
+
+  const m = lojaBanda[lojaSel];
+  $("#loja-itens").innerHTML = `
+    <div class="equip-secao">Compra pra ${esc(m.nome)}</div>
+    ${LOJA_CATALOGO.map((p) => `
+      <div class="equip-item">
+        <div class="equip-info">
+          <div class="equip-nome">${esc(p.nome)}</div>
+          <div class="equip-desc">${esc(p.desc)}</div>
+        </div>
+        <span class="equip-bonus">💰 ${esc(p.preco)}</span>
+        <button data-comprar="${esc(p.tipo)}" ${lojaCache >= p.preco ? "" : "disabled"}>Comprar</button>
+      </div>`).join("")}`;
+  $("#loja-itens").querySelectorAll("[data-comprar]").forEach((b) =>
+    b.addEventListener("click", () => acaoComprar(b.dataset.comprar)));
+  $("#loja-aviso").textContent = aviso || "";
+}
+
+async function acaoComprar(tipo) {
+  const res = await window.pywebview.api.comprar({ tipo, indice: lojaBanda[lojaSel].id });
+  if (!res || res.ok === false) {
+    renderLoja(`⚠️ ${res && res.erro ? res.erro.mensagem : "não deu"}`);
+    return;
+  }
+  lojaCache = res.cache;
+  if (campanhaAtual) campanhaAtual.cache = res.cache;   // HUD do mapa coerente
+  atualizarStatusMapa();
+  const eq = await window.pywebview.api.obter_equipamento();
+  if (eq && eq.ok !== false) lojaBanda = eq.banda;
+  renderLoja(`🛒 ${res.item} comprado!`);
 }
 
 // ── Menu principal ──────────────────────────────────────────────────────────
@@ -407,10 +497,12 @@ async function abrirOverworld() {
 
   if (owHandle) owHandle.desligar();
   owHandle = window.Overworld.montar({
-    canvas, venues: camp.venues, itens: camp.itens, corTipo: "guitarrista",
+    canvas, venues: camp.venues, itens: camp.itens, loja: camp.loja,
+    corTipo: "guitarrista",
     inicioX: camp.posicao,
     aoEntrar: entrarNaVenue,
     aoColetar: coletarItemNoMapa,
+    aoLoja: abrirLoja,            // F3.8: W perto do 🏪 abre a loja
   });
   window.__overworld = owHandle;
 
@@ -435,7 +527,7 @@ async function entrarNaVenue(venue) {
   }
   mostrarTela("tela-show");
   $("#btn-voltar-mapa").hidden = true;
-  atualizarEspecialHint({ especialDisponivel: false, perfeitosSeguidos: 0 });
+  atualizarLuta({ fase: "intro", turno: "banda", especialDisponivel: false, perfeitosSeguidos: 0 });
   log(`🎤 <b>${esc(venue.nome)}</b> — encare <b>${esc(venue.capanga.nome)}</b>! Escolha um músico e toque.`);
 
   if (batalhaHandle) batalhaHandle.desligar();
@@ -448,7 +540,7 @@ async function entrarNaVenue(venue) {
     aoLog: (html) => log(html),
     aoFim: (res) => aplicarFim(res, venue),
     aoPausar,
-    aoLuta: atualizarEspecialHint,
+    aoLuta: atualizarLuta,
     aoSelecionar: atualizarMovesHud,
   });
 }
@@ -469,27 +561,34 @@ function bind() {
   $("#btn-novo-jogo").addEventListener("click", novoJogo);
   $("#btn-continuar").addEventListener("click", continuarJogo);
   $("#btn-sair").addEventListener("click", sairDoJogo);
-  $("#btn-pausa-voltar").addEventListener("click", retomarBatalha);
+  $("#btn-pausa-voltar").addEventListener("click", retomarPausa);
   $("#btn-pausa-reiniciar").addEventListener("click", reiniciarBatalha);
   $("#btn-pausa-menu").addEventListener("click", sairProMenuPrincipal);
   $("#btn-salvar").addEventListener("click", salvar);
   $("#btn-carregar").addEventListener("click", carregar);
   $("#btn-voltar-mapa").addEventListener("click", voltarAoMapa);
-  // Esc com o menu de pausa aberto = Voltar (a batalha ignora teclas na pausa).
-  // Tab no mapa abre/fecha o menu de equipamento (van) — nunca em batalha.
+  $("#btn-loja-fechar").addEventListener("click", fecharLoja);
+  // Esc: fecha o que estiver aberto (pausa/van/loja); no mapa "limpo" PAUSA
+  // (bug F3.8 — antes só a batalha pausava). Tab abre/fecha a van — só no mapa.
   window.addEventListener("keydown", (e) => {
     if (e.key === "Escape" && $("#pausa-overlay").classList.contains("aberto")) {
       e.preventDefault();
-      retomarBatalha();
+      retomarPausa();
     } else if (e.key === "Tab") {
       if (equipAberto()) { e.preventDefault(); fecharEquipamento(); }
-      else if ($("#tela-overworld").classList.contains("ativa")) {
+      else if ($("#tela-overworld").classList.contains("ativa") && !lojaAberta()) {
         e.preventDefault();
         abrirEquipamento();
       }
     } else if (e.key === "Escape" && equipAberto()) {
       e.preventDefault();
       fecharEquipamento();
+    } else if (e.key === "Escape" && lojaAberta()) {
+      e.preventDefault();
+      fecharLoja();
+    } else if (e.key === "Escape" && $("#tela-overworld").classList.contains("ativa")) {
+      e.preventDefault();
+      pausarMapa();
     }
   });
 }

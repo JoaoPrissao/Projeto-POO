@@ -1,5 +1,46 @@
 # PROGRESS — RPG Manager (banda de rock)
 
+## F3.8 — Turnos revezados, energia/cansaço, 3 golpes, loja no mapa, pausa no mapa e fullscreen (11/06/2026)
+
+### Contexto
+Feedback do João jogando a F3.7: (1) Esc no mapa não pausava; (2) o combate por timer deixava o player atacar em sequência e stun-lockear o vilão — ele exigiu **ataque revezado obrigatório** (banda → vilão → banda; exceção: banda >10s parada → vilão ataca de graça); (3) cada músico precisa de **3 golpes** (leve/médio/pesado com energia, cansaço e dificuldade de combo); (4) a loja não é na van — é um **ponto do mapa**; (5) o jogo deve abrir em **fullscreen**; (6) a partir daqui usar as **skills GSD**. Decisões do João: cansaço = perde a próxima vez; fullscreen real; fôlego do Vocalista **unificado em energia** na classe base.
+
+### O que mudou — backend (TDD primeiro)
+- **`musico.py`:** `ENERGIA_MAXIMA=100`, `_energia`/`_cansado` na base com `get/gastar/recuperar_energia` (`EnergiaInsuficienteError` se faltar), `esta_cansado/cansar/descansar`; serializado no `to_dict/from_dict` (save antigo → energia cheia).
+- **`Vocalista.py`:** fôlego REMOVIDO (`atacar()` virou determinístico `int(intel*2.0)` + bônus); kwarg `folego` segue aceito como **alias de energia** (compat com saves/payloads). `Consumivel` efeito `"folego"/"energia"` → `recuperar_energia` (cerveja serve pra qualquer músico).
+- **`moves.py`:** **3 golpes por tipo** — leve (×0.8, ⚡5, chart `facil`), médio (×1.0, ⚡12, chart do tipo), pesado (×1.5, ⚡25, chart difícil, `cansa:True`). Golpes de item são pesados (⚡28/32, cansam). Cap `[-3:]` mantido.
+- **`show.py`:** `acao_musico(..., custo_energia, cansa)` valida cansaço (`MusicoCansadoError`) e energia ANTES de qualquer efeito; `turno_inimigo` **vira a rodada**: banda viva descansa + recupera `REGEN_ENERGIA_POR_RODADA=8` (cansaço dura exatamente 1 vez do vilão, mesmo com stun).
+- **`campanha.py`:** ponto fixo `loja {x:700}` (entre bar e feira), serializado; `get_loja()`.
+- **Ponte:** `executar_acao` aplica custo/cansa do move; DTO do músico traz `energia/energia_maxima/cansado`; recurso do vocalista virou `inteligencia`; `regenerar_banda` também recupera energia (2/s, mesmo teto) e descansa; `entrar_no_show` zera cansaço; `_campanha_dto` traz `loja`.
+
+### O que mudou — frontend
+- **`batalha.js` (turnos revezados):** sai o `AUTO_ATAQUE_MS` rearmado por hit; entram `turno: banda|vilao`, `VILAO_DELAY_MS=900` (pausa dramática do revide) e `IDLE_MS=10000` (banda parada → vilão ataca DE GRAÇA e a vez segue da banda). Golpe/especial só na vez da banda e **passam a vez**; stun não devolve turno extra (a vez do vilão acontece e é consumida); Esc no minigame não gasta a vez. Cansado: não selecionável (seleção pula, clique avisa), 💤 no sprite; sem energia o golpe nem chama a API. Barra no canvas mostra o relógio de ociosidade; "⚡ vez do vilão" durante o revide. Clicar no personagem agora **só seleciona**.
+- **Painel de golpes (`main.js`/HTML/CSS):** `#moves-hud` virou 3 **botões** (nome, ×mult, ⚡custo, dificuldade ★/★★/★★★ pelo chart, 💤 se cansa), desabilitados na vez do vilão/sem energia/cansado; `#turno-hint` ("🎸 Sua vez!" / "🎤 Vez do vilão…"); HUD por membro ganhou **barra de energia** + tag 💤.
+- **`ritmo.js`:** chart `facil` (8 notas, intervalo 700ms) pro golpe leve.
+- **Loja no mapa (`overworld.js`/`main.js`):** prédio 🏪 em x=700 com "[W] comprar" perto; `aoLoja` abre `#loja-overlay` (membro destino + catálogo + cachê); **van (Tab) perdeu a loja** — só equipar/usar/guardar. Se loja e venue couberem no alcance, vale o mais perto.
+- **Pausa no mapa (bug):** Esc no overworld abre o menu de pausa (congela o passeio + regen; "Reiniciar" some — só faz sentido em batalha); Esc de novo volta. Sair pro menu também desliga o overworld (teclas não vazam pro menu).
+- **Fullscreen:** `app.py` com `fullscreen=True`; CSS: `main` até 1280px centralizado, canvases escalam 100% (pixelated).
+
+### Testes (TDD)
+- **pytest 273** (+22, `test_energia.py`): energia gasta/recupera/teto/erro; cansar/descansar; round-trip energia+cansado; folego→energia (alias, cerveja pra qualquer um, vocalista determinístico); 3 golpes por tipo (leve<médio<pesado em mult/custo, só pesado cansa, golpes de item pesados, cap com item); show valida cansaço/energia antes do dano e a rodada descansa; ponte aplica custo/cansa no DTO e ErroDTO pro cansado; regen de energia no mapa; campanha.loja serializada e no DTO. Legados de fôlego atualizados.
+- **Harnesses:** batalha **77/77** (turno revezado completo, banda não ataca na vez do vilão, delay do revide, idle 10s com vez seguindo da banda, stun consome a vez sem turno extra, cansado não selecionável e descansa na rodada, sem energia não chama API, especial passa a vez) · ritmo **14/14** (chart facil mais folgado e mais curto) · overworld **21/21** (loja_perto, W na loja chama aoLoja e não entra em venue, longe não abre).
+- **Smoke (Playwright + mock, 1080p):** menu → mapa → **Esc pausa no mapa** (overworld congela, Reiniciar oculto) → Esc volta → bar → 3 botões de golpe → **pesado**: energia 100→75, 💤 no HUD, botões off, "Vez do vilão…" → revide (delay 900ms) → descansa (cansado false, energia 83) → 6 perfeitos vencem (stun anula revides) → "+70 XP · 💰 +50" → status "💰 50 · ⭐ 1" → anda até o 🏪 → W abre loja → compra Energético (💰 10, botões off sem saldo) → van (Tab) **sem loja**, com Usar/Equipar → overlays fecham limpos. App real abre em fullscreen sem erro.
+- Nota de balanceamento observada no smoke: com turnos revezados o vilão SEMPRE revida — a banda mock de 1 membro perde se não fizer perfeitos; a banda real (4 membros + consumíveis + stun) absorve.
+
+### GSD (novo no fluxo)
+`/gsd-map-codebase` rodado (4 mappers paralelos) → `.planning/codebase/` com 7 docs (STACK/ARCHITECTURE/STRUCTURE/CONVENTIONS/TESTING/INTEGRATIONS/CONCERNS, 1519 linhas). `.planning/` está no .gitignore (docs locais). Próximas fases podem usar `/gsd-plan-phase` → `/gsd-execute-phase` → `/gsd-verify-work`.
+
+### Pendente de validação visual (usuário)
+`.\.venv\Scripts\python.exe bridge\app.py` (abre em TELA CHEIA) → Esc no mapa pausa; batalha: escolha o músico (clique/setas) e o golpe nos 3 botões (pesado cansa — repare no 💤 e na vez do vilão); fique 10s parado e veja o ataque grátis; vá até o 🏪 comprar; Tab na van só equipa/usa.
+
+### Commitado
+`feat: F3.8` na branch `modo-historia`.
+
+### Próxima tarefa
+**Mapa interativo** (van como sprite que melhora com fama, NPCs que dão item, baús/salas escondidas) — ou, se o prazo apertar, pular direto pra **pixel art + polimento** e **README/QA/entrega (26/06)**.
+
+---
+
 ## F3.7 — Recuperação + van/loja: cachê por show, regen passivo e consumíveis (10/06/2026)
 
 ### Contexto

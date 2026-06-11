@@ -71,13 +71,14 @@ def test_consumivel_e_removido_apos_uso():
     assert len(inv) == 0
 
 
-def test_usar_cerveja_restaura_folego_do_vocalista():
+def test_usar_cerveja_restaura_energia():
+    # F3.8: cerveja restaura a ENERGIA unificada — de qualquer músico.
     inv = Inventario(capacidade=2)
     cerveja = ItemFactory.criar("cerveja")    # restaura 30
     inv.adicionar(cerveja)
     vocalista = Vocalista("Selene", folego=0)
     inv.usar(cerveja.nome, vocalista)
-    assert vocalista.get_folego() == 30
+    assert vocalista.get_energia() == 30
 
 
 def test_usar_item_inexistente_lanca_excecao():

@@ -149,6 +149,33 @@
       checar("inicioX: banda começa na posição lembrada", mundo.estado.banda.x, 300);
     }
 
+    // ── Loja no mapa (F3.8): W perto do 🏪 chama aoLoja, longe não ─────────────
+    {
+      const lojaAbriu = [], entrou = [];
+      const mundo = OW.criarMundo({
+        agora: () => 0, agendarFrame: () => {}, ctx: null,
+        inicioX: 700 - OW.CONFIG.TAM_BANDA / 2,    // centro da banda em x=700
+        venues: VENUES, itens: [], loja: { x: 700 },
+        aoEntrar: (v) => entrou.push(v.id),
+        aoLoja: () => lojaAbriu.push(1),
+      });
+      checar("loja: estado expõe loja_perto", mundo.estado.loja_perto, true);
+      mundo.interagir();
+      checar("loja: W perto da loja chama aoLoja", lojaAbriu.length, 1);
+      checar("loja: não entra em venue por engano", entrou.length, 0);
+    }
+    {
+      const lojaAbriu = [];
+      const mundo = OW.criarMundo({
+        agora: () => 0, agendarFrame: () => {}, ctx: null,
+        inicioX: 60, venues: VENUES, itens: [], loja: { x: 700 },
+        aoLoja: () => lojaAbriu.push(1),
+      });
+      checar("loja: longe não abre", mundo.estado.loja_perto, false);
+      mundo.interagir();
+      checar("loja: W longe da loja não chama aoLoja", lojaAbriu.length, 0);
+    }
+
     // ── Relatório ──────────────────────────────────────────────────────────────
     const ul = document.getElementById("casos");
     let todosOk = true;

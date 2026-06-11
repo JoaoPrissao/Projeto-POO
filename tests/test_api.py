@@ -56,11 +56,14 @@ def test_estado_traz_recurso_ego_do_guitarrista():
     assert rec["max"] == 50
 
 
-def test_estado_traz_recurso_folego_do_vocalista():
+def test_estado_traz_recurso_inteligencia_do_vocalista():
+    # F3.8: o fôlego virou a energia unificada (todo músico tem `energia` no
+    # DTO) — o recurso próprio do vocalista agora é a inteligência.
     api = _api_com_banda([{"tipo": "vocalista", "nome": "Selene", "folego": 50, "inteligencia": 10}])
-    rec = api.obter_estado()["banda"][0]["recurso"]
-    assert rec["tipo"] == "folego"
-    assert rec["valor"] == 50
+    m0 = api.obter_estado()["banda"][0]
+    assert m0["recurso"]["tipo"] == "inteligencia"
+    assert m0["recurso"]["valor"] == 10
+    assert m0["energia"] == 50
 
 
 def test_estado_traz_recurso_groove_do_baixista():

@@ -8,10 +8,12 @@
   function bandaMock() {
     return [{ id: 0, tipo: "guitarrista", nome: "Aldric", nivel: 1, hp: 100,
               hp_maximo: 100, xp: 0, vivo: true,
+              energia: 100, energia_maxima: 100, cansado: false,   // F3.8
               recurso: { tipo: "ego", valor: 0, max: 100 },
-              moves: [   // F3.6b: moveset base do guitarrista (espelha moves.py)
-                { id: "solo_rapido", nome: "Solo Rápido", mult: 1.0, chart: "rapido" },
-                { id: "riff_pesado", nome: "Riff Pesado", mult: 1.3, chart: "pesado" },
+              moves: [   // F3.8: leve/médio/pesado do guitarrista (espelha moves.py)
+                { id: "palhetada",   nome: "Palhetada",   mult: 0.8, custo: 5,  cansa: false, chart: "facil" },
+                { id: "solo_rapido", nome: "Solo Rápido", mult: 1.0, custo: 12, cansa: false, chart: "rapido" },
+                { id: "riff_pesado", nome: "Riff Pesado", mult: 1.5, custo: 25, cansa: true,  chart: "pesado" },
               ] }];
   }
   function estadoMock(boss, turno, fim) {
@@ -56,6 +58,7 @@
       completa: VENUES.every((v) => progresso.concluidas.has(v.id)),
       fama_banda: progresso.fama_banda,
       cache: progresso.cache,
+      loja: { x: 700 },        // F3.8: ponto da loja no mapa (espelha campanha.py)
     };
   }
   function dropMock(tipo) {
@@ -171,6 +174,17 @@
       },
       executar_acao(payload) {
         reg("executar_acao", payload);
+        // F3.8: valida cansaço/energia ANTES de qualquer efeito (espelha show.py).
+        const atacante0 = batalha && batalha.banda[payload && payload.indice || 0];
+        const move = atacante0 && (atacante0.moves || []).find((mv) => mv.id === (payload && payload.move_id));
+        if (atacante0 && atacante0.cansado)
+          return Promise.resolve({ ok: false, erro: { tipo: "MusicoCansadoError", mensagem: "cansado — perde esta vez" } });
+        if (atacante0 && move && atacante0.energia < move.custo)
+          return Promise.resolve({ ok: false, erro: { tipo: "EnergiaInsuficienteError", mensagem: "sem energia pro golpe" } });
+        if (atacante0 && move) {
+          atacante0.energia -= move.custo;
+          if (move.cansa) atacante0.cansado = true;
+        }
         const r = payload && payload.ritmo;
         const perfeito = !!(r && r.acertos >= r.total_notas);
         if (perfeito) { perfeitosSeguidos += 1; bossAtordoado = true; }
@@ -189,6 +203,11 @@
       },
       turno_inimigo() {
         reg("turno_inimigo");
+        if (batalha) {              // F3.8: a rodada vira — banda descansa + regenera
+          batalha.banda.forEach((m) => {
+            if (m.vivo) { m.cansado = false; m.energia = Math.min(m.energia_maxima, m.energia + 8); }
+          });
+        }
         if (bossAtordoado) {        // stun consome a vez do vilão (espelha o backend)
           bossAtordoado = false;
           return Promise.resolve({ ok: true, atacante: "mock", alvo: null, dano: 0,
@@ -215,8 +234,14 @@
       obter_equipamento() { reg("obter_equipamento"); return Promise.resolve(equipamentoDto()); },
       regenerar_banda(seg) {
         reg("regenerar_banda", seg);
-        if (batalha) {   // mock: cura o estado mutável se existir
-          batalha.banda.forEach((m) => { if (m.vivo) m.hp = Math.min(m.hp_maximo, m.hp + 2 * Math.min(seg, 10)); });
+        if (batalha) {   // mock: cura + energia no estado mutável se existir (F3.8)
+          batalha.banda.forEach((m) => {
+            m.cansado = false;
+            if (m.vivo) {
+              m.hp = Math.min(m.hp_maximo, m.hp + 2 * Math.min(seg, 10));
+              m.energia = Math.min(m.energia_maxima, m.energia + 2 * Math.min(seg, 10));
+            }
+          });
         }
         return Promise.resolve({ ok: true, banda: batalha ? batalha.banda : bandaMock() });
       },

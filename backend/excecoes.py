@@ -78,6 +78,20 @@ class EspecialIndisponivelError(JogoError):
                          "(precisa de uma sequência de combos perfeitos).")
 
 
+class EnergiaInsuficienteError(JogoError):
+    """F3.8 — o golpe escolhido custa mais energia do que o músico tem."""
+    def __init__(self, nome: str, energia: int, custo: int):
+        super().__init__(f"{nome} não tem energia para esse golpe "
+                         f"({energia}/{custo}). Use um golpe mais leve.")
+
+
+class MusicoCansadoError(JogoError):
+    """F3.8 — golpe pesado cansa: o músico perde a próxima vez da banda."""
+    def __init__(self, nome: str):
+        super().__init__(f"{nome} está cansado do golpe pesado — "
+                         f"escolha outro músico nesta vez.")
+
+
 # ── Campanha (modo história) ──────────────────────────────────────
 
 class CampanhaError(JogoError):

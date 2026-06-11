@@ -79,13 +79,14 @@ def test_set_hp_maximo_invalido_lanca_excecao():
         g.set_hp_maximo(0)
 
 
-from Vocalista import Vocalista, CUSTO_FOLEGO
+from Vocalista import Vocalista
 
 
-def test_vocalista_ataca_com_folego_suficiente():
+def test_vocalista_ataca_sem_gastar_energia():
+    # F3.8: o custo virou do GOLPE (moves) — atacar() é determinístico.
     vocalista = Vocalista("Selene", folego=50, inteligencia=10)
-    dano = vocalista.atacar()
-    assert dano > 0
+    assert vocalista.atacar() == 20          # int(10 * 2.0)
+    assert vocalista.get_energia() == 50     # intacta
 
 
 from Baixista import Baixista

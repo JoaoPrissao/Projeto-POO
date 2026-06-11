@@ -77,7 +77,7 @@ def test_criar_banda_a_partir_de_composicao():
     assert isinstance(banda[0], Guitarrista)
     assert isinstance(banda[1], Vocalista)
     assert banda[0].get_forca() == 12
-    assert banda[1].get_folego() == 30
+    assert banda[1].get_energia() == 30      # folego = alias de energia (F3.8)
 
 
 def test_criar_banda_substitui_a_banda_anterior():
@@ -114,7 +114,7 @@ def test_salvar_e_carregar_faz_round_trip_da_banda(tmp_path):
     assert isinstance(banda[0], Guitarrista)
     assert banda[0].get_forca() == 15
     assert isinstance(banda[1], Vocalista)
-    assert banda[1].get_folego() == 42
+    assert banda[1].get_energia() == 42      # folego = alias de energia (F3.8)
 
 
 # ── Placeholder de fase do jogo (estado centralizado) ─────────────

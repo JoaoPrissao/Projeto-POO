@@ -1,7 +1,11 @@
 import random
 
 from excecoes import (JogadorMortoError, AtaqueInvalidoError,
-                      EspecialIndisponivelError)
+                      EspecialIndisponivelError, MusicoCansadoError)
+
+# F3.8 — quando o vilão age, a rodada vira: a banda descansa (cansaço dura
+# exatamente 1 vez do vilão) e recupera um pouco de energia.
+REGEN_ENERGIA_POR_RODADA = 8
 
 
 class Empresario:
@@ -112,15 +116,22 @@ class Show:
             "modo_refrao_ativo": modo_refrao, "multiplicador_aplicado": mult,
         }
 
-    def acao_musico(self, indice: int, ritmo=None, mult_extra: float = 1.0) -> dict:
+    def acao_musico(self, indice: int, ritmo=None, mult_extra: float = 1.0,
+                    custo_energia: int = 0, cansa: bool = False) -> dict:
         """Resolve o ataque de um músico contra o boss.
 
         `ritmo`: instância de Ritmo opcional. Se None, nenhum modificador
-        de ritmo é aplicado. `mult_extra`: multiplicador do move (F3.6b).
-        """
+        de ritmo é aplicado. `mult_extra`/`custo_energia`/`cansa` vêm do move
+        escolhido (F3.6b/F3.8): valida cansaço e energia ANTES de qualquer
+        efeito (golpe inválido não causa dano nem gasta nada)."""
         musico = self._banda[indice]
+        if musico.esta_cansado():
+            raise MusicoCansadoError(musico.get_nome())
+        musico.gastar_energia(custo_energia)   # EnergiaInsuficiente → nada sai
         calc = self._dano_de(musico, ritmo, mult_extra)
         self._inimigo.receber_dano(calc["dano"])
+        if cansa:
+            musico.cansar()                    # pesado: perde a próxima vez
 
         # Combo perfeito → atordoa o vilão e conta na sequência do especial.
         perfeito = ritmo.perfeito() if ritmo is not None else False
@@ -176,6 +187,14 @@ class Show:
         }
 
     def turno_inimigo(self) -> dict:
+        # F3.8 — a vez do vilão vira a rodada: a banda descansa (o cansaço do
+        # golpe pesado dura exatamente 1 vez) e recupera um pouco de energia.
+        # Vale também quando ele está atordoado (a rodada passou do mesmo jeito).
+        for musico in self._banda:
+            if musico.esta_vivo():
+                musico.descansar()
+                musico.recuperar_energia(REGEN_ENERGIA_POR_RODADA)
+
         # Atordoado: o vilão perde a vez e acorda (consome o stun).
         if self._inimigo.esta_atordoado():
             self._inimigo.acordar()

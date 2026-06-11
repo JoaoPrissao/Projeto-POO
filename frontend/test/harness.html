@@ -49,7 +49,7 @@
     // ── 1b. Charts nomeados (F3.6b): variados e determinísticos ───────────────
     (function () {
       const C = RM.CHARTS;
-      const ids = ["constante", "rapido", "pesado", "denso", "sincopado", "sustentada", "caotico"];
+      const ids = ["facil", "constante", "rapido", "pesado", "denso", "sincopado", "sustentada", "caotico"];
       checar("charts: todos os ids do catálogo existem",
         ids.every((id) => Array.isArray(C[id]) && C[id].length > 0), true);
       checar("charts: denso tem mais notas que sustentada",
@@ -57,6 +57,8 @@
       const passo = (ch) => ch[1].tempo_ms - ch[0].tempo_ms;
       checar("charts: rapido é mais apertado que constante",
         passo(C.rapido) < passo(C.constante), true);
+      checar("charts: facil é o mais folgado e o mais curto (F3.8)",
+        passo(C.facil) > passo(C.constante) && C.facil.length < C.sustentada.length, true);
       checar("charts: notas em ordem e em pistas válidas",
         C.caotico.every((n, i) => n.pista >= 0 && n.pista <= 3 &&
           (i === 0 || n.tempo_ms >= C.caotico[i - 1].tempo_ms)), true);

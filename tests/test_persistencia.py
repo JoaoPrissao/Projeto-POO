@@ -23,11 +23,11 @@ def test_roundtrip_guitarrista_preserva_tipo_e_forca():
     assert copia.get_forca() == 17
 
 
-def test_roundtrip_vocalista_preserva_folego_e_inteligencia():
-    m = Vocalista("Selene", folego=42, inteligencia=13)
+def test_roundtrip_vocalista_preserva_energia_e_inteligencia():
+    m = Vocalista("Selene", folego=42, inteligencia=13)   # folego = energia (F3.8)
     copia = Musico.from_dict(m.to_dict())
     assert isinstance(copia, Vocalista)
-    assert copia.get_folego() == 42
+    assert copia.get_energia() == 42
     assert copia.get_inteligencia() == 13
 
 
@@ -86,7 +86,7 @@ def test_salvar_e_carregar_em_arquivo(tmp_path):
     assert isinstance(carregados[0], Guitarrista)
     assert isinstance(carregados[1], Vocalista)
     assert carregados[0].get_forca() == 12
-    assert carregados[1].get_folego() == 30
+    assert carregados[1].get_energia() == 30
 
 
 def test_carregar_inexistente_lanca_save_nao_encontrado(tmp_path):

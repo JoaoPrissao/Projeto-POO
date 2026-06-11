@@ -29,21 +29,24 @@
   };
 
   // ── Núcleo do mundo (shell injetável) ───────────────────────────────────────
-  // opts: { agora, agendarFrame, ctx, venues, itens, inicioX,
-  //         aoEntrar, aoColetar, aoAtualizar }
+  // opts: { agora, agendarFrame, ctx, venues, itens, loja, inicioX,
+  //         aoEntrar, aoColetar, aoLoja, aoAtualizar }
   function criarMundo(opts) {
     const agora = opts.agora;
     const agendarFrame = opts.agendarFrame;
     const ctx = opts.ctx || null;
     const aoEntrar = opts.aoEntrar || function () {};
     const aoColetar = opts.aoColetar || function () {};
+    const aoLoja = opts.aoLoja || function () {};
     const aoAtualizar = opts.aoAtualizar || function () {};
 
     // Estado mutável, clonado das definições (não mexe nos dicts do chamador).
     const venues = (opts.venues || []).map((v) => ({ ...v, concluida: !!v.concluida }));
     const itens = (opts.itens || []).map((i) => ({ ...i, coletado: !!i.coletado }));
+    const loja = opts.loja ? { ...opts.loja } : null;   // F3.8: ponto da loja 🏪
 
-    const pontos = [...venues.map((v) => v.x), ...itens.map((i) => i.x), 0];
+    const pontos = [...venues.map((v) => v.x), ...itens.map((i) => i.x),
+                    ...(loja ? [loja.x] : []), 0];
     const larguraMundo = Math.max(...pontos) + CONFIG.MARGEM_MUNDO;
 
     const banda = { x: opts.inicioX || 60, largura: CONFIG.TAM_BANDA };
@@ -93,9 +96,20 @@
       return alvo;
     }
 
-    // Entrar (W): se há venue perto, dispara o callback (o app troca pra batalha).
+    // Loja dentro do alcance? (F3.8 — o jogador precisa IR até a loja.)
+    function lojaPerto() {
+      return !!(loja && Math.abs(centroBanda() - loja.x) <= CONFIG.RAIO_PORTA);
+    }
+
+    // Entrar (W): venue perto → batalha; loja perto → compra. Se os dois
+    // couberem no alcance, vale o mais próximo do centro da banda.
     function interagir() {
       const v = venuePerto();
+      const cx = centroBanda();
+      if (lojaPerto() && (!v || Math.abs(cx - loja.x) < Math.abs(cx - v.x))) {
+        aoLoja(loja);
+        return null;
+      }
       if (v) aoEntrar(v);
       return v;
     }
@@ -127,6 +141,8 @@
         venues: venues.map((v) => ({ id: v.id, x: v.x, nome: v.nome, concluida: v.concluida })),
         itens: itens.map((i) => ({ id: i.id, x: i.x, tipo: i.tipo, coletado: i.coletado })),
         venue_perto: (venuePerto() || {}).id ?? null,
+        loja: loja ? { x: loja.x } : null,
+        loja_perto: lojaPerto(),
       };
     }
 
@@ -150,6 +166,19 @@
         ctx.fillText(v.nome || "Venue", px, C.CHAO_Y - 88);
         if (!v.concluida && venuePerto() && venuePerto().id === v.id) {
           ctx.fillText("[W] entrar", px, C.CHAO_Y - 100);
+        }
+      }
+      // Loja (F3.8) — prédio próprio, com aviso de interação ao chegar perto.
+      if (loja) {
+        const px = loja.x - cameraX;
+        if (px > -80 && px < C.LARGURA + 80) {
+          ctx.fillStyle = "#3f7fae";
+          ctx.fillRect(px - 28, C.CHAO_Y - 70, 56, 70);
+          ctx.fillStyle = "#ece6f5";
+          ctx.font = "12px monospace";
+          ctx.textAlign = "center";
+          ctx.fillText("🏪 Loja", px, C.CHAO_Y - 78);
+          if (lojaPerto()) ctx.fillText("[W] comprar", px, C.CHAO_Y - 92);
         }
       }
       // Itens.
@@ -196,15 +225,16 @@
   }
 
   // ── Entrada de produção: liga canvas + teclado ──────────────────────────────
-  function montar({ canvas, venues, itens, corTipo, inicioX, aoEntrar, aoColetar, aoAtualizar } = {}) {
+  function montar({ canvas, venues, itens, loja, corTipo, inicioX,
+                    aoEntrar, aoColetar, aoLoja, aoAtualizar } = {}) {
     const ctx = canvas ? canvas.getContext("2d") : null;
     if (canvas) { canvas.width = CONFIG.LARGURA; canvas.height = CONFIG.ALTURA; }
 
     const mundo = criarMundo({
       agora: () => performance.now(),
       agendarFrame: (cb) => requestAnimationFrame(cb),
-      ctx, venues, itens, corTipo, inicioX,
-      aoEntrar, aoColetar, aoAtualizar,
+      ctx, venues, itens, loja, corTipo, inicioX,
+      aoEntrar, aoColetar, aoLoja, aoAtualizar,
     });
 
     function onKeyDown(e) {

@@ -39,8 +39,7 @@
 }
 #overworld-canvas {
   display: block;
-  width: 100%;
-  max-width: 800px;
+  width: 100%;                    /* F3.8: escala até o max-width do main */
   height: auto;
   image-rendering: pixelated;     /* mantém os pixels crus quando escalar (F3.4) */
 }
@@ -56,8 +55,7 @@
 }
 #batalha-canvas {
   display: block;
-  width: 100%;
-  max-width: 800px;
+  width: 100%;                    /* F3.8: escala até o max-width do main */
   height: auto;
   margin: 0 auto;
   image-rendering: pixelated;
@@ -130,7 +128,9 @@ main {
   display: flex;
   flex-direction: column;
   gap: 14px;
-  margin-top: 14px;
+  margin: 14px auto 0;
+  width: 100%;
+  max-width: 1280px;   /* F3.8: em fullscreen o jogo cresce, centralizado */
 }
 
 .painel {
@@ -307,15 +307,34 @@ button:disabled { opacity: .35; cursor: not-allowed; }
 .equip-dica { text-align: center; font-size: .72rem; opacity: .55; margin-top: 10px; }
 .equip-dica b { background: #0d0a14; border-radius: 5px; padding: 1px 7px; color: var(--acento); }
 
-/* Moveset do músico selecionado (F3.6b) */
-.moves-hud { font-size: .78rem; }
+/* Painel de golpes do músico selecionado (F3.8 — 3 botões clicáveis) */
+.moves-hud { display: inline-flex; gap: 6px; font-size: .78rem; }
 .moves-hud b {
   background: #0d0a14;
   border-radius: 5px;
   padding: 1px 7px;
   color: var(--ritmo);
 }
-.moves-hud .mv-mult { color: var(--ritmo); font-weight: 700; font-size: .7rem; }
+.move-btn {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+  padding: 4px 10px;
+  font-size: .74rem;
+  line-height: 1.2;
+}
+.move-btn:disabled { opacity: .4; cursor: not-allowed; }
+.move-btn .mv-meta { font-size: .64rem; opacity: .8; color: var(--ritmo); }
+
+/* Vez de quem? (F3.8 — turnos revezados) */
+.turno-hint { font-size: .8rem; font-weight: 700; color: var(--acento); }
+.turno-hint.vilao { color: var(--boss); }
+
+/* Barra de energia por membro (F3.8) */
+.hud-membro .barra.energia { height: 5px; margin-top: 2px; }
+.hud-membro .barra.energia .fill { background: var(--ritmo); }
+.hud-cansado { margin-left: 6px; }
 
 /* Aviso de especial no rodapé da batalha */
 .especial-hint { font-size: .8rem; font-weight: 700; }

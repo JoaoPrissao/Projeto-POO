@@ -102,11 +102,13 @@ class Consumivel(Item):
     def usar(self, alvo) -> None:
         if self.efeito == "cura":
             alvo.curar(self.valor)
-        elif self.efeito == "folego":
-            restaurar = getattr(alvo, "restaurar_folego", None)
+        elif self.efeito in ("folego", "energia"):
+            # F3.8: fôlego virou a energia unificada — qualquer músico recupera.
+            # "folego" segue aceito por compat com saves antigos.
+            restaurar = getattr(alvo, "recuperar_energia", None)
             if restaurar is None:
                 raise ItemIncompativelError(
-                    f"{type(alvo).__name__} não tem fôlego para restaurar com '{self.nome}'."
+                    f"{type(alvo).__name__} não tem energia para restaurar com '{self.nome}'."
                 )
             restaurar(self.valor)
         else:

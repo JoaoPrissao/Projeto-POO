@@ -36,17 +36,17 @@ def test_guitarrista_atacar_nao_aplica_dano_ao_alvo():
     assert alvo.get_hp() == hp_antes  # alvo intacto
 
 
-def test_vocalista_dano_magico_com_folego():
+def test_vocalista_dano_magico_por_inteligencia():
+    # F3.8: o custo virou do GOLPE (moves/energia) — atacar() é determinístico.
     m = Vocalista("Selene", inteligencia=10, folego=50)
     dano = m.atacar()
     assert dano == 20            # int(10 * 2.0)
-    assert m.get_folego() == 40  # consumiu 10 de fôlego
+    assert m.get_energia() == 50  # energia intacta (folego = alias de energia)
 
 
-def test_vocalista_dano_minimo_sem_folego():
+def test_vocalista_folego_e_alias_de_energia():
     m = Vocalista("Selene", inteligencia=10, folego=5)
-    dano = m.atacar()
-    assert dano == 5  # dano base mínimo
+    assert m.get_energia() == 5
 
 
 def test_baterista_dano_normal_sem_critico():

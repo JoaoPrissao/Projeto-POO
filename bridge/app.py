@@ -21,6 +21,7 @@ def main() -> None:
         width=960,
         height=640,
         min_size=(720, 520),
+        fullscreen=True,            # F3.8: jogo em tela cheia (sair pelo menu)
     )
     webview.start()
 

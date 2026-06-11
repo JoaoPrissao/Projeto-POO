@@ -39,6 +39,9 @@ _ITENS_PADRAO = [
     {"id": "i1", "x": 250,  "tipo": "energetico"},
     {"id": "i2", "x": 1280, "tipo": "pedal"},
 ]
+# F3.8 — a loja é um PONTO do mapa (entre o bar e a feira): o jogador precisa
+# ir até lá pra comprar. A van vira só armazenamento/equipamento.
+_LOJA_PADRAO = {"x": 700.0}
 POSICAO_INICIAL = 60.0
 
 DURACAO_BASE_BLOQUEIO = 30      # segundos de bloqueio por nível de fama da venue
@@ -49,10 +52,11 @@ BONUS_DANO_POR_FAMA = 0.02      # +2% de dano por ponto de fama da banda
 class Campanha:
     def __init__(self, venues, itens, posicao=POSICAO_INICIAL,
                  concluidas=None, coletados=None, fama_banda=0, bloqueios=None,
-                 cache=0):
+                 cache=0, loja=None):
         # Cópias defensivas das definições (não compartilha listas/dicts externos).
         self._venues = [dict(v) for v in venues]
         self._itens = [dict(i) for i in itens]
+        self._loja = dict(loja) if loja else dict(_LOJA_PADRAO)   # F3.8
         self._concluidas = set(concluidas or ())
         self._coletados = set(coletados or ())
         self._posicao = float(posicao)
@@ -76,6 +80,11 @@ class Campanha:
 
     def listar_itens(self) -> list:
         return [{**i, "coletado": i["id"] in self._coletados} for i in self._itens]
+
+    def get_loja(self) -> dict:
+        """Ponto da loja no mapa (F3.8): `{"x": ...}` — o frontend desenha e
+        só abre a compra com a banda perto."""
+        return dict(self._loja)
 
     def get_venue(self, venue_id: str) -> dict:
         for v in self._venues:
@@ -192,6 +201,7 @@ class Campanha:
             "fama_banda": self._fama_banda,
             "cache": self._cache,
             "bloqueios": dict(self._bloqueios),
+            "loja": dict(self._loja),
         }
 
     @classmethod
@@ -205,4 +215,5 @@ class Campanha:
             fama_banda=dados.get("fama_banda", 0),
             bloqueios=dados.get("bloqueios", {}),
             cache=dados.get("cache", 0),
+            loja=dados.get("loja"),         # save antigo: None → loja padrão
         )

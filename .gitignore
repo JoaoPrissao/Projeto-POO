@@ -16,3 +16,4 @@ CLAUDE.md
 .mcp.json
 # Artefatos do Playwright MCP (testes de browser)
 .playwright-mcp/
+.planning

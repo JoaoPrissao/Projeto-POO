@@ -11,10 +11,14 @@
 //
 // F3.5b — máquina de fases:  intro → luta ⇄ pausa → fim
 //   intro : banda toca → vilão entra → "FIGHT" (pulável com Enter/Espaço/Esc)
-//   luta  : vilão ataca SOZINHO a cada AUTO_ATAQUE_MS (relógio congela com o
-//           minigame aberto e na pausa; cada hit do player rearma); combo
-//           perfeito atordoa (vilão perde a vez); espaço = golpe especial.
-//   pausa : Esc abre o menu (overlay DOM do main.js); relógio congelado.
+//   pausa : Esc abre o menu (overlay DOM do main.js); relógios congelados.
+//
+// F3.8 — TURNOS REVEZADOS (obrigatórios): banda ataca → vez do vilão (ele age
+// após VILAO_DELAY_MS) → volta pra banda. O stun não devolve turno extra: a
+// vez do vilão acontece e é consumida pelo atordoamento. Única exceção: se a
+// banda ficar IDLE_MS sem atacar, o vilão ataca de graça (a vez segue da
+// banda). Golpe pesado deixa o músico CANSADO (não selecionável até o vilão
+// agir); golpe sem energia nem chama a API.
 //
 // Sem ES modules: tudo pendurado em window.Batalha.
 
@@ -79,7 +83,8 @@
     MEMBRO_W: 50, MEMBRO_H: 86,
     BOSS_W: 104, BOSS_H: 168,
     BOSS_X: 628,           // x do vilão (direita)
-    AUTO_ATAQUE_MS: 2500,  // relógio do vilão: ataca sozinho a cada tanto (5b)
+    IDLE_MS: 10000,        // F3.8: banda parada por 10s → vilão ataca de graça
+    VILAO_DELAY_MS: 900,   // F3.8: pausa dramática antes do vilão revidar
     INTRO_BANDA_MS: 1200,  // intro: banda toca…
     INTRO_VILAO_MS: 1200,  // …o vilão entra…
     INTRO_FIGHT_MS: 800,   // …"FIGHT!" e começa.
@@ -128,11 +133,15 @@
     let ocupado = false;       // true enquanto um ataque (minigame + resolução) roda
     let encerrado = false;
 
-    // F3.5b — máquina de fases + relógio do vilão + estado de luta.
+    // F3.5b — máquina de fases + estado de luta. F3.8 — turnos revezados:
+    // `turno` alterna banda ⇄ vilão; `timerIdle` pune banda parada (10s →
+    // ataque grátis do vilão); `timerVilao` é a pausa dramática do revide.
     let fase = "intro";
     let introT = 0;
-    let timerAuto = CONFIG.AUTO_ATAQUE_MS;
-    let vilaoAgindo = false;   // turno_inimigo em voo (congela o relógio)
+    let turno = "banda";
+    let timerIdle = CONFIG.IDLE_MS;
+    let timerVilao = 0;
+    let vilaoAgindo = false;   // turno_inimigo em voo (congela os relógios)
     let bossAtordoado = false;
     let especialDisponivel = false;
     let perfeitosSeguidos = 0;
@@ -143,12 +152,14 @@
     function membros() { return (estado && estado.banda) || []; }
 
     function primeiroVivo() {
-      const i = membros().findIndex((m) => m.vivo);
+      const ms = membros();
+      let i = ms.findIndex((m) => m.vivo && !m.cansado);   // F3.8: pula cansado
+      if (i < 0) i = ms.findIndex((m) => m.vivo);
       return i < 0 ? 0 : i;
     }
     function normalizarSelecao() {
       const m = membros()[selecionado];
-      if (!m || !m.vivo) selecionado = primeiroVivo();
+      if (!m || !m.vivo || m.cansado) selecionado = primeiroVivo();
     }
 
     function aplicarEstado(novo) {
@@ -164,7 +175,7 @@
     }
 
     function emitirLuta() {
-      aoLuta({ fase, especialDisponivel, perfeitosSeguidos, bossAtordoado });
+      aoLuta({ fase, turno, especialDisponivel, perfeitosSeguidos, bossAtordoado });
     }
 
     function membroNoPonto(x, y) {
@@ -216,6 +227,10 @@
           ctx.fillStyle = "#ffffff"; ctx.font = "10px monospace"; ctx.textAlign = "center";
           ctx.fillText("▼", p.x + C.MEMBRO_W / 2, p.y - 18);
         }
+        if (!naIntro && m.vivo && m.cansado) {        // F3.8: perdeu a vez
+          ctx.font = "18px monospace"; ctx.textAlign = "center";
+          ctx.fillText("💤", p.x + C.MEMBRO_W / 2, p.y + 16);
+        }
         ctx.fillStyle = "#ece6f5"; ctx.font = "10px monospace"; ctx.textAlign = "center";
         ctx.fillText(m.nome, p.x + C.MEMBRO_W / 2, p.y - 6);
       });
@@ -240,13 +255,19 @@
         ctx.fillText("💫", bx + C.BOSS_W / 2, C.CHAO_Y - C.BOSS_H - 28);
       }
 
-      // Relógio do vilão (lutinha justa: dá pra ver o golpe chegando).
-      if (fase === "luta" && !bossAtordoado) {
-        const frac = Math.max(0, Math.min(1, timerAuto / C.AUTO_ATAQUE_MS));
+      // F3.8 — indicador de turno: na vez da banda, a barra mostra o relógio
+      // de ociosidade (zerou = o vilão ataca de graça); na vez do vilão, ele
+      // "carrega" o golpe.
+      if (fase === "luta" && turno === "banda") {
+        const frac = Math.max(0, Math.min(1, timerIdle / C.IDLE_MS));
         ctx.fillStyle = "#2a2138";
         ctx.fillRect(bx, C.CHAO_Y + 12, C.BOSS_W, 6);
         ctx.fillStyle = frac < 0.25 ? "#e23b4e" : "#e0b341";
         ctx.fillRect(bx, C.CHAO_Y + 12, C.BOSS_W * (1 - frac), 6);
+      }
+      if (fase === "luta" && turno === "vilao") {
+        ctx.fillStyle = "#e23b4e"; ctx.font = "bold 12px monospace"; ctx.textAlign = "center";
+        ctx.fillText("⚡ vez do vilão", bx + C.BOSS_W / 2, C.CHAO_Y + 22);
       }
 
       // "FIGHT!" no fim da intro.
@@ -256,11 +277,15 @@
       }
     }
 
-    // ── Seleção (só entre vivos) ───────────────────────────────────────────────
+    // ── Seleção (só entre vivos; cansado não é selecionável — F3.8) ───────────
+    function selecionavel(m) { return m && m.vivo && !m.cansado; }
+
     function selecionarIndice(i) {
       if (fase !== "luta") return;
       const m = membros()[i];
-      if (m && m.vivo) { selecionado = i; emitirSelecao(); desenhar(); }
+      if (!m || !m.vivo) return;
+      if (m.cansado) { aoLog(`💤 ${esc(m.nome)} está cansado — perdeu esta vez.`); return; }
+      selecionado = i; emitirSelecao(); desenhar();
     }
     function selecionar(dir) {
       if (fase !== "luta") return;
@@ -269,14 +294,14 @@
       let i = selecionado;
       for (let n = 0; n < ms.length; n++) {
         i = (i + dir + ms.length) % ms.length;
-        if (ms[i] && ms[i].vivo) { selecionado = i; break; }
+        if (selecionavel(ms[i])) { selecionado = i; break; }
       }
       emitirSelecao();
       desenhar();
     }
 
-    // ── Relógio/fases: o coração determinístico da 5b ──────────────────────────
-    // Avança a simulação por `dt` ms. Pode devolver uma Promise (quando o
+    // ── Relógios/fases: o coração determinístico (5b/F3.8) ─────────────────────
+    // Avança a simulação por `dt` ms. Pode devolver uma Promise (quando um
     // relógio estoura e o vilão age) — o harness dá `await`, o loop ignora.
     function passo(dt) {
       if (encerrado) return;
@@ -287,8 +312,13 @@
         return;
       }
       if (fase === "luta" && !ocupado && !vilaoAgindo) {
-        timerAuto -= dt;
-        if (timerAuto <= 0) return turnoVilao();
+        if (turno === "vilao") {                 // pausa dramática → revide
+          timerVilao -= dt;
+          if (timerVilao <= 0) return turnoVilao();
+        } else {                                 // banda enrolando → ataque grátis
+          timerIdle -= dt;
+          if (timerIdle <= 0) return turnoVilao();
+        }
       }
       desenhar();
     }
@@ -297,7 +327,8 @@
       if (fase === "fim") return;
       fase = "luta";
       introT = INTRO_TOTAL_MS;
-      timerAuto = CONFIG.AUTO_ATAQUE_MS;
+      turno = "banda";
+      timerIdle = CONFIG.IDLE_MS;
       emitirLuta();
       desenhar();
     }
@@ -318,7 +349,9 @@
       desenhar();
     }
 
-    // ── Vilão age sozinho (relógio estourou) ───────────────────────────────────
+    // ── Vez do vilão (revide do turno OU punição por ociosidade) ───────────────
+    // O backend descansa/regenera a banda quando o vilão age — o `cont.estado`
+    // volta com `cansado:false` e energia recuperada (a rodada virou).
     async function turnoVilao() {
       if (encerrado || fase !== "luta") return;
       vilaoAgindo = true;
@@ -331,26 +364,38 @@
           } else if (cont.alvo) {
             aoLog(_frase(FRASES_VILAO, cont.atacante, cont.alvo, cont.dano));
           }
-          emitirLuta();
           aplicarEstado(cont.estado);
           if (cont.fim_de_jogo) return finalizar(cont.resultado_final);
         }
       } finally {
-        timerAuto = CONFIG.AUTO_ATAQUE_MS;
+        turno = "banda";                       // a vez SEMPRE volta pra banda
+        timerIdle = CONFIG.IDLE_MS;
         vilaoAgindo = false;
+        if (!encerrado) emitirLuta();
       }
     }
 
-    // ── Ataque do player (abre o minigame; hit rearma o relógio) ───────────────
-    // `moveIdx`: qual golpe do moveset usar (0..2; teclas 1/2/3 — Enter = 1º).
+    // ── Ataque do player (abre o minigame; consome a vez da banda — F3.8) ──────
+    // `moveIdx`: qual golpe do moveset usar (0..2; teclas 1/2/3 ou os botões).
     // Membro sem moveset (compat/harness antigo) ataca sem move_id/chart.
+    // Cansado/sem energia: nem chama a API (o backend revalida de toda forma).
     async function atacar(moveIdx) {
-      if (fase !== "luta" || ocupado || encerrado || !estado || estado.fim_de_jogo) return;
+      if (fase !== "luta" || turno !== "banda" || ocupado || encerrado ||
+          !estado || estado.fim_de_jogo) return;
       normalizarSelecao();
       const m = membros()[selecionado];
       if (!m || !m.vivo) return;
+      if (m.cansado) {
+        aoLog(`💤 ${esc(m.nome)} está cansado — escolha outro músico.`);
+        return;
+      }
       const moves = m.moves || [];
       const move = moves[moveIdx] || moves[0] || null;
+      if (move && move.custo != null && m.energia != null && m.energia < move.custo) {
+        aoLog(`⚡ ${esc(m.nome)} sem energia pra ${esc(move.nome)} `
+              + `(${esc(m.energia)}/${esc(move.custo)}) — use um golpe mais leve.`);
+        return;
+      }
 
       ocupado = true;
       try {
@@ -360,12 +405,15 @@
           chart: move ? move.chart : undefined,
           nomeMove: move ? `${m.nome} — ${move.nome}` : undefined,
         });
-        if (ritmo === null) return;                 // Esc cancelou: não gasta a vez
+        if (ritmo === null) { timerIdle = CONFIG.IDLE_MS; return; }  // Esc: não gasta a vez
 
         const payload = { indice: m.id, ritmo };
         if (move) payload.move_id = move.id;
         const res = await api.executar_acao(payload);
-        if (!res || res.ok === false) return;
+        if (!res || res.ok === false) {
+          if (res && res.erro) aoLog(`⚠️ ${esc(res.erro.mensagem)}`);
+          return;                                   // golpe inválido não gasta a vez
+        }
         const pool = res.critico ? FRASES_CRITICO
                    : res.modo_refrao_ativo ? FRASES_REFRAO : FRASES_ATAQUE;
         aoLog(_frase(pool, m.nome, alvoBoss, res.dano));
@@ -373,7 +421,8 @@
         bossAtordoado = !!res.atordoado;
         perfeitosSeguidos = res.perfeitos_seguidos || 0;
         especialDisponivel = !!res.especial_disponivel;
-        timerAuto = CONFIG.AUTO_ATAQUE_MS;          // hit rearma o relógio do vilão
+        turno = "vilao";                            // F3.8: agora é a vez dele
+        timerVilao = CONFIG.VILAO_DELAY_MS;
         emitirLuta();
         aplicarEstado(res.estado);
         if (res.fim_de_jogo) return finalizar(res.resultado_final);
@@ -382,9 +431,9 @@
       }
     }
 
-    // ── Golpe especial (espaço; 4 perfeitos seguidos) ──────────────────────────
+    // ── Golpe especial (espaço; 4 perfeitos seguidos; consome a vez — F3.8) ────
     async function especial() {
-      if (fase !== "luta" || ocupado || encerrado) return;
+      if (fase !== "luta" || turno !== "banda" || ocupado || encerrado) return;
       if (!especialDisponivel) {
         aoLog(`⚡ Especial ainda não está pronto — ${esc(perfeitosSeguidos)}/4 combos perfeitos.`);
         return;
@@ -400,7 +449,8 @@
         aoLog(_frase(FRASES_ESPECIAL, res.atacante || "Banda", alvoBoss, res.dano));
         especialDisponivel = false;
         perfeitosSeguidos = 0;
-        timerAuto = CONFIG.AUTO_ATAQUE_MS;
+        turno = "vilao";
+        timerVilao = CONFIG.VILAO_DELAY_MS;
         emitirLuta();
         aplicarEstado(res.estado);
         if (res.fim_de_jogo) return finalizar(res.resultado_final);
@@ -447,7 +497,9 @@
       get ocupado() { return ocupado; },
       get encerrado() { return encerrado; },
       get fase() { return fase; },
-      get timerAuto() { return timerAuto; },
+      get turno() { return turno; },
+      get timerIdle() { return timerIdle; },
+      get timerVilao() { return timerVilao; },
       get bossAtordoado() { return bossAtordoado; },
       get especialDisponivel() { return especialDisponivel; },
       get perfeitosSeguidos() { return perfeitosSeguidos; },
@@ -478,20 +530,21 @@
       if (batalha.fase === "pausa") return;  // overlay de pausa (main.js) cuida
       if (t === "arrowleft" || t === "a") { e.preventDefault(); batalha.selecionar(-1); }
       else if (t === "arrowright" || t === "d") { e.preventDefault(); batalha.selecionar(1); }
-      else if (t === "enter") { e.preventDefault(); batalha.atacar(0); }
-      else if (t === "1" || t === "2" || t === "3") {   // F3.6b: golpe direto
+      else if (t === "1" || t === "2" || t === "3") {   // F3.8: escolhe o golpe
         e.preventDefault(); batalha.atacar(Number(t) - 1);
       }
       else if (t === " ") { e.preventDefault(); batalha.especial(); }
       else if (t === "escape") { e.preventDefault(); batalha.pausar(); }
     }
+    // F3.8: clicar no personagem só SELECIONA — o golpe é escolhido no painel
+    // de moves (botões do main.js) ou nas teclas 1/2/3.
     function onClick(e) {
       if (batalha.ocupado || batalha.fase !== "luta" || !canvas) return;
       const r = canvas.getBoundingClientRect();
       const x = (e.clientX - r.left) * (CONFIG.LARGURA / r.width);
       const y = (e.clientY - r.top) * (CONFIG.ALTURA / r.height);
       const i = batalha.membroNoPonto(x, y);
-      if (i >= 0) { batalha.selecionarIndice(i); batalha.atacar(); }
+      if (i >= 0) batalha.selecionarIndice(i);
     }
 
     window.addEventListener("keydown", onKeyDown);

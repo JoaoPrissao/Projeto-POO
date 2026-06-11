@@ -47,8 +47,8 @@ class ItemFactory:
         ),
         "cerveja": lambda **kw: Consumivel(
             kw.get("nome", "Cerveja"),
-            kw.get("descricao", "Dá aquele fôlego extra."),
-            efeito="folego",
+            kw.get("descricao", "Restaura 30 de energia."),
+            efeito="energia",       # F3.8: energia unificada (qualquer músico)
             valor=kw.get("valor", 30),
         ),
         "pedal": lambda **kw: Equipavel(

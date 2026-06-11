@@ -28,12 +28,13 @@ def _reset_singleton():
 
 # ── catálogo ──────────────────────────────────────────────────────────────────
 
-def test_todo_tipo_tem_dois_moves_base():
+def test_todo_tipo_tem_tres_moves_base():
+    # F3.8: leve / médio / pesado, com custo de energia e flag de cansaço.
     for tipo in ("guitarrista", "vocalista", "baterista", "baixista"):
         base = MOVES_BASE[tipo]
-        assert len(base) == 2
+        assert len(base) == 3
         for m in base:
-            assert {"id", "nome", "mult", "chart"} <= set(m)
+            assert {"id", "nome", "mult", "chart", "custo", "cansa"} <= set(m)
 
 
 def test_moves_de_sem_equipamento_sao_os_base():
@@ -63,7 +64,7 @@ def test_moveset_capado_em_tres_com_dois_itens():
 def test_get_move_valida_pertencimento():
     g = Guitarrista("Aldric")
     move = get_move(g, "riff_pesado")
-    assert move["mult"] == pytest.approx(1.3)
+    assert move["mult"] == pytest.approx(1.5)
     with pytest.raises(MoveInvalidoError):
         get_move(g, "solo_distorcido")                   # sem pedal equipado
     with pytest.raises(MoveInvalidoError):
@@ -81,7 +82,7 @@ def _api_com_guitarrista():
 def test_musico_dto_traz_moves():
     api = _api_com_guitarrista()
     m0 = api.obter_estado()["banda"][0]
-    assert [mv["id"] for mv in m0["moves"]] == ["solo_rapido", "riff_pesado"]
+    assert [mv["id"] for mv in m0["moves"]] == ["palhetada", "solo_rapido", "riff_pesado"]
 
 
 def test_executar_acao_com_move_aplica_mult():
@@ -90,7 +91,7 @@ def test_executar_acao_com_move_aplica_mult():
     GerenciadorJogo.resetar()
     api2 = _api_com_guitarrista()
     com_move = api2.executar_acao({"indice": 0, "move_id": "riff_pesado"})["dano"]
-    assert com_move == int(sem_move * 1.3)
+    assert com_move == int(sem_move * 1.5)
 
 
 def test_executar_acao_move_invalido_vira_erro_dto():

@@ -41,6 +41,7 @@
   }
   const CHARTS = {
     padrao:     CHART,
+    facil:      gerarChart({ notas: 8,  intervalos: [700], pistas: [0, 1, 2, 3] }),  // F3.8: golpe leve
     constante:  gerarChart({ notas: 14, intervalos: [450], pistas: PADRAO_PISTAS }),
     rapido:     gerarChart({ notas: 18, intervalos: [300], pistas: PADRAO_PISTAS }),
     pesado:     gerarChart({ notas: 16, intervalos: [350], pistas: [0, 0, 2, 2, 1, 1, 3, 3] }),
