@@ -393,3 +393,126 @@ def test_van_estagio_nao_e_persistido_em_to_dict():
     c.ganhar_fama(5)
     d = c.to_dict()
     assert "van_estagio" not in d
+
+
+# ── MAP-03: Baús/segredos no domínio (Phase 1) ───────────────────────────────
+
+from excecoes import BauInvalidoError, FamaInsuficienteError
+
+
+def test_listar_baus_retorna_2_baus():
+    """Campanha.padrao() deve expor 2 baús, cada um com aberto=False."""
+    c = Campanha.padrao()
+    baus = c.listar_baus()
+    assert len(baus) == 2
+    assert all(not b["aberto"] for b in baus)
+
+
+def test_listar_baus_campos_obrigatorios():
+    """Cada baú deve ter: id, x, item."""
+    c = Campanha.padrao()
+    for b in c.listar_baus():
+        assert {"id", "x", "item"} <= set(b.keys())
+
+
+def test_bau1_revelado_sem_fama():
+    """Baú 1 (sem fama_minima ou fama_minima=0) deve estar revelado com fama zero."""
+    c = Campanha.padrao()
+    baus = c.listar_baus()
+    bau1 = next(b for b in baus if b.get("fama_minima", 0) == 0 or "fama_minima" not in b)
+    assert bau1["revelado"] is True
+
+
+def test_bau2_oculto_com_fama_baixa():
+    """Baú 2 (fama_minima=6) deve estar oculto (revelado=False) com fama < 6."""
+    c = Campanha.padrao()
+    assert c.fama_banda() < 6
+    baus = c.listar_baus()
+    bau2 = next(b for b in baus if b.get("fama_minima", 0) >= 6)
+    assert bau2["revelado"] is False
+
+
+def test_bau2_revelado_com_fama_suficiente():
+    """Baú 2 deve ficar revelado após fama_banda >= 6."""
+    c = Campanha.padrao()
+    c.ganhar_fama(6)
+    baus = c.listar_baus()
+    bau2 = next(b for b in baus if b.get("fama_minima", 0) >= 6)
+    assert bau2["revelado"] is True
+
+
+def test_get_bau_invalido_levanta():
+    """get_bau com id inválido deve levantar BauInvalidoError."""
+    c = Campanha.padrao()
+    with pytest.raises(BauInvalidoError):
+        c.get_bau("nao-existe")
+
+
+def test_abrir_bau1_marca_aberto_e_retorna_tipo():
+    """abrir_bau(bau1) com qualquer fama deve marcar aberto e retornar tipo do item."""
+    c = Campanha.padrao()
+    bau_id = next(b["id"] for b in c.listar_baus() if b.get("fama_minima", 0) == 0 or "fama_minima" not in b)
+    tipo = c.abrir_bau(bau_id)
+    assert isinstance(tipo, str) and len(tipo) > 0
+    marcado = next(b for b in c.listar_baus() if b["id"] == bau_id)
+    assert marcado["aberto"] is True
+
+
+def test_abrir_bau2_gated_com_fama_baixa_levanta():
+    """abrir_bau(bau2) com fama < 6 deve levantar FamaInsuficienteError sem marcar aberto."""
+    c = Campanha.padrao()
+    bau_id = next(b["id"] for b in c.listar_baus() if b.get("fama_minima", 0) >= 6)
+    with pytest.raises(FamaInsuficienteError):
+        c.abrir_bau(bau_id)
+    # não deve ter marcado aberto
+    marcado = next(b for b in c.listar_baus() if b["id"] == bau_id)
+    assert marcado["aberto"] is False
+
+
+def test_abrir_bau2_liberado_com_fama_suficiente():
+    """abrir_bau(bau2) com fama >= 6 deve marcar aberto e retornar tipo."""
+    c = Campanha.padrao()
+    c.ganhar_fama(6)
+    bau_id = next(b["id"] for b in c.listar_baus() if b.get("fama_minima", 0) >= 6)
+    tipo = c.abrir_bau(bau_id)
+    assert isinstance(tipo, str) and len(tipo) > 0
+    marcado = next(b for b in c.listar_baus() if b["id"] == bau_id)
+    assert marcado["aberto"] is True
+
+
+def test_round_trip_preserva_baus_e_baus_abertos():
+    """to_dict/from_dict deve preservar baus e baus_abertos."""
+    c = Campanha.padrao()
+    bau_id = next(b["id"] for b in c.listar_baus() if b.get("fama_minima", 0) == 0 or "fama_minima" not in b)
+    c.abrir_bau(bau_id)
+
+    clone = Campanha.from_dict(c.to_dict())
+
+    assert len(clone.listar_baus()) == 2
+    marcado = next(b for b in clone.listar_baus() if b["id"] == bau_id)
+    assert marcado["aberto"] is True
+
+
+def test_from_dict_save_antigo_sem_baus_usa_defaults():
+    """from_dict com save sem chaves 'baus'/'baus_abertos' usa _BAUS_PADRAO e conjunto vazio."""
+    c = Campanha.padrao()
+    d = c.to_dict()
+    d.pop("baus", None)
+    d.pop("baus_abertos", None)
+
+    clone = Campanha.from_dict(d)
+    baus = clone.listar_baus()
+    assert len(baus) == 2
+    assert all(not b["aberto"] for b in baus)
+
+
+def test_to_dict_baus_e_serializavel():
+    """to_dict com baus deve ser JSON-serializável."""
+    import json
+    c = Campanha.padrao()
+    bau_id = next(b["id"] for b in c.listar_baus() if b.get("fama_minima", 0) == 0 or "fama_minima" not in b)
+    c.abrir_bau(bau_id)
+    d = c.to_dict()
+    json.dumps(d)
+    assert "baus" in d
+    assert "baus_abertos" in d

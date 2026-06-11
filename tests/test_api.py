@@ -287,3 +287,53 @@ def test_abordar_npc_invalido_retorna_erro_dto():
     assert res["ok"] is False
     assert res["erro"]["tipo"] == "NpcInvalidoError"
     _serializavel(res)
+
+
+# ── MAP-03: abrir_bau na ponte (Phase 1) ────────────────────────────────────
+
+def test_obter_campanha_contem_baus():
+    """obter_campanha() deve incluir a chave 'baus' no DTO e ser serializável."""
+    api = _api_com_banda()
+    camp = api.obter_campanha()
+    assert "baus" in camp
+    _serializavel(camp)
+
+
+def test_abrir_bau_caminho_feliz_entrega_item():
+    """abrir_bau no baú sem gate deve: ok=True, item != None, inventário cresce."""
+    api = _api_com_banda()
+    camp = api.obter_campanha()
+    # baú sem gate de fama (fama_minima ausente ou 0)
+    bau = next(b for b in camp["baus"] if b.get("fama_minima", 0) == 0)
+
+    eq0 = api.obter_equipamento()
+    tam0 = len(eq0["banda"][0]["inventario"])
+
+    res = api.abrir_bau({"id": bau["id"]})
+    assert res["ok"] is True
+    assert res["item"] is not None
+    _serializavel(res)
+
+    eq1 = api.obter_equipamento()
+    assert len(eq1["banda"][0]["inventario"]) == tam0 + 1
+
+
+def test_abrir_bau_gated_retorna_erro_dto_fama_insuficiente():
+    """abrir_bau no baú gated com fama baixa deve retornar ErroDTO FamaInsuficienteError."""
+    api = _api_com_banda()
+    camp = api.obter_campanha()
+    bau = next(b for b in camp["baus"] if b.get("fama_minima", 0) >= 6)
+
+    res = api.abrir_bau({"id": bau["id"]})
+    assert res["ok"] is False
+    assert res["erro"]["tipo"] == "FamaInsuficienteError"
+    _serializavel(res)
+
+
+def test_abrir_bau_id_invalido_retorna_erro_dto():
+    """abrir_bau com id inválido deve retornar ErroDTO BauInvalidoError."""
+    api = _api_com_banda()
+    res = api.abrir_bau({"id": "nao-existe"})
+    assert res["ok"] is False
+    assert res["erro"]["tipo"] == "BauInvalidoError"
+    _serializavel(res)

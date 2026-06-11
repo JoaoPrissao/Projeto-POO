@@ -18,7 +18,7 @@ save/load — inclusive os bloqueios (guardados como timestamps absolutos).
 import math
 import time
 
-from excecoes import VenueInvalidaError, ItemMapaInvalidoError, NpcInvalidoError
+from excecoes import VenueInvalidaError, ItemMapaInvalidoError, NpcInvalidoError, BauInvalidoError, FamaInsuficienteError
 
 
 # Turnê padrão — vilões progressivamente mais duros (exigem evoluir nível/itens).
@@ -56,6 +56,13 @@ _NPCS_PADRAO = [
 # ir até lá pra comprar. A van vira só armazenamento/equipamento.
 _LOJA_PADRAO = {"x": 700.0}
 POSICAO_INICIAL = 60.0
+# MAP-03 (Phase 1): 2 segredos/baús escondidos.
+# bau1: à ESQUERDA do ponto inicial (D-10) — fora do caminho óbvio (x=20).
+# bau2: DEPOIS da arena (D-11) — na margem do mundo, oculto por fama (x=1820).
+_BAUS_PADRAO = [
+    {"id": "bau1", "x": 20.0,   "item": "jaqueta_lendaria"},
+    {"id": "bau2", "x": 1820.0, "item": "capa_de_lp", "fama_minima": 6},
+]
 
 DURACAO_BASE_BLOQUEIO = 30      # segundos de bloqueio por nível de fama da venue
 PENALIDADE_FAMA_DERROTA = 1     # fama que a banda perde ao ser nocauteada
@@ -65,7 +72,8 @@ BONUS_DANO_POR_FAMA = 0.02      # +2% de dano por ponto de fama da banda
 class Campanha:
     def __init__(self, venues, itens, posicao=POSICAO_INICIAL,
                  concluidas=None, coletados=None, fama_banda=0, bloqueios=None,
-                 cache=0, loja=None, npcs=None, npcs_dados=None):
+                 cache=0, loja=None, npcs=None, npcs_dados=None,
+                 baus=None, baus_abertos=None):
         # Cópias defensivas das definições (não compartilha listas/dicts externos).
         self._venues = [dict(v) for v in venues]
         self._itens = [dict(i) for i in itens]
@@ -80,6 +88,9 @@ class Campanha:
         # MAP-02 (Phase 1): NPCs e progresso de entregas.
         self._npcs = [dict(n) for n in (npcs or _NPCS_PADRAO)]
         self._npcs_dados = set(npcs_dados or ())
+        # MAP-03 (Phase 1): baús/segredos e progresso de aberturas.
+        self._baus = [dict(b) for b in (baus or _BAUS_PADRAO)]
+        self._baus_abertos = set(baus_abertos or ())
 
     @classmethod
     def padrao(cls) -> "Campanha":
@@ -225,6 +236,32 @@ class Campanha:
         self._npcs_dados.add(npc_id)
         return npc["item"]
 
+    def listar_baus(self) -> list:
+        """MAP-03: retorna os 2 baús com flags aberto e revelado.
+        revelado = sem fama_minima (ou 0) OU fama_banda >= fama_minima (D-11)."""
+        def _revelado(bau):
+            fm = bau.get("fama_minima", 0)
+            return fm == 0 or self._fama_banda >= fm
+        return [{**b, "aberto": b["id"] in self._baus_abertos, "revelado": _revelado(b)}
+                for b in self._baus]
+
+    def get_bau(self, bau_id: str) -> dict:
+        for b in self._baus:
+            if b["id"] == bau_id:
+                fm = b.get("fama_minima", 0)
+                return {**b, "aberto": bau_id in self._baus_abertos,
+                        "revelado": fm == 0 or self._fama_banda >= fm}
+        raise BauInvalidoError(bau_id)
+
+    def abrir_bau(self, bau_id: str) -> str:
+        """MAP-03: abre o baú; aplica gate de fama_minima (D-11). Retorna tipo do item."""
+        bau = self.get_bau(bau_id)          # valida (→ BauInvalidoError)
+        fama_min = bau.get("fama_minima", 0)
+        if self._fama_banda < fama_min:
+            raise FamaInsuficienteError(bau_id, fama_min, self._fama_banda)
+        self._baus_abertos.add(bau_id)
+        return bau["item"]
+
     def set_posicao(self, x: float) -> None:
         self._posicao = float(x)
 
@@ -250,6 +287,9 @@ class Campanha:
             # MAP-02 (Phase 1): NPCs e progresso de entregas.
             "npcs": [dict(n) for n in self._npcs],
             "npcs_dados": sorted(self._npcs_dados),
+            # MAP-03 (Phase 1): baús e progresso de aberturas.
+            "baus": [dict(b) for b in self._baus],
+            "baus_abertos": sorted(self._baus_abertos),
         }
 
     @classmethod
@@ -266,4 +306,6 @@ class Campanha:
             loja=dados.get("loja"),         # save antigo: None → loja padrão
             npcs=dados.get("npcs"),         # MAP-02: None → _NPCS_PADRAO
             npcs_dados=dados.get("npcs_dados", ()),  # MAP-02: save antigo → conjunto vazio
+            baus=dados.get("baus"),         # MAP-03: None → _BAUS_PADRAO
+            baus_abertos=dados.get("baus_abertos", ()),  # MAP-03: save antigo → conjunto vazio
         )

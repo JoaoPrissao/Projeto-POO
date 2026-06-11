@@ -117,6 +117,7 @@ class API:
             "loja": camp.get_loja(),        # F3.8: ponto da loja no mapa
             "van_estagio": camp.van_estagio(),  # MAP-01 (Phase 1): estágio derivado da fama
             "npcs": camp.listar_npcs(),     # MAP-02 (Phase 1): NPCs do overworld
+            "baus": camp.listar_baus(),     # MAP-03 (Phase 1): baús/segredos do overworld
         }
 
     def _drop_dto(self, tipo: str) -> dict | None:
@@ -534,6 +535,22 @@ class API:
             "ja_deu": ja_deu,
             "fala": npc["fala"],
             "item": ItemFactory.criar(tipo).nome if tipo else None,
+            "campanha": self._campanha_dto(),
+        }
+
+    @_ponte
+    def abrir_bau(self, payload: dict) -> dict:
+        """MAP-03: abre um baú pelo id. Gate de fama no domínio (FamaInsuficienteError
+        → ErroDTO). Entrega o item único ao músico (índice 0 por padrão)."""
+        camp = self._garantir_campanha()
+        tipo = camp.abrir_bau(payload["id"])    # BauInvalidoError/FamaInsuficienteError → ErroDTO
+        indice = int(payload.get("indice", 0))
+        musico = self._gerenciador.listar_jogadores()[indice]   # IndexError → ErroDTO
+        item = ItemFactory.criar(tipo)
+        musico.get_inventario().adicionar(item)   # InventarioCheioError → ErroDTO
+        return {
+            "ok": True,
+            "item": item.nome,
             "campanha": self._campanha_dto(),
         }
 

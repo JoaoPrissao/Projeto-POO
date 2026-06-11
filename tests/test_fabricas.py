@@ -123,3 +123,19 @@ def test_item_factory_npc3_cria_item_valido():
     item = ItemFactory.criar("vinil_raro")
     assert isinstance(item, Item)
     assert len(item.nome) > 0
+
+
+# ── MAP-03: Itens únicos de baú no ItemFactory (Phase 1) ─────────────────────
+
+def test_item_factory_bau1_cria_item_valido():
+    """ItemFactory deve criar item para o tipo do Baú 1 (jaqueta_lendaria) com nome nao vazio."""
+    item = ItemFactory.criar("jaqueta_lendaria")
+    assert isinstance(item, Item)
+    assert len(item.nome) > 0
+
+
+def test_item_factory_bau2_cria_item_valido():
+    """ItemFactory deve criar item para o tipo do Baú 2 (capa_de_lp) com nome nao vazio."""
+    item = ItemFactory.criar("capa_de_lp")
+    assert isinstance(item, Item)
+    assert len(item.nome) > 0

@@ -123,3 +123,19 @@ class VenueBloqueadaError(CampanhaError):
     def __init__(self, venue_id, segundos=None):
         extra = f" (faltam {segundos}s)" if segundos else ""
         super().__init__(f"A venue '{venue_id}' está bloqueada após a derrota{extra}.")
+
+
+class BauInvalidoError(CampanhaError):
+    def __init__(self, bau_id):
+        super().__init__(f"Baú inexistente na campanha: '{bau_id}'.")
+
+
+class FamaInsuficienteError(CampanhaError):
+    def __init__(self, bau_id, fama_minima: int, fama_atual: int):
+        super().__init__(
+            f"Baú '{bau_id}' exige fama >= {fama_minima} "
+            f"(fama atual: {fama_atual}). Vença mais shows!"
+        )
+        self.bau_id = bau_id
+        self.fama_minima = fama_minima
+        self.fama_atual = fama_atual

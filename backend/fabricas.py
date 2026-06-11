@@ -86,6 +86,21 @@ class ItemFactory:
             efeito="energia",
             valor=kw.get("valor", 40),
         ),
+        # MAP-03 (Phase 1): itens únicos dos 2 baús/segredos do overworld (D-12).
+        "jaqueta_lendaria": lambda **kw: Equipavel(
+            kw.get("nome", "Jaqueta de Couro Lendária"),
+            kw.get("descricao", "De uma banda que parou de existir. Força bruta nas cordas."),
+            atributo="forca",
+            bonus=kw.get("bonus", 15),
+            classes_permitidas=None,   # qualquer membro — prestígio total
+        ),
+        "capa_de_lp": lambda **kw: Equipavel(
+            kw.get("nome", "Capa de LP Sagrada"),
+            kw.get("descricao", "O álbum mais raro do mundo. Quem carrega nunca para de tocar."),
+            atributo="agilidade",
+            bonus=kw.get("bonus", 12),
+            classes_permitidas=None,   # qualquer membro
+        ),
     }
 
     @classmethod
