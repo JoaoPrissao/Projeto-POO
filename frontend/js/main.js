@@ -500,12 +500,14 @@ async function abrirOverworld() {
     canvas, venues: camp.venues, itens: camp.itens, loja: camp.loja,
     vanEstagio: camp.van_estagio,  // MAP-01 (Phase 1): estágio da van vem do backend
     npcs: camp.npcs,               // MAP-02 (Phase 1): NPCs do mapa vêm do backend
+    baus: camp.baus,               // MAP-03 (Phase 1): baús/segredos do mapa vêm do backend
     corTipo: "guitarrista",
     inicioX: camp.posicao,
     aoEntrar: entrarNaVenue,
     aoColetar: coletarItemNoMapa,
     aoLoja: abrirLoja,            // F3.8: W perto do 🏪 abre a loja
     aoNpc: abordarNpc,            // MAP-02 (Phase 1): W perto de NPC
+    aoBau: abrirBau,              // MAP-03 (Phase 1): W perto de baú revelado
   });
   window.__overworld = owHandle;
 
@@ -572,6 +574,25 @@ async function abordarNpc(npc) {
   if (res.item) {
     avisoOverworld(`🎸 ${esc(npc.nome)} entregou: ${esc(res.item)}!`);
   }
+}
+
+// MAP-03 (Phase 1): abre baú — chama a ponte e exibe recompensa/erro no balão de canvas.
+// D-12: item exclusivo; D-11: gate de fama no backend (FamaInsuficienteError → mensagem).
+// esc() é usado apenas em texto que vai para o DOM (avisoOverworld); o balão é canvas.
+async function abrirBau(bau) {
+  const res = await window.pywebview.api.abrir_bau({ id: bau.id });
+  if (!res.ok) {
+    // Gate de fama ou id inválido: exibir mensagem no balão E no aviso DOM.
+    if (owHandle && owHandle.mundo) {
+      owHandle.mundo.abrirBalao("Acesso bloqueado", res.erro.mensagem);
+    }
+    avisoOverworld(`⚠️ ${esc(res.erro.mensagem)}`);
+    return;
+  }
+  if (owHandle && owHandle.mundo) {
+    owHandle.mundo.abrirBalao(`Baú aberto!`, `Item recebido: ${res.item} [W/Esc fechar]`);
+  }
+  avisoOverworld(`✨ Baú aberto! Item: ${esc(res.item)}`);
 }
 
 async function voltarAoMapa() {

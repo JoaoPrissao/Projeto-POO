@@ -40,6 +40,12 @@
       { id: "npc1", x: 600,  nome: "Roadie", fala: "Ola!", item: "bandana_sortuda", dado: false },
       { id: "npc2", x: 1200, nome: "Fa",     fala: "Oi!",  item: "palheta_de_ouro", dado: false },
     ];
+    // MAP-03 (Phase 1): baús usados nos casos de harness.
+    // bau_rev: revelado=true (sem fama gate); bau_oc: revelado=false (gated por fama).
+    const BAUS_HARNESS = [
+      { id: "bau_rev", x: 800,  item: "jaqueta_lendaria", fama_minima: 0, aberto: false, revelado: true },
+      { id: "bau_oc",  x: 900,  item: "capa_de_lp",       fama_minima: 6, aberto: false, revelado: false },
+    ];
 
     function novoMundo() {
       const entrou = [], coletou = [];
@@ -267,6 +273,67 @@
       mundo.pressionar("w");
       checar("prioridade: W entra na venue (venue > NPC)", entrou2, ["bar"]);
       checar("prioridade: aoNpc nao chamado quando venue no alcance", aoNpcProximo, []);
+    }
+
+    // ── MAP-03: baús/segredos (Phase 1) ───────────────────────────────────────
+
+    // Helper para testes MAP-03: mundo com baús e callbacks aoBau.
+    function novoMundoComBaus(overrides) {
+      const aoBauChamados = [];
+      const mundo = OW.criarMundo({
+        agora: () => 0, agendarFrame: () => {}, ctx: null, inicioX: 60,
+        venues: VENUES, itens: ITENS,
+        baus: BAUS_HARNESS.map((b) => ({ ...b })),
+        aoBau: (b) => aoBauChamados.push(b.id),
+        ...(overrides || {}),
+      });
+      return { mundo, aoBauChamados };
+    }
+
+    // Baú revelado perto → bau_perto correto; W chama aoBau
+    {
+      // bau_rev em x=800; inicioX=758 → centro=758+22=780; |780-800|=20 <= 56 → perto
+      const { mundo, aoBauChamados } = novoMundoComBaus({ inicioX: 758 });
+      checar("bau: bau_perto quando bau revelado dentro do alcance", mundo.estado.bau_perto, "bau_rev");
+      mundo.pressionar("w");
+      checar("bau: W chama aoBau quando bau revelado perto", aoBauChamados, ["bau_rev"]);
+    }
+
+    // Baú não revelado → bau_perto null mesmo perto (D-11)
+    {
+      // bau_oc em x=900; inicioX=858 → centro=880; |880-900|=20 <= 56 → distância ok mas oculto
+      const { mundo, aoBauChamados } = novoMundoComBaus({ inicioX: 858 });
+      checar("bau: bau_perto null quando bau nao revelado (D-11)", mundo.estado.bau_perto, null);
+      mundo.pressionar("w");
+      checar("bau: W nao chama aoBau quando bau oculto", aoBauChamados, []);
+    }
+
+    // Baú aberto não re-detecta
+    {
+      const bausComAberto = BAUS_HARNESS.map((b) =>
+        b.id === "bau_rev" ? { ...b, aberto: true } : { ...b });
+      const { mundo } = novoMundoComBaus({ inicioX: 758, baus: bausComAberto });
+      checar("bau: bau aberto nao aparece em bau_perto", mundo.estado.bau_perto, null);
+    }
+
+    // Prioridade: NPC > baú quando ambos no alcance
+    {
+      // NPC em x=810; baú revelado em x=800; banda inicioX=758 → centro=780
+      // ambos dentro de RAIO_PORTA (56); NPC deve vencer
+      const npcsProxBau = [{ id: "npc_junto", x: 810, nome: "NPC junto do Bau", fala: "oi", item: "bandana_sortuda", dado: false }];
+      const bausProxNpc = [{ id: "bau_junto", x: 800, item: "jaqueta_lendaria", fama_minima: 0, aberto: false, revelado: true }];
+      const aoNpcP = [], aoBauP = [];
+      const mundo = OW.criarMundo({
+        agora: () => 0, agendarFrame: () => {}, ctx: null, inicioX: 758,
+        venues: VENUES, itens: [], npcs: npcsProxBau, baus: bausProxNpc,
+        aoNpc: (n) => aoNpcP.push(n.id),
+        aoBau: (b) => aoBauP.push(b.id),
+      });
+      checar("bau-prioridade: npc_perto detectado", mundo.estado.npc_perto, "npc_junto");
+      checar("bau-prioridade: bau_perto tambem detectado", mundo.estado.bau_perto, "bau_junto");
+      mundo.pressionar("w");
+      checar("bau-prioridade: W chama aoNpc (NPC > bau)", aoNpcP, ["npc_junto"]);
+      checar("bau-prioridade: aoBau nao chamado quando NPC no alcance", aoBauP, []);
     }
 
     // ── MAP-01: van_estagio no estado() ────────────────────────────────────────

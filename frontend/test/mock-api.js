@@ -50,11 +50,17 @@
       fala: "Rarissimo! Pressagem original de 1973. So pra voce, cara.",
       item: "vinil_raro" },
   ];
+  // MAP-03 (Phase 1): baús do overworld (espelha _BAUS_PADRAO do backend).
+  const BAUS = [
+    { id: "bau1", x: 20,   item: "jaqueta_lendaria", fama_minima: 0 },
+    { id: "bau2", x: 1820, item: "capa_de_lp",       fama_minima: 6 },
+  ];
   const progresso = {
     concluidas: new Set(), coletados: new Set(), posicao: 60,
     fama_banda: 0, cache: 0,               // F3.7: cachê por show
     bloqueios: new Set(),   // mock: bloqueio sem timer (só liga/desliga)
     npcs_dados: new Set(),  // MAP-02 (Phase 1): NPCs que já entregaram o item
+    baus_abertos: new Set(), // MAP-03 (Phase 1): baús já abertos
   };
   const CACHE_POR_VENUE = { bar: 50, feira: 120, arena: 250 };   // espelha campanha.py
   const LOJA_MOCK = { energetico: 40, cerveja: 25 };             // espelha LOJA da ponte
@@ -76,6 +82,12 @@
       van_estagio: progresso.fama_banda >= 6 ? 3 : progresso.fama_banda >= 3 ? 2 : 1,
       // MAP-02 (Phase 1): NPCs com flag dado (espelha Campanha.listar_npcs())
       npcs: NPCS.map((n) => ({ ...n, dado: progresso.npcs_dados.has(n.id) })),
+      // MAP-03 (Phase 1): baús com flags aberto e revelado (espelha Campanha.listar_baus())
+      baus: BAUS.map((b) => ({
+        ...b,
+        aberto: progresso.baus_abertos.has(b.id),
+        revelado: !b.fama_minima || progresso.fama_banda >= b.fama_minima,
+      })),
     };
   }
   function dropMock(tipo) {
@@ -202,6 +214,17 @@
         return Promise.resolve({ ok: true, ja_deu, fala: n.fala,
           item: ja_deu ? null : n.item, campanha: campanhaMock() });
       },
+      // MAP-03 (Phase 1): abre baú pelo id — abertura única com gate de fama (D-11/D-13).
+      abrir_bau(payload) {
+        reg("abrir_bau", payload);
+        const b = BAUS.find((x) => x.id === payload.id);
+        if (!b) return Promise.resolve({ ok: false, erro: { tipo: "BauInvalidoError", mensagem: "bau invalido" } });
+        if (progresso.fama_banda < (b.fama_minima || 0))
+          return Promise.resolve({ ok: false, erro: { tipo: "FamaInsuficienteError", mensagem: "fama insuficiente para abrir este bau" } });
+        progresso.baus_abertos.add(b.id);
+        equipState.inventario.push(itemMock(b.item));
+        return Promise.resolve({ ok: true, item: b.item, campanha: campanhaMock() });
+      },
       executar_acao(payload) {
         reg("executar_acao", payload);
         // F3.8: valida cansaço/energia ANTES de qualquer efeito (espelha show.py).
@@ -259,7 +282,8 @@
         reg("nova_campanha");
         progresso.concluidas.clear(); progresso.coletados.clear();
         progresso.bloqueios.clear(); progresso.posicao = 60; progresso.fama_banda = 0;
-        progresso.npcs_dados.clear();  // MAP-02: reseta entregas de NPCs
+        progresso.npcs_dados.clear();   // MAP-02: reseta entregas de NPCs
+        progresso.baus_abertos.clear(); // MAP-03: reseta aberturas de baús
         return Promise.resolve({ ok: true, campanha: campanhaMock() });
       },
       obter_equipamento() { reg("obter_equipamento"); return Promise.resolve(equipamentoDto()); },

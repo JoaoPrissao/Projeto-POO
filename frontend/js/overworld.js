@@ -32,8 +32,8 @@
   const VAN_COR = ["#888", "#4a78d8", "#e0b341"];  // estágio 1/2/3
 
   // ── Núcleo do mundo (shell injetável) ───────────────────────────────────────
-  // opts: { agora, agendarFrame, ctx, venues, itens, loja, vanEstagio, npcs, inicioX,
-  //         aoEntrar, aoColetar, aoLoja, aoNpc, aoAtualizar }
+  // opts: { agora, agendarFrame, ctx, venues, itens, loja, vanEstagio, npcs, baus, inicioX,
+  //         aoEntrar, aoColetar, aoLoja, aoNpc, aoBau, aoAtualizar }
   function criarMundo(opts) {
     const agora = opts.agora;
     const agendarFrame = opts.agendarFrame;
@@ -44,6 +44,8 @@
     const aoAtualizar = opts.aoAtualizar || function () {};
     // MAP-02 (Phase 1): callback disparado ao abordar NPC com W.
     const aoNpc = opts.aoNpc || function () {};
+    // MAP-03 (Phase 1): callback disparado ao abrir baú com W.
+    const aoBau = opts.aoBau || function () {};
 
     // Estado mutável, clonado das definições (não mexe nos dicts do chamador).
     const venues = (opts.venues || []).map((v) => ({ ...v, concluida: !!v.concluida }));
@@ -51,13 +53,16 @@
     const loja = opts.loja ? { ...opts.loja } : null;   // F3.8: ponto da loja 🏪
     // MAP-02 (Phase 1): clona NPCs com flag dado (D-07).
     const npcs = (opts.npcs || []).map((n) => ({ ...n, dado: !!n.dado }));
+    // MAP-03 (Phase 1): clona baús com flags aberto e revelado (D-11/D-13).
+    const baus = (opts.baus || []).map((b) => ({ ...b, aberto: !!b.aberto, revelado: !!b.revelado }));
 
     // MAP-01 (Phase 1): estágio visual da van (1=lata-velha, 2=decente, 3=tunada).
     // Vem do backend (_campanha_dto.van_estagio); default 1 quando não informado.
     const vanEstagio = opts.vanEstagio || 1;
 
     const pontos = [...venues.map((v) => v.x), ...itens.map((i) => i.x),
-                    ...(loja ? [loja.x] : []), ...npcs.map((n) => n.x), 0];
+                    ...(loja ? [loja.x] : []), ...npcs.map((n) => n.x),
+                    ...baus.map((b) => b.x), 0];
     const larguraMundo = Math.max(...pontos) + CONFIG.MARGEM_MUNDO;
 
     const banda = { x: opts.inicioX || 60, largura: CONFIG.TAM_BANDA };
@@ -131,12 +136,25 @@
       return alvo;
     }
 
-    // Entrar (W): fecha balão se aberto; prioridade loja > venue > NPC (D-08).
+    // MAP-03 (Phase 1): baú não-aberto E revelado mais próximo dentro do alcance (D-11).
+    // Baús não revelados (ocultos por gate de fama) são completamente ignorados.
+    function bauPerto() {
+      const cx = centroBanda();
+      for (const b of baus) {
+        if (b.aberto) continue;
+        if (!b.revelado) continue;   // D-11: oculto até fama >= fama_minima
+        if (Math.abs(cx - b.x) <= CONFIG.RAIO_PORTA) return b;
+      }
+      return null;
+    }
+
+    // Entrar (W): fecha balão se aberto; prioridade loja > venue > NPC > baú (D-08).
     function interagir() {
       if (balao) { fecharBalao(); return null; }   // D-16: W fecha balão
 
       const v = venuePerto();
       const n = npcPerto();
+      const b = bauPerto();
       const cx = centroBanda();
       if (lojaPerto() && (!v || Math.abs(cx - loja.x) < Math.abs(cx - v.x))) {
         aoLoja(loja);
@@ -144,6 +162,7 @@
       }
       if (v) { aoEntrar(v); return v; }
       if (n) { aoNpc(n); return null; }
+      if (b) { aoBau(b); return null; }   // MAP-03 (Phase 1): baú revelado perto
       return null;
     }
 
@@ -182,6 +201,9 @@
         npc_perto: (npcPerto() || {}).id ?? null,
         balao_aberto: balao !== null,
         balao: balao,
+        // MAP-03 (Phase 1): baús/segredos e detecção de proximidade.
+        baus: baus.map((b) => ({ id: b.id, x: b.x, aberto: b.aberto, revelado: b.revelado })),
+        bau_perto: (bauPerto() || {}).id ?? null,
       };
     }
 
@@ -229,6 +251,27 @@
         ctx.beginPath();
         ctx.arc(px, C.CHAO_Y - 16, 10, 0, Math.PI * 2);
         ctx.fill();
+      }
+      // MAP-03 (Phase 1): baús/segredos — só desenha quando revelado e não aberto (D-11).
+      for (const b of baus) {
+        if (!b.revelado || b.aberto) continue;
+        const px = b.x - cameraX;
+        if (px < -40 || px > C.LARGURA + 40) continue;
+        // Baú: caixa dourada (placeholder — arte pixel definitiva é Phase 2).
+        ctx.fillStyle = "#c8a400";
+        ctx.fillRect(px - 14, C.CHAO_Y - 30, 28, 22);
+        ctx.strokeStyle = "#e0b341";
+        ctx.lineWidth = 2;
+        ctx.strokeRect(px - 14, C.CHAO_Y - 30, 28, 22);
+        ctx.fillStyle = "#e0b341";
+        ctx.fillRect(px - 14, C.CHAO_Y - 22, 28, 4);  // faixa central
+        ctx.fillStyle = "#ece6f5";
+        ctx.font = "9px monospace";
+        ctx.textAlign = "center";
+        ctx.fillText("BAU", px, C.CHAO_Y - 34);
+        if (bauPerto() && bauPerto().id === b.id) {
+          ctx.fillText("[W] abrir", px, C.CHAO_Y - 44);
+        }
       }
       // Van da banda por estágio (MAP-01, Phase 1 — arte pixel definitiva é Phase 2).
       const bx = banda.x - cameraX;
@@ -294,16 +337,16 @@
   }
 
   // ── Entrada de produção: liga canvas + teclado ──────────────────────────────
-  function montar({ canvas, venues, itens, loja, vanEstagio, npcs, corTipo, inicioX,
-                    aoEntrar, aoColetar, aoLoja, aoNpc, aoAtualizar } = {}) {
+  function montar({ canvas, venues, itens, loja, vanEstagio, npcs, baus, corTipo, inicioX,
+                    aoEntrar, aoColetar, aoLoja, aoNpc, aoBau, aoAtualizar } = {}) {
     const ctx = canvas ? canvas.getContext("2d") : null;
     if (canvas) { canvas.width = CONFIG.LARGURA; canvas.height = CONFIG.ALTURA; }
 
     const mundo = criarMundo({
       agora: () => performance.now(),
       agendarFrame: (cb) => requestAnimationFrame(cb),
-      ctx, venues, itens, loja, vanEstagio, npcs, corTipo, inicioX,
-      aoEntrar, aoColetar, aoLoja, aoNpc, aoAtualizar,
+      ctx, venues, itens, loja, vanEstagio, npcs, baus, corTipo, inicioX,
+      aoEntrar, aoColetar, aoLoja, aoNpc, aoBau, aoAtualizar,
     });
 
     function onKeyDown(e) {
