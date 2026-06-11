@@ -35,6 +35,11 @@
       { id: "arena", x: 1500, nome: "Arena" },
     ];
     const ITENS = [{ id: "i1", x: 250, tipo: "energetico" }];
+    // MAP-02 (Phase 1): NPCs usados nos casos de harness.
+    const NPCS_HARNESS = [
+      { id: "npc1", x: 600,  nome: "Roadie", fala: "Ola!", item: "bandana_sortuda", dado: false },
+      { id: "npc2", x: 1200, nome: "Fa",     fala: "Oi!",  item: "palheta_de_ouro", dado: false },
+    ];
 
     function novoMundo() {
       const entrou = [], coletou = [];
@@ -46,6 +51,19 @@
         aoColetar: (it) => coletou.push(it.id),
       });
       return { mundo, entrou, coletou };
+    }
+
+    // Helper para testes MAP-02: mundo com NPCs e callback aoNpc.
+    function novoMundoComNpcs(overrides) {
+      const aoNpcChamados = [];
+      const mundo = OW.criarMundo({
+        agora: () => 0, agendarFrame: () => {}, ctx: null, inicioX: 60,
+        venues: VENUES, itens: ITENS,
+        npcs: NPCS_HARNESS.map((n) => ({ ...n })),
+        aoNpc: (n) => aoNpcChamados.push(n.id),
+        ...(overrides || {}),
+      });
+      return { mundo, aoNpcChamados };
     }
 
     // ── 1. Anda pra direita (A/D) ──────────────────────────────────────────────
@@ -174,6 +192,81 @@
       checar("loja: longe não abre", mundo.estado.loja_perto, false);
       mundo.interagir();
       checar("loja: W longe da loja não chama aoLoja", lojaAbriu.length, 0);
+    }
+
+    // ── MAP-02: NPCs e balão de fala (Phase 1) ─────────────────────────────────
+
+    // NPC perto → npc_perto correto; W chama aoNpc
+    {
+      // npc1 em x=600; inicioX=560 → centro = 560+22=582; |582-600|=18 <= 56 → perto
+      const { mundo, aoNpcChamados } = novoMundoComNpcs({ inicioX: 560 });
+      checar("npc: npc_perto quando dentro do alcance", mundo.estado.npc_perto, "npc1");
+      mundo.pressionar("w");
+      checar("npc: W chama aoNpc", aoNpcChamados, ["npc1"]);
+    }
+
+    // NPC longe → W não chama aoNpc
+    {
+      const { mundo, aoNpcChamados } = novoMundoComNpcs(); // inicioX=60, npc1 em 600 (longe)
+      checar("npc: npc_perto null quando longe", mundo.estado.npc_perto, null);
+      mundo.pressionar("w");
+      checar("npc: W longe nao chama aoNpc", aoNpcChamados, []);
+    }
+
+    // NPC já dado → npc_perto ainda o detecta (repete fala)
+    {
+      const npcsComDado = NPCS_HARNESS.map((n) => n.id === "npc1" ? { ...n, dado: true } : { ...n });
+      const { mundo } = novoMundoComNpcs({ inicioX: 560, npcs: npcsComDado });
+      checar("npc: npc_perto com dado=true ainda retorna npc", mundo.estado.npc_perto, "npc1");
+      const n1 = mundo.estado.npcs.find((n) => n.id === "npc1");
+      checar("npc: dado=true preservado no estado", n1.dado, true);
+    }
+
+    // Balão aberto → passo não move a banda
+    {
+      const { mundo } = novoMundoComNpcs();
+      mundo.pressionar("d");
+      const x0 = mundo.estado.banda.x;
+      mundo.abrirBalao("Texto teste", "subtexto");
+      checar("balao: balao_aberto=true apos abrirBalao", mundo.estado.balao_aberto, true);
+      mundo.passo(500);  // D-16: banda não deve se mover
+      checar("balao: passo nao move banda com balao aberto", mundo.estado.banda.x, x0);
+    }
+
+    // W fecha balão (não chama aoNpc quando balão aberto)
+    {
+      const { mundo, aoNpcChamados } = novoMundoComNpcs({ inicioX: 560 });
+      mundo.abrirBalao("fala", "sub");
+      mundo.pressionar("w");
+      checar("balao: W fecha balao", mundo.estado.balao_aberto, false);
+      checar("balao: W com balao aberto nao chama aoNpc de novo", aoNpcChamados, []);
+    }
+
+    // fecharBalao diretamente (simula Esc no montar)
+    {
+      const { mundo } = novoMundoComNpcs();
+      mundo.abrirBalao("ola", "");
+      mundo.fecharBalao();
+      checar("balao: fecharBalao fecha balao (simula Esc)", mundo.estado.balao_aberto, false);
+    }
+
+    // Prioridade: venue > NPC quando ambos no alcance
+    {
+      // bar em x=400; NPC em x=410; banda em inicioX=375 → centro=397
+      // |397-400|=3 (venue perto); |397-410|=13 (npc perto) — venue vence
+      const npcsProximos = [{ id: "npcx", x: 410, nome: "NPC junto da Venue", fala: "oi", item: "bandana_sortuda", dado: false }];
+      const entrou2 = [], aoNpcProximo = [];
+      const mundo = OW.criarMundo({
+        agora: () => 0, agendarFrame: () => {}, ctx: null, inicioX: 375,
+        venues: VENUES, itens: [], npcs: npcsProximos,
+        aoEntrar: (v) => entrou2.push(v.id),
+        aoNpc: (n) => aoNpcProximo.push(n.id),
+      });
+      checar("prioridade: venue_perto detectada", mundo.estado.venue_perto, "bar");
+      checar("prioridade: npc_perto tambem detectado", mundo.estado.npc_perto, "npcx");
+      mundo.pressionar("w");
+      checar("prioridade: W entra na venue (venue > NPC)", entrou2, ["bar"]);
+      checar("prioridade: aoNpc nao chamado quando venue no alcance", aoNpcProximo, []);
     }
 
     // ── MAP-01: van_estagio no estado() ────────────────────────────────────────

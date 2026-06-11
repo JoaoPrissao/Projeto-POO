@@ -38,10 +38,23 @@
     { id: "i1", x: 250,  tipo: "energetico" },
     { id: "i2", x: 1280, tipo: "pedal" },
   ];
+  // MAP-02 (Phase 1): NPCs do overworld (espelha _NPCS_PADRAO do backend).
+  const NPCS = [
+    { id: "npc1", x: 560,  nome: "Roadie Aposentado",
+      fala: "Saudades do estradao... Fica com essa bandana, vai precisar.",
+      item: "bandana_sortuda" },
+    { id: "npc2", x: 1140, nome: "Fa Fervoroso",
+      fala: "Autografo nao, mas essa palheta dourada pode ser sua!",
+      item: "palheta_de_ouro" },
+    { id: "npc3", x: 1750, nome: "Vendedor de Vinil",
+      fala: "Rarissimo! Pressagem original de 1973. So pra voce, cara.",
+      item: "vinil_raro" },
+  ];
   const progresso = {
     concluidas: new Set(), coletados: new Set(), posicao: 60,
     fama_banda: 0, cache: 0,               // F3.7: cachê por show
     bloqueios: new Set(),   // mock: bloqueio sem timer (só liga/desliga)
+    npcs_dados: new Set(),  // MAP-02 (Phase 1): NPCs que já entregaram o item
   };
   const CACHE_POR_VENUE = { bar: 50, feira: 120, arena: 250 };   // espelha campanha.py
   const LOJA_MOCK = { energetico: 40, cerveja: 25 };             // espelha LOJA da ponte
@@ -61,6 +74,8 @@
       loja: { x: 700 },        // F3.8: ponto da loja no mapa (espelha campanha.py)
       // MAP-01 (Phase 1): estágio da van derivado da fama (espelha Campanha.van_estagio())
       van_estagio: progresso.fama_banda >= 6 ? 3 : progresso.fama_banda >= 3 ? 2 : 1,
+      // MAP-02 (Phase 1): NPCs com flag dado (espelha Campanha.listar_npcs())
+      npcs: NPCS.map((n) => ({ ...n, dado: progresso.npcs_dados.has(n.id) })),
     };
   }
   function dropMock(tipo) {
@@ -174,6 +189,19 @@
         return Promise.resolve({ ok: true, musico: "Aldric", item: it.tipo,
           tamanho_inventario: equipState.inventario.length, campanha: campanhaMock() });
       },
+      // MAP-02 (Phase 1): aborda NPC pelo id — entrega única (D-07).
+      abordar_npc(payload) {
+        reg("abordar_npc", payload);
+        const n = NPCS.find((x) => x.id === payload.id);
+        if (!n) return Promise.resolve({ ok: false, erro: { tipo: "NpcInvalidoError", mensagem: "npc invalido" } });
+        const ja_deu = progresso.npcs_dados.has(n.id);
+        if (!ja_deu) {
+          progresso.npcs_dados.add(n.id);
+          equipState.inventario.push(itemMock(n.item));
+        }
+        return Promise.resolve({ ok: true, ja_deu, fala: n.fala,
+          item: ja_deu ? null : n.item, campanha: campanhaMock() });
+      },
       executar_acao(payload) {
         reg("executar_acao", payload);
         // F3.8: valida cansaço/energia ANTES de qualquer efeito (espelha show.py).
@@ -231,6 +259,7 @@
         reg("nova_campanha");
         progresso.concluidas.clear(); progresso.coletados.clear();
         progresso.bloqueios.clear(); progresso.posicao = 60; progresso.fama_banda = 0;
+        progresso.npcs_dados.clear();  // MAP-02: reseta entregas de NPCs
         return Promise.resolve({ ok: true, campanha: campanhaMock() });
       },
       obter_equipamento() { reg("obter_equipamento"); return Promise.resolve(equipamentoDto()); },

@@ -499,11 +499,13 @@ async function abrirOverworld() {
   owHandle = window.Overworld.montar({
     canvas, venues: camp.venues, itens: camp.itens, loja: camp.loja,
     vanEstagio: camp.van_estagio,  // MAP-01 (Phase 1): estágio da van vem do backend
+    npcs: camp.npcs,               // MAP-02 (Phase 1): NPCs do mapa vêm do backend
     corTipo: "guitarrista",
     inicioX: camp.posicao,
     aoEntrar: entrarNaVenue,
     aoColetar: coletarItemNoMapa,
     aoLoja: abrirLoja,            // F3.8: W perto do 🏪 abre a loja
+    aoNpc: abordarNpc,            // MAP-02 (Phase 1): W perto de NPC
   });
   window.__overworld = owHandle;
 
@@ -551,6 +553,25 @@ async function coletarItemNoMapa(item) {
   avisoOverworld(res.ok
     ? `🎁 ${res.musico} pegou ${res.item}! (inventário: ${res.tamanho_inventario})`
     : `⚠️ ${res.erro.mensagem}`);
+}
+
+// MAP-02 (Phase 1): aborda NPC — chama a ponte e abre o balão de fala no canvas.
+// D-15: balão desenhado no canvas (ctx.fillText); D-07: entrega única no backend.
+// esc() é usado apenas em texto que vai para o DOM (avisoOverworld); o balão é canvas.
+async function abordarNpc(npc) {
+  const res = await window.pywebview.api.abordar_npc({ id: npc.id });
+  if (!res.ok) {
+    avisoOverworld(`⚠️ ${esc(res.erro.mensagem)}`);
+    return;
+  }
+  if (owHandle && owHandle.mundo) {
+    const fala = res.fala || "";
+    const sub = res.item ? `Item recebido: ${res.item} [W/Esc fechar]` : "[W/Esc] fechar";
+    owHandle.mundo.abrirBalao(fala, sub);
+  }
+  if (res.item) {
+    avisoOverworld(`🎸 ${esc(npc.nome)} entregou: ${esc(res.item)}!`);
+  }
 }
 
 async function voltarAoMapa() {
