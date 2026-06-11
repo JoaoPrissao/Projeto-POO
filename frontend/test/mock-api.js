@@ -59,6 +59,8 @@
       fama_banda: progresso.fama_banda,
       cache: progresso.cache,
       loja: { x: 700 },        // F3.8: ponto da loja no mapa (espelha campanha.py)
+      // MAP-01 (Phase 1): estágio da van derivado da fama (espelha Campanha.van_estagio())
+      van_estagio: progresso.fama_banda >= 6 ? 3 : progresso.fama_banda >= 3 ? 2 : 1,
     };
   }
   function dropMock(tipo) {

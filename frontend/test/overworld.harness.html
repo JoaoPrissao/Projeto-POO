@@ -176,6 +176,30 @@
       checar("loja: W longe da loja não chama aoLoja", lojaAbriu.length, 0);
     }
 
+    // ── MAP-01: van_estagio no estado() ────────────────────────────────────────
+
+    // Estágio 1 (default / fama baixa)
+    {
+      const { mundo } = novoMundo();
+      checar("van: estagio 1 (padrao sem vanEstagio)", mundo.estado.van_estagio, 1);
+    }
+    // Estágio 2 (injetado explicitamente)
+    {
+      const mundo = OW.criarMundo({
+        agora: () => 0, agendarFrame: () => {}, ctx: null, inicioX: 60,
+        venues: VENUES, itens: ITENS, vanEstagio: 2,
+      });
+      checar("van: estagio 2 refletido em estado()", mundo.estado.van_estagio, 2);
+    }
+    // Estágio 3 (injetado explicitamente)
+    {
+      const mundo = OW.criarMundo({
+        agora: () => 0, agendarFrame: () => {}, ctx: null, inicioX: 60,
+        venues: VENUES, itens: ITENS, vanEstagio: 3,
+      });
+      checar("van: estagio 3 refletido em estado()", mundo.estado.van_estagio, 3);
+    }
+
     // ── Relatório ──────────────────────────────────────────────────────────────
     const ul = document.getElementById("casos");
     let todosOk = true;

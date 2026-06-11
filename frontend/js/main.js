@@ -498,6 +498,7 @@ async function abrirOverworld() {
   if (owHandle) owHandle.desligar();
   owHandle = window.Overworld.montar({
     canvas, venues: camp.venues, itens: camp.itens, loja: camp.loja,
+    vanEstagio: camp.van_estagio,  // MAP-01 (Phase 1): estágio da van vem do backend
     corTipo: "guitarrista",
     inicioX: camp.posicao,
     aoEntrar: entrarNaVenue,

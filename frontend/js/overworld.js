@@ -28,8 +28,11 @@
     baixista: "#4a78d8", baterista: "#e0b341",
   };
 
+  // Paleta de cores da van por estágio (MAP-01, Phase 1 — arte definitiva é Phase 2).
+  const VAN_COR = ["#888", "#4a78d8", "#e0b341"];  // estágio 1/2/3
+
   // ── Núcleo do mundo (shell injetável) ───────────────────────────────────────
-  // opts: { agora, agendarFrame, ctx, venues, itens, loja, inicioX,
+  // opts: { agora, agendarFrame, ctx, venues, itens, loja, vanEstagio, inicioX,
   //         aoEntrar, aoColetar, aoLoja, aoAtualizar }
   function criarMundo(opts) {
     const agora = opts.agora;
@@ -44,6 +47,10 @@
     const venues = (opts.venues || []).map((v) => ({ ...v, concluida: !!v.concluida }));
     const itens = (opts.itens || []).map((i) => ({ ...i, coletado: !!i.coletado }));
     const loja = opts.loja ? { ...opts.loja } : null;   // F3.8: ponto da loja 🏪
+
+    // MAP-01 (Phase 1): estágio visual da van (1=lata-velha, 2=decente, 3=tunada).
+    // Vem do backend (_campanha_dto.van_estagio); default 1 quando não informado.
+    const vanEstagio = opts.vanEstagio || 1;
 
     const pontos = [...venues.map((v) => v.x), ...itens.map((i) => i.x),
                     ...(loja ? [loja.x] : []), 0];
@@ -143,6 +150,7 @@
         venue_perto: (venuePerto() || {}).id ?? null,
         loja: loja ? { x: loja.x } : null,
         loja_perto: lojaPerto(),
+        van_estagio: vanEstagio,  // MAP-01 (Phase 1): estágio da van (backend autoritativo)
       };
     }
 
@@ -191,10 +199,13 @@
         ctx.arc(px, C.CHAO_Y - 16, 10, 0, Math.PI * 2);
         ctx.fill();
       }
-      // Banda (placeholder).
+      // Van da banda por estágio (MAP-01, Phase 1 — arte pixel definitiva é Phase 2).
       const bx = banda.x - cameraX;
-      ctx.fillStyle = COR_POR_TIPO[opts.corTipo] || "#e0457b";
+      ctx.fillStyle = VAN_COR[(vanEstagio || 1) - 1];
       ctx.fillRect(bx, C.CHAO_Y - C.TAM_BANDA, C.TAM_BANDA, C.TAM_BANDA);
+      // Label de estágio (placeholder — substituir por sprite na Phase 2).
+      ctx.fillStyle = "#ece6f5"; ctx.font = "10px monospace"; ctx.textAlign = "center";
+      ctx.fillText("VAN " + (vanEstagio || 1), bx + C.TAM_BANDA / 2, C.CHAO_Y - C.TAM_BANDA - 6);
     }
 
     function frame() {
@@ -225,7 +236,7 @@
   }
 
   // ── Entrada de produção: liga canvas + teclado ──────────────────────────────
-  function montar({ canvas, venues, itens, loja, corTipo, inicioX,
+  function montar({ canvas, venues, itens, loja, vanEstagio, corTipo, inicioX,
                     aoEntrar, aoColetar, aoLoja, aoAtualizar } = {}) {
     const ctx = canvas ? canvas.getContext("2d") : null;
     if (canvas) { canvas.width = CONFIG.LARGURA; canvas.height = CONFIG.ALTURA; }
@@ -233,7 +244,7 @@
     const mundo = criarMundo({
       agora: () => performance.now(),
       agendarFrame: (cb) => requestAnimationFrame(cb),
-      ctx, venues, itens, loja, corTipo, inicioX,
+      ctx, venues, itens, loja, vanEstagio, corTipo, inicioX,
       aoEntrar, aoColetar, aoLoja, aoAtualizar,
     });
 
