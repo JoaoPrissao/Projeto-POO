@@ -96,3 +96,30 @@ def test_hierarquia_inventario():
 def test_hierarquia_persistencia():
     for exc in (SaveNaoEncontradoError, SaveCorrompidoError):
         assert issubclass(exc, PersistenciaError)
+
+
+# ── MAP-02: Itens de NPC no ItemFactory (Phase 1) ────────────────────────────
+
+from fabricas import ItemFactory
+from itens import Item
+
+
+def test_item_factory_npc1_cria_item_valido():
+    """ItemFactory deve criar item para o tipo do NPC 1 (bandana_sortuda) com nome nao vazio."""
+    item = ItemFactory.criar("bandana_sortuda")
+    assert isinstance(item, Item)
+    assert len(item.nome) > 0
+
+
+def test_item_factory_npc2_cria_item_valido():
+    """ItemFactory deve criar item para o tipo do NPC 2 (palheta_de_ouro) com nome nao vazio."""
+    item = ItemFactory.criar("palheta_de_ouro")
+    assert isinstance(item, Item)
+    assert len(item.nome) > 0
+
+
+def test_item_factory_npc3_cria_item_valido():
+    """ItemFactory deve criar item para o tipo do NPC 3 (vinil_raro) com nome nao vazio."""
+    item = ItemFactory.criar("vinil_raro")
+    assert isinstance(item, Item)
+    assert len(item.nome) > 0

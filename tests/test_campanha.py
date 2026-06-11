@@ -277,6 +277,101 @@ def test_van_estagio_fama_acima_de_6_retorna_3():
     assert c.van_estagio() == 3
 
 
+# ── MAP-02: NPCs no domínio (Phase 1) ────────────────────────────────────────
+
+from excecoes import NpcInvalidoError
+
+
+def test_listar_npcs_retorna_3_npcs():
+    """Campanha.padrao() deve expor 3 NPCs, cada um com flag dado=False."""
+    c = Campanha.padrao()
+    npcs = c.listar_npcs()
+    assert len(npcs) == 3
+    assert all(not n["dado"] for n in npcs)
+
+
+def test_listar_npcs_campos_obrigatorios():
+    """Cada NPC deve ter: id, x, nome, fala, item."""
+    c = Campanha.padrao()
+    for n in c.listar_npcs():
+        assert {"id", "x", "nome", "fala", "item"} <= set(n.keys())
+
+
+def test_get_npc_existente():
+    c = Campanha.padrao()
+    nid = c.listar_npcs()[0]["id"]
+    n = c.get_npc(nid)
+    assert n["id"] == nid
+
+
+def test_get_npc_invalido_levanta():
+    c = Campanha.padrao()
+    with pytest.raises(NpcInvalidoError):
+        c.get_npc("nao-existe")
+
+
+def test_dar_item_npc_marca_dado_e_retorna_tipo():
+    c = Campanha.padrao()
+    nid = c.listar_npcs()[0]["id"]
+    tipo = c.dar_item_npc(nid)
+    assert isinstance(tipo, str) and len(tipo) > 0
+    marcado = next(n for n in c.listar_npcs() if n["id"] == nid)
+    assert marcado["dado"] is True
+
+
+def test_dar_item_npc_invalido_levanta():
+    c = Campanha.padrao()
+    with pytest.raises(NpcInvalidoError):
+        c.dar_item_npc("fantasma")
+
+
+def test_dar_item_npc_idempotente_quanto_ao_conjunto():
+    """Chamar dar_item_npc duas vezes não duplica no conjunto npcs_dados."""
+    c = Campanha.padrao()
+    nid = c.listar_npcs()[0]["id"]
+    c.dar_item_npc(nid)
+    c.dar_item_npc(nid)  # segunda chamada — set não cresce
+    marcados = [n for n in c.listar_npcs() if n["dado"]]
+    assert len(marcados) == 1
+
+
+def test_round_trip_preserva_npcs_e_npcs_dados():
+    c = Campanha.padrao()
+    nid = c.listar_npcs()[0]["id"]
+    c.dar_item_npc(nid)
+
+    clone = Campanha.from_dict(c.to_dict())
+
+    assert len(clone.listar_npcs()) == 3
+    marcado = next(n for n in clone.listar_npcs() if n["id"] == nid)
+    assert marcado["dado"] is True
+
+
+def test_from_dict_save_antigo_sem_npcs_usa_defaults():
+    """from_dict com save sem chaves 'npcs'/'npcs_dados' usa _NPCS_PADRAO e conjunto vazio."""
+    import json
+    c = Campanha.padrao()
+    d = c.to_dict()
+    d.pop("npcs", None)
+    d.pop("npcs_dados", None)
+
+    clone = Campanha.from_dict(d)
+    npcs = clone.listar_npcs()
+    assert len(npcs) == 3
+    assert all(not n["dado"] for n in npcs)
+
+
+def test_to_dict_npcs_e_serializavel():
+    import json
+    c = Campanha.padrao()
+    nid = c.listar_npcs()[0]["id"]
+    c.dar_item_npc(nid)
+    d = c.to_dict()
+    json.dumps(d)  # nao levanta
+    assert "npcs" in d
+    assert "npcs_dados" in d
+
+
 def test_van_estagio_sobe_ao_ganhar_fama():
     c = Campanha.padrao()
     c.ganhar_fama(6)

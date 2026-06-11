@@ -116,6 +116,7 @@ class API:
             "cache": camp.get_cache(),
             "loja": camp.get_loja(),        # F3.8: ponto da loja no mapa
             "van_estagio": camp.van_estagio(),  # MAP-01 (Phase 1): estágio derivado da fama
+            "npcs": camp.listar_npcs(),     # MAP-02 (Phase 1): NPCs do overworld
         }
 
     def _drop_dto(self, tipo: str) -> dict | None:
@@ -511,6 +512,28 @@ class API:
             "musico": musico.get_nome(),
             "item": item.nome,
             "tamanho_inventario": len(inventario),
+            "campanha": self._campanha_dto(),
+        }
+
+    @_ponte
+    def abordar_npc(self, payload: dict) -> dict:
+        """MAP-02: aborda um NPC pelo id. Na primeira vez entrega o item ao músico
+        (índice 0 por padrão); depois só repete a fala. Sempre devolve `fala`."""
+        camp = self._garantir_campanha()
+        npc = camp.get_npc(payload["id"])       # NpcInvalidoError → ErroDTO
+        ja_deu = npc["dado"]
+        tipo = None
+        if not ja_deu:
+            tipo = camp.dar_item_npc(payload["id"])   # marca + retorna tipo
+            indice = int(payload.get("indice", 0))
+            musico = self._gerenciador.listar_jogadores()[indice]   # IndexError → ErroDTO
+            item = ItemFactory.criar(tipo)
+            musico.get_inventario().adicionar(item)   # InventarioCheioError → ErroDTO
+        return {
+            "ok": True,
+            "ja_deu": ja_deu,
+            "fala": npc["fala"],
+            "item": ItemFactory.criar(tipo).nome if tipo else None,
             "campanha": self._campanha_dto(),
         }
 

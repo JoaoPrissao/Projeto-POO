@@ -114,6 +114,11 @@ class CacheInsuficienteError(CampanhaError):
                          f"Faça mais shows!")
 
 
+class NpcInvalidoError(CampanhaError):
+    def __init__(self, npc_id):
+        super().__init__(f"NPC inexistente na campanha: '{npc_id}'.")
+
+
 class VenueBloqueadaError(CampanhaError):
     def __init__(self, venue_id, segundos=None):
         extra = f" (faltam {segundos}s)" if segundos else ""

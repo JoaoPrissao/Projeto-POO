@@ -65,6 +65,27 @@ class ItemFactory:
             bonus=kw.get("bonus", 8),
             classes_permitidas=("Guitarrista", "Baixista"),
         ),
+        # MAP-02 (Phase 1): itens entregues pelos 3 NPCs do overworld.
+        "bandana_sortuda": lambda **kw: Equipavel(
+            kw.get("nome", "Bandana da Sorte"),
+            kw.get("descricao", "Um roadie aposentado jogou no palco. Traz boa sorte."),
+            atributo="agilidade",
+            bonus=kw.get("bonus", 4),
+            classes_permitidas=None,   # qualquer membro da banda
+        ),
+        "palheta_de_ouro": lambda **kw: Equipavel(
+            kw.get("nome", "Palheta de Ouro"),
+            kw.get("descricao", "Lendária. Dizem que pertenceu a Hendrix."),
+            atributo="forca",
+            bonus=kw.get("bonus", 6),
+            classes_permitidas=("Guitarrista", "Baixista"),
+        ),
+        "vinil_raro": lambda **kw: Consumivel(
+            kw.get("nome", "Vinil Raro 1973"),
+            kw.get("descricao", "Ouvir antes do show aumenta a concentracao. Recupera energia."),
+            efeito="energia",
+            valor=kw.get("valor", 40),
+        ),
     }
 
     @classmethod

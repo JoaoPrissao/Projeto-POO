@@ -223,3 +223,67 @@ def test_van_estagio_dto_e_serializavel():
     api = _api_com_banda()
     camp = api.obter_campanha()
     json.dumps(camp)  # não levanta
+
+
+# ── MAP-02: abordar_npc na ponte (Phase 1) ───────────────────────────────────
+
+def _serializavel(obj):
+    json.dumps(obj)  # levanta se nao for serializavel
+
+
+def test_obter_campanha_contem_npcs():
+    """obter_campanha() deve incluir a chave 'npcs' no DTO."""
+    api = _api_com_banda()
+    camp = api.obter_campanha()
+    assert "npcs" in camp
+    _serializavel(camp)
+
+
+def test_abordar_npc_primeira_vez_entrega_item():
+    """Na primeira abordagem: ok=True, ja_deu=False, item != None, inventario cresce."""
+    api = _api_com_banda()
+    camp = api.obter_campanha()
+    npc_id = camp["npcs"][0]["id"]
+
+    # tamanho inicial do inventario
+    eq0 = api.obter_equipamento()
+    tam0 = len(eq0["banda"][0]["inventario"])
+
+    res = api.abordar_npc({"id": npc_id})
+    assert res["ok"] is True
+    assert res["ja_deu"] is False
+    assert res["item"] is not None
+    assert res["fala"]  # string nao vazia
+
+    eq1 = api.obter_equipamento()
+    assert len(eq1["banda"][0]["inventario"]) == tam0 + 1
+
+
+def test_abordar_npc_segunda_vez_nao_da_item():
+    """Na segunda abordagem: ok=True, ja_deu=True, item=None, inventario nao cresce."""
+    api = _api_com_banda()
+    camp = api.obter_campanha()
+    npc_id = camp["npcs"][0]["id"]
+
+    api.abordar_npc({"id": npc_id})   # primeira vez
+
+    eq1 = api.obter_equipamento()
+    tam1 = len(eq1["banda"][0]["inventario"])
+
+    res = api.abordar_npc({"id": npc_id})  # segunda vez
+    assert res["ok"] is True
+    assert res["ja_deu"] is True
+    assert res["item"] is None
+    assert res["fala"]  # ainda repete a fala
+
+    eq2 = api.obter_equipamento()
+    assert len(eq2["banda"][0]["inventario"]) == tam1
+
+
+def test_abordar_npc_invalido_retorna_erro_dto():
+    """id invalido deve retornar ErroDTO com tipo NpcInvalidoError."""
+    api = _api_com_banda()
+    res = api.abordar_npc({"id": "nao-existe"})
+    assert res["ok"] is False
+    assert res["erro"]["tipo"] == "NpcInvalidoError"
+    _serializavel(res)

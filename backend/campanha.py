@@ -18,7 +18,7 @@ save/load — inclusive os bloqueios (guardados como timestamps absolutos).
 import math
 import time
 
-from excecoes import VenueInvalidaError, ItemMapaInvalidoError
+from excecoes import VenueInvalidaError, ItemMapaInvalidoError, NpcInvalidoError
 
 
 # Turnê padrão — vilões progressivamente mais duros (exigem evoluir nível/itens).
@@ -39,6 +39,19 @@ _ITENS_PADRAO = [
     {"id": "i1", "x": 250,  "tipo": "energetico"},
     {"id": "i2", "x": 1280, "tipo": "pedal"},
 ]
+# MAP-02 (Phase 1): NPCs espalhados entre/perto das venues.
+# npc1 entre bar(420) e loja(700); npc2 entre feira(980) e arena(1600); npc3 apos arena.
+_NPCS_PADRAO = [
+    {"id": "npc1", "x": 560,  "nome": "Roadie Aposentado",
+     "fala": "Saudades do estradao... Fica com essa bandana, vai precisar.",
+     "item": "bandana_sortuda"},
+    {"id": "npc2", "x": 1140, "nome": "Fa Fervoroso",
+     "fala": "Autografo nao, mas essa palheta dourada pode ser sua!",
+     "item": "palheta_de_ouro"},
+    {"id": "npc3", "x": 1750, "nome": "Vendedor de Vinil",
+     "fala": "Raríssimo! Pressagem original de 1973. So pra voce, cara.",
+     "item": "vinil_raro"},
+]
 # F3.8 — a loja é um PONTO do mapa (entre o bar e a feira): o jogador precisa
 # ir até lá pra comprar. A van vira só armazenamento/equipamento.
 _LOJA_PADRAO = {"x": 700.0}
@@ -52,7 +65,7 @@ BONUS_DANO_POR_FAMA = 0.02      # +2% de dano por ponto de fama da banda
 class Campanha:
     def __init__(self, venues, itens, posicao=POSICAO_INICIAL,
                  concluidas=None, coletados=None, fama_banda=0, bloqueios=None,
-                 cache=0, loja=None):
+                 cache=0, loja=None, npcs=None, npcs_dados=None):
         # Cópias defensivas das definições (não compartilha listas/dicts externos).
         self._venues = [dict(v) for v in venues]
         self._itens = [dict(i) for i in itens]
@@ -64,6 +77,9 @@ class Campanha:
         self._cache = int(cache)        # F3.7: dinheiro da banda (cachê por show)
         # venue_id -> timestamp (epoch) em que o bloqueio expira
         self._bloqueios = {k: float(v) for k, v in (bloqueios or {}).items()}
+        # MAP-02 (Phase 1): NPCs e progresso de entregas.
+        self._npcs = [dict(n) for n in (npcs or _NPCS_PADRAO)]
+        self._npcs_dados = set(npcs_dados or ())
 
     @classmethod
     def padrao(cls) -> "Campanha":
@@ -80,6 +96,16 @@ class Campanha:
 
     def listar_itens(self) -> list:
         return [{**i, "coletado": i["id"] in self._coletados} for i in self._itens]
+
+    def listar_npcs(self) -> list:
+        """MAP-02: retorna os 3 NPCs com flag 'dado' indicando se já entregaram o item."""
+        return [{**n, "dado": n["id"] in self._npcs_dados} for n in self._npcs]
+
+    def get_npc(self, npc_id: str) -> dict:
+        for n in self._npcs:
+            if n["id"] == npc_id:
+                return {**n, "dado": npc_id in self._npcs_dados}
+        raise NpcInvalidoError(npc_id)
 
     def get_loja(self) -> dict:
         """Ponto da loja no mapa (F3.8): `{"x": ...}` — o frontend desenha e
@@ -193,6 +219,12 @@ class Campanha:
         self._coletados.add(item_id)
         return item["tipo"]
 
+    def dar_item_npc(self, npc_id: str) -> str:
+        """MAP-02: marca o NPC como 'já deu' e retorna o tipo do item (D-07 — entrega única)."""
+        npc = self.get_npc(npc_id)          # valida (→ NpcInvalidoError)
+        self._npcs_dados.add(npc_id)
+        return npc["item"]
+
     def set_posicao(self, x: float) -> None:
         self._posicao = float(x)
 
@@ -215,6 +247,9 @@ class Campanha:
             "cache": self._cache,
             "bloqueios": dict(self._bloqueios),
             "loja": dict(self._loja),
+            # MAP-02 (Phase 1): NPCs e progresso de entregas.
+            "npcs": [dict(n) for n in self._npcs],
+            "npcs_dados": sorted(self._npcs_dados),
         }
 
     @classmethod
@@ -229,4 +264,6 @@ class Campanha:
             bloqueios=dados.get("bloqueios", {}),
             cache=dados.get("cache", 0),
             loja=dados.get("loja"),         # save antigo: None → loja padrão
+            npcs=dados.get("npcs"),         # MAP-02: None → _NPCS_PADRAO
+            npcs_dados=dados.get("npcs_dados", ()),  # MAP-02: save antigo → conjunto vazio
         )
