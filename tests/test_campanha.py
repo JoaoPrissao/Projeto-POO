@@ -238,3 +238,63 @@ def test_round_trip_preserva_fama_e_bloqueios():
     assert clone.fama_banda() == 4
     assert clone.venue_bloqueada(vid, agora=1001.0) is True
     assert clone.venue_bloqueada(vid, agora=999999.0) is False
+
+
+# ── MAP-01: van_estagio (Phase 1) ────────────────────────────────────────────
+
+def test_van_estagio_fama_zero_retorna_1():
+    c = Campanha.padrao()
+    assert c.van_estagio() == 1
+
+
+def test_van_estagio_fama_2_retorna_1():
+    c = Campanha.padrao()
+    c.ganhar_fama(2)
+    assert c.van_estagio() == 1
+
+
+def test_van_estagio_fama_3_retorna_2():
+    c = Campanha.padrao()
+    c.ganhar_fama(3)
+    assert c.van_estagio() == 2
+
+
+def test_van_estagio_fama_5_retorna_2():
+    c = Campanha.padrao()
+    c.ganhar_fama(5)
+    assert c.van_estagio() == 2
+
+
+def test_van_estagio_fama_6_retorna_3():
+    c = Campanha.padrao()
+    c.ganhar_fama(6)
+    assert c.van_estagio() == 3
+
+
+def test_van_estagio_fama_acima_de_6_retorna_3():
+    c = Campanha.padrao()
+    c.ganhar_fama(10)
+    assert c.van_estagio() == 3
+
+
+def test_van_estagio_sobe_ao_ganhar_fama():
+    c = Campanha.padrao()
+    c.ganhar_fama(6)
+    assert c.van_estagio() == 3
+
+
+def test_van_estagio_regride_ao_perder_fama():
+    """D-03: van pode regredir — reflete a fama atual, sobe e desce."""
+    c = Campanha.padrao()
+    c.ganhar_fama(6)
+    assert c.van_estagio() == 3
+    c.perder_fama(4)            # fama cai pra 2
+    assert c.van_estagio() == 1
+
+
+def test_van_estagio_nao_e_persistido_em_to_dict():
+    """van_estagio é derivado de fama_banda — não deve aparecer em to_dict."""
+    c = Campanha.padrao()
+    c.ganhar_fama(5)
+    d = c.to_dict()
+    assert "van_estagio" not in d

@@ -115,6 +115,7 @@ class API:
             "fama_banda": camp.fama_banda(),
             "cache": camp.get_cache(),
             "loja": camp.get_loja(),        # F3.8: ponto da loja no mapa
+            "van_estagio": camp.van_estagio(),  # MAP-01 (Phase 1): estágio derivado da fama
         }
 
     def _drop_dto(self, tipo: str) -> dict | None:

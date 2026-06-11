@@ -193,3 +193,33 @@ def test_listar_saves_e_serializavel(tmp_path):
     saves = api.listar_saves(pasta=str(tmp_path))
     json.dumps(saves)
     assert any(s["slot"] == "slot1" for s in saves)
+
+
+# ── MAP-01: van_estagio no DTO da campanha (Phase 1) ────────────────────────
+
+def test_obter_campanha_contem_van_estagio():
+    """obter_campanha() deve expor van_estagio no DTO."""
+    api = _api_com_banda()
+    camp = api.obter_campanha()
+    assert "van_estagio" in camp
+
+
+def test_van_estagio_dto_reflete_fama_atual():
+    """van_estagio do DTO reflete a fama_banda atual: 0 → 1, 6+ → 3."""
+    api = _api_com_banda()
+    camp0 = api.obter_campanha()
+    assert camp0["van_estagio"] == 1          # fama 0 → estágio 1
+
+    # Vence 3 venues acumulando fama >= 6 (1+2+3)
+    api.concluir_venue("bar")
+    api.concluir_venue("feira")
+    api.concluir_venue("arena")
+    camp3 = api.obter_campanha()
+    assert camp3["van_estagio"] == 3          # fama 6 → estágio 3
+
+
+def test_van_estagio_dto_e_serializavel():
+    """DTO completo da campanha deve ser JSON-serializável com van_estagio."""
+    api = _api_com_banda()
+    camp = api.obter_campanha()
+    json.dumps(camp)  # não levanta

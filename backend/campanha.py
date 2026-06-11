@@ -129,6 +129,19 @@ class Campanha:
     def perder_fama(self, n: int) -> None:
         self._fama_banda = max(0, self._fama_banda - max(0, int(n)))
 
+    def van_estagio(self) -> int:
+        """Estágio visual da van derivado da fama atual (MAP-01 — Phase 1).
+
+        Faixas: 1 = lata-velha (fama 0-2), 2 = decente (fama 3-5),
+                3 = tunada (fama 6+). Regride se a fama cair (D-03).
+        Derivado puro de _fama_banda — não é persistido no save."""
+        f = self._fama_banda
+        if f >= 6:
+            return 3
+        if f >= 3:
+            return 2
+        return 1
+
     def mult_banda(self) -> float:
         """Multiplicador de dano derivado da fama (banda famosa bate mais forte;
         ao perder fama, fica mais fraca)."""
