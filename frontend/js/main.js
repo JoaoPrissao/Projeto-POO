@@ -276,6 +276,7 @@ const LOJA_CATALOGO = [   // espelha LOJA da ponte (tipo → preço)
 let equipBanda = null;      // último DTO de obter_equipamento
 let equipSel = 0;           // membro selecionado no menu
 let equipCache = 0;         // cachê atual (mostrado na van)
+let equipItemSel = -1;      // índice do item destacado na lista do overlay (-1 = nenhum)
 
 function equipAberto() {
   return $("#equip-overlay").classList.contains("aberto");
@@ -291,6 +292,9 @@ async function abrirEquipamento() {
   equipCache = (camp && camp.cache) || 0;
   equipBanda = res.banda;
   if (equipSel >= equipBanda.length) equipSel = 0;
+  // Congela o overworld enquanto a van está aberta (o jogador navega pelo overlay).
+  if (owHandle) { owHandle.mundo.parar(); pararRegen(); }
+  equipItemSel = -1;   // nenhum item destacado ao abrir
   renderEquipamento("");
   $("#equip-overlay").classList.add("aberto");
 }
@@ -304,6 +308,9 @@ async function recarregarEquipamento(aviso) {
 
 function fecharEquipamento() {
   $("#equip-overlay").classList.remove("aberto");
+  equipItemSel = -1;
+  // Retoma o overworld após fechar a van.
+  if (owHandle) { owHandle.mundo.iniciar(); iniciarRegen(); }
 }
 
 function renderEquipamento(aviso) {
@@ -312,13 +319,22 @@ function renderEquipamento(aviso) {
   membros.innerHTML = equipBanda.map((m, i) =>
     `<button data-i="${i}" class="${i === equipSel ? "ativo" : ""}">${esc(m.nome)} ♥${esc(m.hp)}</button>`).join("");
   membros.querySelectorAll("button").forEach((b) =>
-    b.addEventListener("click", () => { equipSel = Number(b.dataset.i); renderEquipamento(""); }));
+    b.addEventListener("click", () => { equipSel = Number(b.dataset.i); equipItemSel = -1; renderEquipamento(""); }));
 
   const m = equipBanda[equipSel];
   const podeEquipar = (it) => it.equipavel &&
     (!it.classes_permitidas || it.classes_permitidas.some((c) => String(c).toLowerCase() === m.tipo));
-  const itemHtml = (it, acao) => `
-    <div class="equip-item">
+
+  // Monta lista plana de itens com índice global para navegação por teclado.
+  // Formato: { item, acao, idx }
+  const listaItens = [];
+  m.equipados.forEach((it) => listaItens.push({ it, tipo: "deseq" }));
+  m.inventario.forEach((it) => listaItens.push({ it, tipo: it.equipavel ? "eq" : "usar" }));
+
+  const itemHtml = (it, acao, idx) => {
+    const destaque = idx === equipItemSel ? " ativo" : "";
+    return `
+    <div class="equip-item${destaque}" data-item-idx="${idx}">
       <div class="equip-info">
         <div class="equip-nome">${esc(it.nome)}</div>
         <div class="equip-desc">${esc(it.descricao || "")}</div>
@@ -326,18 +342,21 @@ function renderEquipamento(aviso) {
       ${it.equipavel ? `<span class="equip-bonus">+${esc(it.bonus)} ${esc(it.atributo)}</span>` : ""}
       ${acao}
     </div>`;
+  };
+
   const painel = $("#equip-painel");
+  let idx = 0;
   painel.innerHTML = `
     <div class="equip-secao">Equipado (${m.equipados.length}/${esc(m.slots)})</div>
     ${m.equipados.length
-      ? m.equipados.map((it) => itemHtml(it, `<button data-deseq="${esc(it.nome)}">Desequipar</button>`)).join("")
+      ? m.equipados.map((it) => itemHtml(it, `<button data-deseq="${esc(it.nome)}">Desequipar</button>`, idx++)).join("")
       : `<div class="equip-item vazio">nenhum item equipado</div>`}
     <div class="equip-secao">Inventário</div>
     ${m.inventario.length
       ? m.inventario.map((it) => itemHtml(it,
           it.equipavel
             ? `<button data-eq="${esc(it.nome)}" ${podeEquipar(it) ? "" : "disabled"}>Equipar</button>`
-            : `<button data-usar="${esc(it.nome)}">Usar</button>`)).join("")
+            : `<button data-usar="${esc(it.nome)}">Usar</button>`, idx++)).join("")
       : `<div class="equip-item vazio">inventário vazio</div>`}`;
   painel.querySelectorAll("[data-eq]").forEach((b) =>
     b.addEventListener("click", () => acaoEquipar("equipar", b.dataset.eq)));
@@ -346,6 +365,12 @@ function renderEquipamento(aviso) {
   painel.querySelectorAll("[data-usar]").forEach((b) =>
     b.addEventListener("click", () => acaoUsarItem(b.dataset.usar)));
   $("#equip-aviso").textContent = aviso || "";
+
+  // Scrolla o item destacado para a visualização.
+  if (equipItemSel >= 0) {
+    const el = painel.querySelector(`[data-item-idx="${equipItemSel}"]`);
+    if (el) el.scrollIntoView({ block: "nearest" });
+  }
 }
 
 async function acaoUsarItem(nome) {
@@ -366,6 +391,24 @@ async function acaoEquipar(metodo, nome) {
   }
   equipBanda = res.banda;
   renderEquipamento(metodo === "equipar" ? `✅ ${nome} equipado!` : `↩️ ${nome} voltou pro inventário.`);
+}
+
+// Ativa (clica) o botão de ação do item destacado no overlay da van.
+// Chamado por Enter/Espaço na navegação por teclado.
+function ativarItemEquipSel() {
+  if (!equipBanda || equipItemSel < 0) return;
+  const painel = $("#equip-painel");
+  const el = painel.querySelector(`[data-item-idx="${equipItemSel}"]`);
+  if (!el) return;
+  const btn = el.querySelector("button:not(:disabled)");
+  if (btn) btn.click();
+}
+
+// Retorna a contagem total de itens visíveis na lista do membro selecionado.
+function equipTotalItens() {
+  if (!equipBanda) return 0;
+  const m = equipBanda[equipSel];
+  return m.equipados.length + m.inventario.length;
 }
 
 // ── Loja do mapa (F3.8): ponto 🏪 no overworld — W perto dela abre aqui ─────
@@ -550,11 +593,66 @@ async function entrarNaVenue(venue) {
   });
 }
 
+// ── Diálogo de escolha do destinatário (Ajuste UX — 02-01) ─────────────────
+// Mostrado quando >1 membro é elegível para receber um item coletado.
+// `item`: { nome, descricao, classes_permitidas }
+// `elegiveis`: [{ indice, nome, tipo }]
+// `aoEscolher(indice)`: callback chamado quando o jogador confirma.
+// `aoFechar()`: callback de cancelamento (item NÃO é marcado como coletado).
+function mostrarEscolhaDestinatario(item, elegiveis, aoEscolher, aoFechar) {
+  const overlay = $("#fim-overlay");
+  const caixa  = $("#fim-caixa");
+  const botoesHtml = elegiveis.map((e) =>
+    `<button data-indice="${esc(e.indice)}" data-tipo="${esc(e.tipo)}">${esc(e.nome)}</button>`
+  ).join("");
+  caixa.innerHTML = `
+    <h2>🎁 Item coletado!</h2>
+    <div class="fim-drop">
+      <div class="drop-nome">${esc(item.nome)}</div>
+      <div class="drop-desc">${esc(item.descricao || "")}</div>
+      <div class="drop-desc" style="margin-top:6px">Quem fica com o item?</div>
+    </div>
+    <div class="fim-membros">${botoesHtml}</div>
+    <p id="fim-aviso" class="fim-aviso"></p>
+    <div class="menu-opcoes">
+      <button id="btn-fim-cancelar-coleta">✖ Deixar pra lá</button>
+    </div>`;
+  caixa.querySelectorAll(".fim-membros button").forEach((b) => {
+    b.addEventListener("click", () => {
+      overlay.classList.remove("aberto");
+      aoEscolher(Number(b.dataset.indice));
+    });
+  });
+  caixa.querySelector("#btn-fim-cancelar-coleta").addEventListener("click", () => {
+    overlay.classList.remove("aberto");
+    if (aoFechar) aoFechar();
+  });
+  overlay.classList.add("aberto");
+}
+
 async function coletarItemNoMapa(item) {
   const res = await window.pywebview.api.coletar_item({ id: item.id });
-  avisoOverworld(res.ok
-    ? `🎁 ${res.musico} pegou ${res.item}! (inventário: ${res.tamanho_inventario})`
-    : `⚠️ ${res.erro.mensagem}`);
+  if (!res.ok) { avisoOverworld(`⚠️ ${res.erro.mensagem}`); return; }
+  if (res.escolha_necessaria) {
+    // Mais de 1 elegível: pausa o overworld e mostra diálogo de escolha.
+    if (owHandle) { owHandle.mundo.parar(); pararRegen(); }
+    mostrarEscolhaDestinatario(res.item, res.elegiveis,
+      async (indice) => {
+        // Re-chama com o índice escolhido — desta vez consome e marca.
+        const r2 = await window.pywebview.api.coletar_item({ id: item.id, indice });
+        if (owHandle) { owHandle.mundo.iniciar(); iniciarRegen(); }
+        avisoOverworld(r2.ok
+          ? `🎁 ${r2.musico} pegou ${r2.item}! (inventário: ${r2.tamanho_inventario})`
+          : `⚠️ ${r2.erro.mensagem}`);
+      },
+      () => {
+        // Cancelado: retoma sem marcar nada.
+        if (owHandle) { owHandle.mundo.iniciar(); iniciarRegen(); }
+        avisoOverworld("Item deixado no mapa.");
+      });
+    return;
+  }
+  avisoOverworld(`🎁 ${res.musico} pegou ${res.item}! (inventário: ${res.tamanho_inventario})`);
 }
 
 // MAP-02 (Phase 1): aborda NPC — chama a ponte e abre o balão de fala no canvas.
@@ -564,6 +662,26 @@ async function abordarNpc(npc) {
   const res = await window.pywebview.api.abordar_npc({ id: npc.id });
   if (!res.ok) {
     avisoOverworld(`⚠️ ${esc(res.erro.mensagem)}`);
+    return;
+  }
+  if (res.escolha_necessaria) {
+    // >1 elegível: pausa + diálogo de escolha antes de entregar.
+    if (owHandle) { owHandle.mundo.parar(); pararRegen(); }
+    mostrarEscolhaDestinatario(res.item, res.elegiveis,
+      async (indice) => {
+        const r2 = await window.pywebview.api.abordar_npc({ id: npc.id, indice });
+        if (owHandle) {
+          owHandle.mundo.iniciar(); iniciarRegen();
+          if (r2.ok) {
+            const sub = r2.item ? `Item recebido: ${r2.item} [W/Esc fechar]` : "[W/Esc] fechar";
+            owHandle.mundo.abrirBalao(r2.fala || "", sub);
+          }
+        }
+        if (r2.ok && r2.item) avisoOverworld(`🎸 ${esc(npc.nome)} entregou: ${esc(r2.item)}!`);
+      },
+      () => {
+        if (owHandle) { owHandle.mundo.iniciar(); iniciarRegen(); }
+      });
     return;
   }
   if (owHandle && owHandle.mundo) {
@@ -587,6 +705,27 @@ async function abrirBau(bau) {
       owHandle.mundo.abrirBalao("Acesso bloqueado", res.erro.mensagem);
     }
     avisoOverworld(`⚠️ ${esc(res.erro.mensagem)}`);
+    return;
+  }
+  if (res.escolha_necessaria) {
+    // >1 elegível: pausa + diálogo de escolha antes de abrir o baú.
+    if (owHandle) { owHandle.mundo.parar(); pararRegen(); }
+    mostrarEscolhaDestinatario(res.item, res.elegiveis,
+      async (indice) => {
+        const r2 = await window.pywebview.api.abrir_bau({ id: bau.id, indice });
+        if (owHandle) {
+          owHandle.mundo.marcarBauAberto(bau.id);
+          owHandle.mundo.iniciar(); iniciarRegen();
+          if (r2.ok && r2.item) {
+            owHandle.mundo.abrirBalao("Baú aberto!", `Item recebido: ${r2.item} [W/Esc fechar]`);
+          }
+        }
+        if (r2.ok && r2.item) avisoOverworld(`✨ Baú aberto! Item: ${esc(r2.item)}`);
+      },
+      () => {
+        if (owHandle) { owHandle.mundo.iniciar(); iniciarRegen(); }
+        avisoOverworld("Baú fechado. Volte quando decidir.");
+      });
     return;
   }
   if (owHandle && owHandle.mundo) {
@@ -619,19 +758,84 @@ function bind() {
   $("#btn-loja-fechar").addEventListener("click", fecharLoja);
   // Esc: fecha o que estiver aberto (pausa/van/loja); no mapa "limpo" PAUSA
   // (bug F3.8 — antes só a batalha pausava). Tab abre/fecha a van — só no mapa.
+  //
+  // Quando um overlay está aberto, WASD/setas navegam DENTRO do overlay e NÃO
+  // chegam ao handler de movimento do overworld.js (stopPropagation + preventDefault).
   window.addEventListener("keydown", (e) => {
-    if (e.key === "Escape" && $("#pausa-overlay").classList.contains("aberto")) {
-      e.preventDefault();
-      retomarPausa();
-    } else if (e.key === "Tab") {
-      if (equipAberto()) { e.preventDefault(); fecharEquipamento(); }
-      else if ($("#tela-overworld").classList.contains("ativa") && !lojaAberta()) {
+    const t = e.key.toLowerCase();
+    const isNav = ["a", "d", "w", "s", "arrowleft", "arrowright", "arrowup", "arrowdown"].includes(t);
+    const isActivate = t === "enter" || t === " ";
+
+    // ── Overlay da van (equip-overlay) ───────────────────────────────────────
+    if (equipAberto()) {
+      // Bloqueia todo tráfego de movimento para o overworld.
+      if (isNav || isActivate || e.key === "Tab" || e.key === "Escape") {
+        e.preventDefault();
+        e.stopImmediatePropagation();
+      }
+      if (e.key === "Tab" || e.key === "Escape") { fecharEquipamento(); return; }
+      if (isActivate) { ativarItemEquipSel(); return; }
+      if (isNav) {
+        // ← / → (A/D): troca o músico selecionado.
+        if (t === "a" || t === "arrowleft") {
+          equipSel = (equipSel - 1 + equipBanda.length) % equipBanda.length;
+          equipItemSel = -1;
+          renderEquipamento("");
+        } else if (t === "d" || t === "arrowright") {
+          equipSel = (equipSel + 1) % equipBanda.length;
+          equipItemSel = -1;
+          renderEquipamento("");
+        }
+        // ↑ / ↓ (W/S): navega pela lista de itens do membro.
+        else if (t === "w" || t === "arrowup") {
+          const total = equipTotalItens();
+          if (total > 0) { equipItemSel = equipItemSel <= 0 ? total - 1 : equipItemSel - 1; }
+          renderEquipamento("");
+        } else if (t === "s" || t === "arrowdown") {
+          const total = equipTotalItens();
+          if (total > 0) { equipItemSel = (equipItemSel + 1) % total; }
+          renderEquipamento("");
+        }
+      }
+      return;
+    }
+
+    // ── Overlay de pausa (pausa-overlay) ─────────────────────────────────────
+    if ($("#pausa-overlay").classList.contains("aberto")) {
+      if (isNav || isActivate || e.key === "Escape") {
+        e.preventDefault();
+        e.stopImmediatePropagation();
+      }
+      if (e.key === "Escape") { retomarPausa(); return; }
+      if (isNav || isActivate) {
+        // Obtém botões visíveis da pausa (Reiniciar fica hidden no contexto mapa).
+        const btns = [...document.querySelectorAll(
+          "#pausa-overlay button:not([hidden])")];
+        if (!btns.length) return;
+        const foco = document.activeElement;
+        let idx = btns.indexOf(foco);
+        if (t === "w" || t === "arrowup") {
+          idx = idx <= 0 ? btns.length - 1 : idx - 1;
+          btns[idx].focus();
+        } else if (t === "s" || t === "arrowdown") {
+          idx = (idx + 1) % btns.length;
+          btns[idx].focus();
+        } else if (isActivate && idx >= 0) {
+          btns[idx].click();
+        } else if (isActivate && idx < 0) {
+          // nenhum botão focado ainda: foca o primeiro
+          btns[0].focus();
+        }
+      }
+      return;
+    }
+
+    // ── Sem overlay: comportamento original ──────────────────────────────────
+    if (e.key === "Tab") {
+      if ($("#tela-overworld").classList.contains("ativa") && !lojaAberta()) {
         e.preventDefault();
         abrirEquipamento();
       }
-    } else if (e.key === "Escape" && equipAberto()) {
-      e.preventDefault();
-      fecharEquipamento();
     } else if (e.key === "Escape" && lojaAberta()) {
       e.preventDefault();
       fecharLoja();
