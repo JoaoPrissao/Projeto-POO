@@ -14,6 +14,10 @@ FRONTEND = os.path.join(os.path.dirname(__file__), "..", "frontend", "index.html
 
 def main() -> None:
     api = API()
+    # Ajuste 3: MAXIMIZADO (não fullscreen) — preserva os controles de janela
+    # (barra de título, fechar, minimizar). fullscreen=True prendia o usuário
+    # sem forma de sair pelo sistema operacional. maximized=True preenche a
+    # tela mantendo a barra de título e o botão de fechar nativo.
     webview.create_window(
         title="RPG Manager — A Banda",
         url=os.path.abspath(FRONTEND),
@@ -21,7 +25,7 @@ def main() -> None:
         width=960,
         height=640,
         min_size=(720, 520),
-        fullscreen=True,            # F3.8: jogo em tela cheia (sair pelo menu)
+        maximized=True,
     )
     webview.start()
 

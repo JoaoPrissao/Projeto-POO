@@ -130,7 +130,33 @@ main {
   gap: 14px;
   margin: 14px auto 0;
   width: 100%;
-  max-width: 1280px;   /* F3.8: em fullscreen o jogo cresce, centralizado */
+  max-width: 1280px;   /* F3.8: em maximizado o jogo cresce, centralizado */
+}
+
+/* ── Canvas responsivo: telas de jogo quebram o max-width (Ajuste 3) ────────
+ * No overworld e na batalha o canvas deve preencher toda a largura disponível
+ * sem barras laterais escuras. Negamos o max-width do main e o padding do body
+ * somente quando essas telas estão ativas, mantendo o layout normal no menu.
+ * Usa :has() — suportado no Edge/Chromium (WebView2 do pywebview no Windows).
+ * Os harnesses de teste têm style inline e não são afetados por esta regra. */
+body:has(#tela-overworld.ativa),
+body:has(#tela-show.ativa) {
+  padding-left: 0;
+  padding-right: 0;
+  padding-top: 0;
+  padding-bottom: 0;
+}
+
+body:has(#tela-overworld.ativa) header,
+body:has(#tela-show.ativa) header {
+  display: none;   /* header oculto nas telas de jogo — mais espaço pro canvas */
+}
+
+body:has(#tela-overworld.ativa) main,
+body:has(#tela-show.ativa) main {
+  max-width: 100%;
+  margin: 0;
+  gap: 6px;
 }
 
 .painel {
