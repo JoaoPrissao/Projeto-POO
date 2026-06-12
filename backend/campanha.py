@@ -244,6 +244,11 @@ class Campanha:
             self.ganhar_fama(self._fama_venue(venue_id))  # vencer dá fama
         self._bloqueios.pop(venue_id, None)               # e limpa o bloqueio
 
+    def peek_item(self, item_id: str) -> str:
+        """Retorna o tipo do item SEM marcar como coletado (peek para decisão de escolha)."""
+        item = self.get_item(item_id)       # valida (→ ItemMapaInvalidoError)
+        return item["tipo"]
+
     def coletar(self, item_id: str) -> str:
         """Marca o item como pego e devolve seu `tipo` (pra ItemFactory)."""
         item = self.get_item(item_id)       # valida (→ ItemMapaInvalidoError)
@@ -272,6 +277,14 @@ class Campanha:
                 return {**b, "aberto": bau_id in self._baus_abertos,
                         "revelado": fm == 0 or self._fama_banda >= fm}
         raise BauInvalidoError(bau_id)
+
+    def checar_fama_bau(self, bau_id: str) -> None:
+        """Verifica o gate de fama do baú SEM marcar como aberto.
+        Lança FamaInsuficienteError se a fama da banda for insuficiente."""
+        bau = self.get_bau(bau_id)          # valida (→ BauInvalidoError)
+        fama_min = bau.get("fama_minima", 0)
+        if self._fama_banda < fama_min:
+            raise FamaInsuficienteError(bau_id, fama_min, self._fama_banda)
 
     def abrir_bau(self, bau_id: str) -> str:
         """MAP-03: abre o baú; aplica gate de fama_minima (D-11). Retorna tipo do item."""

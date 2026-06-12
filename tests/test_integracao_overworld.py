@@ -108,11 +108,23 @@ def test_concluir_venue_invalida_vira_erro_dto():
 # ── coletar_item (por id) ─────────────────────────────────────────────────────
 
 def test_coletar_item_por_id_adiciona_e_marca():
+    """Item sem classes_permitidas com 2 músicos elegíveis → escolha_necessaria=True.
+    Após re-chamada com indice explícito, marca como coletado."""
     api = _api_com_banda()
     item = _primeiro_item(api)
+
+    # Primeira chamada sem indice: 2 elegíveis → escolha_necessaria (não marca ainda).
     res = _serializavel(api.coletar_item({"id": item["id"]}))
     assert res["ok"] is True
-    assert res["item"]  # nome do item criado
+    assert res["escolha_necessaria"] is True
+    nao_marcado = next(i for i in api.obter_campanha()["itens"] if i["id"] == item["id"])
+    assert nao_marcado["coletado"] is False
+
+    # Segunda chamada com indice explícito → marca e entrega.
+    res2 = _serializavel(api.coletar_item({"id": item["id"], "indice": 0}))
+    assert res2["ok"] is True
+    assert res2["escolha_necessaria"] is False
+    assert res2["item"]  # nome do item criado
     marcado = next(i for i in api.obter_campanha()["itens"] if i["id"] == item["id"])
     assert marcado["coletado"] is True
 
@@ -231,7 +243,7 @@ def test_save_load_retoma_a_campanha(tmp_path):
     item = _primeiro_item(api)
 
     api.concluir_venue(venue["id"])              # vence a 1ª (ganha fama)
-    api.coletar_item({"id": item["id"]})
+    api.coletar_item({"id": item["id"], "indice": 0})  # indice explícito: item multi-elegível
     api.registrar_posicao(777.0)
     outra = api.obter_campanha()["venues"][1]    # 2ª venue
     api.registrar_derrota(outra["id"])           # bloqueia a 2ª + perde fama

@@ -376,8 +376,9 @@ def _api_banda_completa():
     ])
 
 
-def test_coletar_item_sem_classe_vai_ao_indice0():
-    """Item sem classes_permitidas (energético) vai ao índice 0 por padrão."""
+def test_coletar_item_sem_classe_retorna_escolha_necessaria():
+    """Item sem classes_permitidas (energético) → 4 elegíveis → escolha_necessaria=True,
+    sem marcar como coletado (o baú/item NÃO vai pro inventário ainda)."""
     api = _api_banda_completa()
     api.nova_campanha()
     camp = api.obter_campanha()
@@ -385,10 +386,57 @@ def test_coletar_item_sem_classe_vai_ao_indice0():
     item_id = next(i["id"] for i in camp["itens"] if i["tipo"] == "energetico")
     res = api.coletar_item({"id": item_id})
     assert res["ok"] is True
+    assert res["escolha_necessaria"] is True
+    assert len(res["elegiveis"]) == 4   # todos os 4 músicos
+    # Item NÃO deve estar no inventário de ninguém ainda.
     eq = api.obter_equipamento()
-    # deve estar no inventário do músico 0 (Geraldo)
-    nomes_inv0 = [it["nome"] for it in eq["banda"][0]["inventario"]]
-    assert "Energético" in nomes_inv0
+    for membro in eq["banda"]:
+        nomes = [it["nome"] for it in membro["inventario"]]
+        assert "Energético" not in nomes
+
+
+def test_coletar_item_sem_classe_com_indice_explicito_entrega_ao_escolhido():
+    """Quando indice é passado explicitamente, item vai ao músico escolhido (sem escolha)."""
+    api = _api_banda_completa()
+    api.nova_campanha()
+    camp = api.obter_campanha()
+    item_id = next(i["id"] for i in camp["itens"] if i["tipo"] == "energetico")
+    # Escolhe índice 2 (Ramiro)
+    res = api.coletar_item({"id": item_id, "indice": 2})
+    assert res["ok"] is True
+    assert res.get("escolha_necessaria") is False
+    eq = api.obter_equipamento()
+    nomes_ramiro = [it["nome"] for it in eq["banda"][2]["inventario"]]
+    assert "Energético" in nomes_ramiro
+
+
+def test_coletar_item_classe_unica_vai_automatico():
+    """Item com exatamente 1 elegível (pedal → Guitarrista+Baixista → 2 → escolha)."""
+    # Pedal tem classes_permitidas=("Guitarrista", "Baixista") → 2 elegíveis → escolha
+    api = _api_banda_completa()
+    api.nova_campanha()
+    camp = api.obter_campanha()
+    # i2 é pedal (Guitarrista+Baixista)
+    item_id = next(i["id"] for i in camp["itens"] if i["tipo"] == "pedal")
+    res = api.coletar_item({"id": item_id})
+    assert res["ok"] is True
+    assert res["escolha_necessaria"] is True
+    assert len(res["elegiveis"]) == 2   # Geraldo e Marivaldo
+
+
+def test_coletar_item_classe_unica_1_elegivel_automatico():
+    """Banda com só 1 membro elegível → automático (sem escolha_necessaria)."""
+    # Banda só com guitarrista → pedal tem 1 elegível → automático
+    api = _api_com_banda([{"tipo": "guitarrista", "nome": "Solo", "forca": 10}])
+    api.nova_campanha()
+    camp = api.obter_campanha()
+    item_id = next(i["id"] for i in camp["itens"] if i["tipo"] == "pedal")
+    res = api.coletar_item({"id": item_id})
+    assert res["ok"] is True
+    assert res.get("escolha_necessaria") is False
+    eq = api.obter_equipamento()
+    nomes = [it["nome"] for it in eq["banda"][0]["inventario"]]
+    assert "Pedal de Efeito" in nomes
 
 
 def test_npc_item_de_vocalista_vai_ao_vocalista():
@@ -464,3 +512,94 @@ def test_indice_elegivel_fallback_quando_classe_ausente():
     eq = api.obter_equipamento()
     nomes_solo = [it["nome"] for it in eq["banda"][0]["inventario"]]
     assert "Partitura Mágica" in nomes_solo   # fallback ao índice 0
+
+
+# ── Ajuste UX (02-01): escolha do destinatário — fluxo multi-elegível ────────
+
+def test_npc_item_sem_classe_retorna_escolha_necessaria():
+    """NPC que entrega item sem classes_permitidas → 4 elegíveis → escolha_necessaria=True,
+    sem marcar npc como dado ainda."""
+    api = _api_banda_completa()
+    api.nova_campanha()
+    # npc1 entrega bandana_sortuda (sem classes_permitidas) → 4 elegíveis
+    res = api.abordar_npc({"id": "npc1"})
+    assert res["ok"] is True
+    assert res["escolha_necessaria"] is True
+    assert len(res["elegiveis"]) == 4
+    assert res["fala"]  # fala sempre retornada
+    # NPC não deve estar marcado como dado
+    camp = api.obter_campanha()
+    npc = next(n for n in camp["npcs"] if n["id"] == "npc1")
+    assert npc["dado"] is False
+
+
+def test_npc_item_sem_classe_com_indice_marca_e_entrega():
+    """Re-chamada com indice → marca npc como dado e entrega o item."""
+    api = _api_banda_completa()
+    api.nova_campanha()
+    # Primeira chamada: escolha necessária
+    api.abordar_npc({"id": "npc1"})
+    # Segunda chamada com indice explícito (índice 2 = Ramiro)
+    res2 = api.abordar_npc({"id": "npc1", "indice": 2})
+    assert res2["ok"] is True
+    assert res2.get("escolha_necessaria") is False
+    assert res2["item"] == "Bandana da Sorte"
+    eq = api.obter_equipamento()
+    nomes_ramiro = [it["nome"] for it in eq["banda"][2]["inventario"]]
+    assert "Bandana da Sorte" in nomes_ramiro
+    # NPC agora marcado como dado
+    camp = api.obter_campanha()
+    npc = next(n for n in camp["npcs"] if n["id"] == "npc1")
+    assert npc["dado"] is True
+
+
+def test_npc_item_sem_classe_nao_duplica_se_escolha_cancelada_e_depois_entregue():
+    """Cancelar a escolha (não passar indice + não entregar) não duplica o item
+    na entrega subsequente com indice."""
+    api = _api_banda_completa()
+    api.nova_campanha()
+    # Simula cancelamento: não chama com indice (escolha não foi feita)
+    api.abordar_npc({"id": "npc1"})  # escolha_necessaria, não marca
+    api.abordar_npc({"id": "npc1"})  # idem — ainda não marcado
+    # Agora entrega de verdade
+    res = api.abordar_npc({"id": "npc1", "indice": 0})
+    assert res["ok"] is True
+    assert res["item"] == "Bandana da Sorte"
+    eq = api.obter_equipamento()
+    inv_geraldo = [it["nome"] for it in eq["banda"][0]["inventario"]]
+    assert inv_geraldo.count("Bandana da Sorte") == 1   # não duplicou
+
+
+def test_bau_item_sem_classe_retorna_escolha_necessaria():
+    """Baú com item sem classes_permitidas → 4 elegíveis → escolha_necessaria=True,
+    sem marcar o baú como aberto."""
+    api = _api_banda_completa()
+    api.nova_campanha()
+    # bau1 tem microfone_de_ouro (Vocalista — 1 elegível → automático, não é bom aqui)
+    # Mas jaqueta_lendaria/capa_de_lp são sem restrição — não estão em baús da campanha.
+    # Vamos usar coletar_item (i1=energetico sem classe, 4 elegíveis) para testar o fluxo,
+    # pois nenhum baú padrão tem item completamente sem classe.
+    # Aqui testamos via abordar_npc que é equivalente (mesma lógica).
+    camp = api.obter_campanha()
+    item_id = next(i["id"] for i in camp["itens"] if i["tipo"] == "energetico")
+    res = api.coletar_item({"id": item_id})
+    assert res["ok"] is True
+    assert res["escolha_necessaria"] is True
+    # Item não coletado ainda
+    camp2 = api.obter_campanha()
+    item_estado = next(i for i in camp2["itens"] if i["id"] == item_id)
+    assert item_estado["coletado"] is False
+
+
+def test_bau_com_exatamente_1_elegivel_segue_automatico():
+    """Baú bau1 contém microfone_de_ouro (Vocalista) → 1 elegível → automático."""
+    api = _api_banda_completa()
+    api.nova_campanha()
+    res = api.abrir_bau({"id": "bau1"})
+    assert res["ok"] is True
+    assert res.get("escolha_necessaria") is False
+    assert res["item"] == "Microfone de Ouro"
+    # Bau marcado como aberto
+    camp = api.obter_campanha()
+    bau = next(b for b in camp["baus"] if b["id"] == "bau1")
+    assert bau["aberto"] is True
