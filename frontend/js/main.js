@@ -12,10 +12,10 @@ const esc = (s) => String(s).replace(/[&<>"']/g, (c) =>
   ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
 const COMPOSICAO_DEMO = [
-  { tipo: "guitarrista", nome: "Aldric", forca: 14, ego: 0 },
-  { tipo: "vocalista",   nome: "Selene", folego: 50, inteligencia: 12 },
-  { tipo: "baterista",   nome: "Kael",   agilidade: 12, chance_critico: 0.3 },
-  { tipo: "baixista",    nome: "Paul",   forca: 12, fe: 20 },
+  { tipo: "guitarrista", nome: "Geraldo Muleta", forca: 14, ego: 0 },
+  { tipo: "vocalista",   nome: "Vando Bicuda",   folego: 50, inteligencia: 12 },
+  { tipo: "baterista",   nome: "Ramiro Paulada", agilidade: 12, chance_critico: 0.3 },
+  { tipo: "baixista",    nome: "Marivaldo",      forca: 12, fe: 20 },
 ];
 
 // Cor-assinatura por tipo (espelha os tokens do card em estilo.css).
