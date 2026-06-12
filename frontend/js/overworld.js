@@ -311,7 +311,7 @@
       const vanEsc = 4;
       const vanW = 10 * vanEsc, vanH = 6 * vanEsc;
       ctx.save();
-      Sprites.desenharVan(ctx, bx, C.CHAO_Y - vanH, vanEsc, vanEstagio || 1);
+      Sprites.desenharVan(ctx, vanEstagio || 1, bx, C.CHAO_Y - vanH, vanEsc);
       ctx.restore();
     }
 
