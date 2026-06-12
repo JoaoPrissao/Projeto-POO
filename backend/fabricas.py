@@ -131,6 +131,22 @@ class ItemFactory:
             bonus=kw.get("bonus", 8),
             classes_permitidas=("Baterista",),   # baú único para Ramiro
         ),
+        # 02-01 (VIS-01 fix): itens específicos para Baixista (Marivaldo).
+        # Garante paridade: agora os 4 membros têm itens exclusivos.
+        "corda_de_tungstenio": lambda **kw: Equipavel(
+            kw.get("nome", "Corda de Tungstênio"),
+            kw.get("descricao", "Liga ultra-resistente. O grave dela faz o chão tremer."),
+            atributo="forca",
+            bonus=kw.get("bonus", 6),
+            classes_permitidas=("Baixista",),    # específico para Marivaldo
+        ),
+        "contrabaixo_assombrado": lambda **kw: Equipavel(
+            kw.get("nome", "Contrabaixo Assombrado"),
+            kw.get("descricao", "Ninguém sabe quem o tocou antes. O grave sai sozinho, intenso."),
+            atributo="forca",
+            bonus=kw.get("bonus", 12),
+            classes_permitidas=("Baixista",),    # baú único para Marivaldo
+        ),
     }
 
     @classmethod

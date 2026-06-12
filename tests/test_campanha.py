@@ -284,10 +284,11 @@ from excecoes import NpcInvalidoError
 
 def test_listar_npcs_retorna_npcs_padrao():
     """Campanha.padrao() deve expor todos os NPCs padrão, cada um com flag dado=False.
-    02-01 fix: total subiu de 3 para 5 (npc4=Vocalista, npc5=Baterista)."""
+    02-01 fix: total subiu de 3 para 5 (npc4=Vocalista, npc5=Baterista).
+    02-01 fix2: subiu para 6 (npc6=Baixista/Marivaldo)."""
     c = Campanha.padrao()
     npcs = c.listar_npcs()
-    assert len(npcs) == 5
+    assert len(npcs) == 6
     assert all(not n["dado"] for n in npcs)
 
 
@@ -343,14 +344,15 @@ def test_round_trip_preserva_npcs_e_npcs_dados():
 
     clone = Campanha.from_dict(c.to_dict())
 
-    assert len(clone.listar_npcs()) == 5
+    assert len(clone.listar_npcs()) == 6   # 02-01 fix2: agora 6 NPCs (npc6=Baixista)
     marcado = next(n for n in clone.listar_npcs() if n["id"] == nid)
     assert marcado["dado"] is True
 
 
 def test_from_dict_save_antigo_sem_npcs_usa_defaults():
     """from_dict com save sem chaves 'npcs'/'npcs_dados' usa _NPCS_PADRAO e conjunto vazio.
-    02-01 fix: total subiu de 3 para 5 (npc4=Vocalista, npc5=Baterista)."""
+    02-01 fix: total subiu de 3 para 5 (npc4=Vocalista, npc5=Baterista).
+    02-01 fix2: subiu para 6 (npc6=Baixista/Marivaldo)."""
     import json
     c = Campanha.padrao()
     d = c.to_dict()
@@ -359,7 +361,7 @@ def test_from_dict_save_antigo_sem_npcs_usa_defaults():
 
     clone = Campanha.from_dict(d)
     npcs = clone.listar_npcs()
-    assert len(npcs) == 5
+    assert len(npcs) == 6
     assert all(not n["dado"] for n in npcs)
 
 
@@ -402,11 +404,12 @@ def test_van_estagio_nao_e_persistido_em_to_dict():
 from excecoes import BauInvalidoError, FamaInsuficienteError
 
 
-def test_listar_baus_retorna_2_baus():
-    """Campanha.padrao() deve expor 2 baús, cada um com aberto=False."""
+def test_listar_baus_retorna_3_baus():
+    """Campanha.padrao() deve expor 3 baús, cada um com aberto=False.
+    02-01 fix2: bau3 adicionado para Marivaldo (Baixista)."""
     c = Campanha.padrao()
     baus = c.listar_baus()
-    assert len(baus) == 2
+    assert len(baus) == 3
     assert all(not b["aberto"] for b in baus)
 
 
@@ -496,13 +499,14 @@ def test_round_trip_preserva_baus_e_baus_abertos():
 
     clone = Campanha.from_dict(c.to_dict())
 
-    assert len(clone.listar_baus()) == 2
+    assert len(clone.listar_baus()) == 3   # 02-01 fix2: agora 3 baús (bau3=Baixista)
     marcado = next(b for b in clone.listar_baus() if b["id"] == bau_id)
     assert marcado["aberto"] is True
 
 
 def test_from_dict_save_antigo_sem_baus_usa_defaults():
-    """from_dict com save sem chaves 'baus'/'baus_abertos' usa _BAUS_PADRAO e conjunto vazio."""
+    """from_dict com save sem chaves 'baus'/'baus_abertos' usa _BAUS_PADRAO e conjunto vazio.
+    02-01 fix2: agora 3 baús padrão (bau3=Baixista/Marivaldo)."""
     c = Campanha.padrao()
     d = c.to_dict()
     d.pop("baus", None)
@@ -510,7 +514,7 @@ def test_from_dict_save_antigo_sem_baus_usa_defaults():
 
     clone = Campanha.from_dict(d)
     baus = clone.listar_baus()
-    assert len(baus) == 2
+    assert len(baus) == 3
     assert all(not b["aberto"] for b in baus)
 
 

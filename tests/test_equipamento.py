@@ -104,6 +104,23 @@ def test_bonus_de_inteligencia_no_vocalista():
     v.equipar(micro)
     assert v.atacar() == 26
 
+def test_bonus_de_forca_no_baixista_item_exclusivo():
+    # 02-01: corda_de_tungstenio é exclusiva do Baixista; forca efetiva = 10+5=15 → dano 22
+    b = Baixista("Marivaldo", forca=10, fe=0)                  # fe=0: sem groove, dano = forca*1.5
+    corda = Equipavel("Corda de Tungstênio", atributo="forca", bonus=5,
+                      classes_permitidas=("Baixista",))
+    b.equipar(corda)
+    assert b.atacar() == 22   # int(15 * 1.5) = 22
+
+def test_item_exclusivo_baixista_incompativel_com_guitarrista():
+    from Guitarrista import Guitarrista as G
+    from excecoes import ItemIncompativelError
+    g = G("Geraldo", forca=10)
+    corda = Equipavel("Corda de Tungstênio", atributo="forca", bonus=5,
+                      classes_permitidas=("Baixista",))
+    with pytest.raises(ItemIncompativelError):
+        g.equipar(corda)
+
 
 # ── persistência ──────────────────────────────────────────────────────────────
 

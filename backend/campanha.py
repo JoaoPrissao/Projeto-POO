@@ -58,6 +58,9 @@ _NPCS_PADRAO = [
     {"id": "npc5", "x": 860,  "nome": "Percussionista de Rua",
      "fala": "Baterista? Esses oculos vao alinhar seu ritmo com o universo!",
      "item": "oculos_do_ritmo"},
+    {"id": "npc6", "x": 1460, "nome": "Luthier Veterano",
+     "fala": "Baixista de verdade? Essa corda de tungstenio e sua. O grave vai abalar as estruturas.",
+     "item": "corda_de_tungstenio"},
 ]
 # F3.8 — a loja é um PONTO do mapa (entre o bar e a feira): o jogador precisa
 # ir até lá pra comprar. A van vira só armazenamento/equipamento.
@@ -71,6 +74,7 @@ POSICAO_INICIAL = 60.0
 _BAUS_PADRAO = [
     {"id": "bau1", "x": 20.0,   "item": "microfone_de_ouro"},      # único para Vande (Vocalista)
     {"id": "bau2", "x": 1820.0, "item": "baquetas_fantasma", "fama_minima": 3},  # único para Ramiro (Baterista)
+    {"id": "bau3", "x": 1900.0, "item": "contrabaixo_assombrado", "fama_minima": 4},  # único para Marivaldo (Baixista)
 ]
 
 DURACAO_BASE_BLOQUEIO = 30      # segundos de bloqueio por nível de fama da venue
