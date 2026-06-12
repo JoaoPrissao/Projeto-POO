@@ -141,6 +141,29 @@ def test_get_recompensa_venue_invalida_levanta():
         Campanha.padrao().get_recompensa("fantasma")
 
 
+def test_drops_cobrem_ao_menos_uma_classe_de_vocalista_ou_baterista():
+    """Ajuste 2: o pool de drops das venues padrão deve incluir ao menos um item
+    de Vocalista OU Baterista — garante que o diálogo de vitória habilite esses
+    membros e não só Guitarrista/Baixista."""
+    from fabricas import ItemFactory
+    c = Campanha.padrao()
+    drops = [c.get_recompensa(v["id"])["drop"] for v in c.listar_venues()]
+    clases_cobertas = set()
+    for tipo in drops:
+        if tipo:
+            item = ItemFactory.criar(tipo)
+            classes = getattr(item, "classes_permitidas", None)
+            if classes:
+                clases_cobertas.update(c.lower() for c in classes)
+            else:
+                clases_cobertas.add("universal")
+    # Deve cobrir Vocalista ou Baterista além de Guitarrista/Baixista
+    assert "vocalista" in clases_cobertas or "baterista" in clases_cobertas, (
+        f"Drops padrão {drops} não cobrem Vocalista nem Baterista — "
+        "diálogo de vitória sempre desabilita esses membros"
+    )
+
+
 # ── F3.4: fama da banda ───────────────────────────────────────────────────────
 
 def test_fama_banda_comeca_zero():

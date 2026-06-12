@@ -24,15 +24,22 @@ from excecoes import VenueInvalidaError, ItemMapaInvalidoError, NpcInvalidoError
 # Turnê padrão — vilões progressivamente mais duros (exigem evoluir nível/itens).
 # `fama`: nível da venue (recompensa/dificuldade/bloqueio). `xp_recompensa`: XP
 # dado a cada membro ao vencer. `drop`: tipo de item (ItemFactory) que cai.
+#
+# Ajuste 2 (02-01): drops diversificados cobrindo as 4 classes —
+#   bar    → partitura_magica    (Vocalista — Vande)
+#   feira  → oculos_do_ritmo    (Baterista — Ramiro)
+#   arena  → pedal              (Guitarrista+Baixista — Geraldo ou Marivaldo)
+# O backend roteia cada drop para o membro elegível via _indice_elegivel
+# (api.py); o diálogo de vitória desabilita quem não pode receber.
 _VENUES_PADRAO = [
     {"id": "bar",   "x": 420,  "nome": "Bar do Zé",
-     "fama": 1, "xp_recompensa": 70,  "cache_recompensa": 50,  "drop": "energetico",
+     "fama": 1, "xp_recompensa": 70,  "cache_recompensa": 50,  "drop": "partitura_magica",
      "capanga": {"nome": "Capanga do Bar", "hp": 180, "dano": 18}},
     {"id": "feira", "x": 980,  "nome": "Feira Punk",
-     "fama": 2, "xp_recompensa": 130, "cache_recompensa": 120, "drop": "pedal",
+     "fama": 2, "xp_recompensa": 130, "cache_recompensa": 120, "drop": "oculos_do_ritmo",
      "capanga": {"nome": "Roadie Valentão", "hp": 340, "dano": 28}},
     {"id": "arena", "x": 1600, "nome": "Arena — O Empresário",
-     "fama": 3, "xp_recompensa": 240, "cache_recompensa": 250, "drop": "amplificador",
+     "fama": 3, "xp_recompensa": 240, "cache_recompensa": 250, "drop": "pedal",
      "capanga": {"nome": "O Empresário", "hp": 600, "dano": 40}},
 ]
 _ITENS_PADRAO = [
