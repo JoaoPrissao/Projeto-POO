@@ -349,6 +349,29 @@ class API:
 
     # ── Equipamento (F3.6 — equipar na van via Tab, nunca em batalha) ─────────
 
+    def _indice_elegivel(self, item) -> int:
+        """Retorna o índice do primeiro músico elegível para receber `item`.
+
+        Elegibilidade:
+          1. Se `item` tem `classes_permitidas`, o músico precisa ter o
+             `TIPO` listado nelas (comparação case-insensitive — o catalogo
+             usa "Vocalista" (PascalCase) e o TIPO é "vocalista").
+          2. Se ninguém for elegível (ex.: nenhum vivo da classe), cai no
+             índice 0 como fallback seguro.
+
+        Não exige que o músico esteja vivo — itens podem ir para KO para
+        o jogador equipar depois na van; o domínio não impede isso.
+        """
+        classes = getattr(item, "classes_permitidas", None)
+        if not classes:
+            return 0  # sem restrição: vai pro índice 0 (fallback sensato)
+        classes_lower = {c.lower() for c in classes}
+        for i, musico in enumerate(self._gerenciador.listar_jogadores()):
+            tipo = getattr(musico, "TIPO", None)
+            if tipo and tipo.lower() in classes_lower:
+                return i
+        return 0  # fallback: nenhum membro da classe certa na banda
+
     def _item_dto(self, item) -> dict:
         equipavel = (hasattr(item, "validar_alvo")
                      and not getattr(item, "consumir_ao_usar", False))
@@ -500,12 +523,19 @@ class API:
     @_ponte
     def coletar_item(self, payload: dict) -> dict:
         """Modo história: pegar um item (por id) marca-o como coletado na
-        campanha e o adiciona ao inventário de um músico via ItemFactory."""
+        campanha e o adiciona ao inventário do músico ELEGÍVEL pela
+        `classes_permitidas` do item (Ajuste 1 — roteamento por classe).
+        O frontend pode passar `indice` explícito; se omitido, o backend
+        seleciona automaticamente o primeiro elegível."""
         camp = self._garantir_campanha()
         tipo = camp.coletar(payload["id"])           # ItemMapaInvalidoError → ErroDTO
-        indice = int(payload.get("indice", 0))
-        musico = self._gerenciador.listar_jogadores()[indice]   # IndexError → ErroDTO
         item = ItemFactory.criar(tipo)
+        # Roteamento: usa indice explícito do frontend; senão escolhe o elegível.
+        if "indice" in payload:
+            indice = int(payload["indice"])
+        else:
+            indice = self._indice_elegivel(item)
+        musico = self._gerenciador.listar_jogadores()[indice]   # IndexError → ErroDTO
         inventario = musico.get_inventario()
         inventario.adicionar(item)                   # InventarioCheioError → ErroDTO
         return {
@@ -519,16 +549,21 @@ class API:
     @_ponte
     def abordar_npc(self, payload: dict) -> dict:
         """MAP-02: aborda um NPC pelo id. Na primeira vez entrega o item ao músico
-        (índice 0 por padrão); depois só repete a fala. Sempre devolve `fala`."""
+        ELEGÍVEL pela classe do item (Ajuste 1 — roteamento por classe); depois
+        só repete a fala. Sempre devolve `fala`."""
         camp = self._garantir_campanha()
         npc = camp.get_npc(payload["id"])       # NpcInvalidoError → ErroDTO
         ja_deu = npc["dado"]
         tipo = None
         if not ja_deu:
             tipo = camp.dar_item_npc(payload["id"])   # marca + retorna tipo
-            indice = int(payload.get("indice", 0))
-            musico = self._gerenciador.listar_jogadores()[indice]   # IndexError → ErroDTO
             item = ItemFactory.criar(tipo)
+            # Roteamento: usa indice explícito do frontend; senão escolhe o elegível.
+            if "indice" in payload:
+                indice = int(payload["indice"])
+            else:
+                indice = self._indice_elegivel(item)
+            musico = self._gerenciador.listar_jogadores()[indice]   # IndexError → ErroDTO
             musico.get_inventario().adicionar(item)   # InventarioCheioError → ErroDTO
         return {
             "ok": True,
@@ -541,18 +576,22 @@ class API:
     @_ponte
     def abrir_bau(self, payload: dict) -> dict:
         """MAP-03: abre um baú pelo id. Gate de fama no domínio (FamaInsuficienteError
-        → ErroDTO). Entrega o item único ao músico (índice 0 por padrão) APENAS na
-        1ª abertura (D-13 — uma vez só); reabrir só repete sem duplicar o item
-        (espelha o guard `ja_deu` de `abordar_npc`)."""
+        → ErroDTO). Entrega o item único ao músico ELEGÍVEL pela classe (Ajuste 1)
+        APENAS na 1ª abertura (D-13 — uma vez só); reabrir só repete sem duplicar
+        o item (espelha o guard `ja_deu` de `abordar_npc`)."""
         camp = self._garantir_campanha()
         bau = camp.get_bau(payload["id"])       # BauInvalidoError → ErroDTO
         ja_aberto = bau["aberto"]
         item_nome = None
         if not ja_aberto:
             tipo = camp.abrir_bau(payload["id"])   # FamaInsuficienteError → ErroDTO; marca aberto
-            indice = int(payload.get("indice", 0))
-            musico = self._gerenciador.listar_jogadores()[indice]   # IndexError → ErroDTO
             item = ItemFactory.criar(tipo)
+            # Roteamento: usa indice explícito do frontend; senão escolhe o elegível.
+            if "indice" in payload:
+                indice = int(payload["indice"])
+            else:
+                indice = self._indice_elegivel(item)
+            musico = self._gerenciador.listar_jogadores()[indice]   # IndexError → ErroDTO
             musico.get_inventario().adicionar(item)   # InventarioCheioError → ErroDTO
             item_nome = item.nome
         return {

@@ -361,3 +361,106 @@ def test_abrir_bau_id_invalido_retorna_erro_dto():
     assert res["ok"] is False
     assert res["erro"]["tipo"] == "BauInvalidoError"
     _serializavel(res)
+
+
+# ── Ajuste 1: roteamento de itens coletados ao músico elegível por classe ───
+
+def _api_banda_completa():
+    """Banda com os 4 membros: Geraldo (guitarrista), Vande (vocalista),
+    Ramiro (baterista), Marivaldo (baixista). Ordem preservada."""
+    return _api_com_banda([
+        {"tipo": "guitarrista", "nome": "Geraldo",   "forca": 10},
+        {"tipo": "vocalista",   "nome": "Vande",     "inteligencia": 10},
+        {"tipo": "baterista",   "nome": "Ramiro",    "agilidade": 10},
+        {"tipo": "baixista",    "nome": "Marivaldo", "forca": 10},
+    ])
+
+
+def test_coletar_item_sem_classe_vai_ao_indice0():
+    """Item sem classes_permitidas (energético) vai ao índice 0 por padrão."""
+    api = _api_banda_completa()
+    api.nova_campanha()
+    camp = api.obter_campanha()
+    # i1 é energético (sem classe)
+    item_id = next(i["id"] for i in camp["itens"] if i["tipo"] == "energetico")
+    res = api.coletar_item({"id": item_id})
+    assert res["ok"] is True
+    eq = api.obter_equipamento()
+    # deve estar no inventário do músico 0 (Geraldo)
+    nomes_inv0 = [it["nome"] for it in eq["banda"][0]["inventario"]]
+    assert "Energético" in nomes_inv0
+
+
+def test_npc_item_de_vocalista_vai_ao_vocalista():
+    """NPC que entrega partitura_magica (Vocalista) deve rotear para Vande (índice 1)."""
+    api = _api_banda_completa()
+    api.nova_campanha()
+    # npc4 entrega partitura_magica (Vocalista)
+    res = api.abordar_npc({"id": "npc4"})
+    assert res["ok"] is True
+    assert res["item"] == "Partitura Mágica"
+    eq = api.obter_equipamento()
+    # Vande é índice 1
+    nomes_vande = [it["nome"] for it in eq["banda"][1]["inventario"]]
+    assert "Partitura Mágica" in nomes_vande
+    # Geraldo (índice 0) NÃO deve ter o item
+    nomes_geraldo = [it["nome"] for it in eq["banda"][0]["inventario"]]
+    assert "Partitura Mágica" not in nomes_geraldo
+
+
+def test_npc_item_de_baterista_vai_ao_baterista():
+    """NPC que entrega oculos_do_ritmo (Baterista) deve rotear para Ramiro (índice 2)."""
+    api = _api_banda_completa()
+    api.nova_campanha()
+    # npc5 entrega oculos_do_ritmo (Baterista)
+    res = api.abordar_npc({"id": "npc5"})
+    assert res["ok"] is True
+    assert res["item"] == "Óculos do Ritmo"
+    eq = api.obter_equipamento()
+    # Ramiro é índice 2
+    nomes_ramiro = [it["nome"] for it in eq["banda"][2]["inventario"]]
+    assert "Óculos do Ritmo" in nomes_ramiro
+    nomes_geraldo = [it["nome"] for it in eq["banda"][0]["inventario"]]
+    assert "Óculos do Ritmo" not in nomes_geraldo
+
+
+def test_npc_item_de_baixista_vai_ao_baixista():
+    """NPC que entrega corda_de_tungstenio (Baixista) deve rotear para Marivaldo (índice 3)."""
+    api = _api_banda_completa()
+    api.nova_campanha()
+    # npc6 entrega corda_de_tungstenio (Baixista)
+    res = api.abordar_npc({"id": "npc6"})
+    assert res["ok"] is True
+    assert res["item"] == "Corda de Tungstênio"
+    eq = api.obter_equipamento()
+    # Marivaldo é índice 3
+    nomes_marivaldo = [it["nome"] for it in eq["banda"][3]["inventario"]]
+    assert "Corda de Tungstênio" in nomes_marivaldo
+    nomes_geraldo = [it["nome"] for it in eq["banda"][0]["inventario"]]
+    assert "Corda de Tungstênio" not in nomes_geraldo
+
+
+def test_bau_de_vocalista_vai_ao_vocalista():
+    """bau1 contém microfone_de_ouro (Vocalista) — deve ir para Vande (índice 1)."""
+    api = _api_banda_completa()
+    api.nova_campanha()
+    res = api.abrir_bau({"id": "bau1"})
+    assert res["ok"] is True
+    assert res["item"] == "Microfone de Ouro"
+    eq = api.obter_equipamento()
+    nomes_vande = [it["nome"] for it in eq["banda"][1]["inventario"]]
+    assert "Microfone de Ouro" in nomes_vande
+    nomes_geraldo = [it["nome"] for it in eq["banda"][0]["inventario"]]
+    assert "Microfone de Ouro" not in nomes_geraldo
+
+
+def test_indice_elegivel_fallback_quando_classe_ausente():
+    """Se a banda não tem membro da classe exigida, item cai no índice 0 (fallback)."""
+    # Banda só com guitarrista — sem vocalista para receber partitura
+    api = _api_com_banda([{"tipo": "guitarrista", "nome": "Solo", "forca": 10}])
+    api.nova_campanha()
+    res = api.abordar_npc({"id": "npc4"})   # partitura_magica (Vocalista)
+    assert res["ok"] is True
+    eq = api.obter_equipamento()
+    nomes_solo = [it["nome"] for it in eq["banda"][0]["inventario"]]
+    assert "Partitura Mágica" in nomes_solo   # fallback ao índice 0
