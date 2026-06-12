@@ -53,7 +53,7 @@
   // MAP-03 (Phase 1): baús do overworld (espelha _BAUS_PADRAO do backend).
   const BAUS = [
     { id: "bau1", x: 20,   item: "jaqueta_lendaria", fama_minima: 0 },
-    { id: "bau2", x: 1820, item: "capa_de_lp",       fama_minima: 6 },
+    { id: "bau2", x: 1820, item: "capa_de_lp",       fama_minima: 3 },
   ];
   const progresso = {
     concluidas: new Set(), coletados: new Set(), posicao: 60,
@@ -219,11 +219,16 @@
         reg("abrir_bau", payload);
         const b = BAUS.find((x) => x.id === payload.id);
         if (!b) return Promise.resolve({ ok: false, erro: { tipo: "BauInvalidoError", mensagem: "bau invalido" } });
+        // D-13: entrega só na 1ª abertura; reabrir não duplica (espelha o guard da ponte).
+        const jaAberto = progresso.baus_abertos.has(b.id);
+        if (jaAberto) {
+          return Promise.resolve({ ok: true, ja_aberto: true, item: null, campanha: campanhaMock() });
+        }
         if (progresso.fama_banda < (b.fama_minima || 0))
           return Promise.resolve({ ok: false, erro: { tipo: "FamaInsuficienteError", mensagem: "fama insuficiente para abrir este bau" } });
         progresso.baus_abertos.add(b.id);
         equipState.inventario.push(itemMock(b.item));
-        return Promise.resolve({ ok: true, item: b.item, campanha: campanhaMock() });
+        return Promise.resolve({ ok: true, ja_aberto: false, item: b.item, campanha: campanhaMock() });
       },
       executar_acao(payload) {
         reg("executar_acao", payload);

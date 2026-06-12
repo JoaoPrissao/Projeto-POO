@@ -541,16 +541,24 @@ class API:
     @_ponte
     def abrir_bau(self, payload: dict) -> dict:
         """MAP-03: abre um baú pelo id. Gate de fama no domínio (FamaInsuficienteError
-        → ErroDTO). Entrega o item único ao músico (índice 0 por padrão)."""
+        → ErroDTO). Entrega o item único ao músico (índice 0 por padrão) APENAS na
+        1ª abertura (D-13 — uma vez só); reabrir só repete sem duplicar o item
+        (espelha o guard `ja_deu` de `abordar_npc`)."""
         camp = self._garantir_campanha()
-        tipo = camp.abrir_bau(payload["id"])    # BauInvalidoError/FamaInsuficienteError → ErroDTO
-        indice = int(payload.get("indice", 0))
-        musico = self._gerenciador.listar_jogadores()[indice]   # IndexError → ErroDTO
-        item = ItemFactory.criar(tipo)
-        musico.get_inventario().adicionar(item)   # InventarioCheioError → ErroDTO
+        bau = camp.get_bau(payload["id"])       # BauInvalidoError → ErroDTO
+        ja_aberto = bau["aberto"]
+        item_nome = None
+        if not ja_aberto:
+            tipo = camp.abrir_bau(payload["id"])   # FamaInsuficienteError → ErroDTO; marca aberto
+            indice = int(payload.get("indice", 0))
+            musico = self._gerenciador.listar_jogadores()[indice]   # IndexError → ErroDTO
+            item = ItemFactory.criar(tipo)
+            musico.get_inventario().adicionar(item)   # InventarioCheioError → ErroDTO
+            item_nome = item.nome
         return {
             "ok": True,
-            "item": item.nome,
+            "ja_aberto": ja_aberto,
+            "item": item_nome,
             "campanha": self._campanha_dto(),
         }
 

@@ -321,13 +321,37 @@ def test_abrir_bau_caminho_feliz_entrega_item():
 def test_abrir_bau_gated_retorna_erro_dto_fama_insuficiente():
     """abrir_bau no baú gated com fama baixa deve retornar ErroDTO FamaInsuficienteError."""
     api = _api_com_banda()
-    camp = api.obter_campanha()
-    bau = next(b for b in camp["baus"] if b.get("fama_minima", 0) >= 6)
-
-    res = api.abrir_bau({"id": bau["id"]})
+    # banda recém-criada tem fama 0 < 3 (gate do bau2) → bloqueado
+    res = api.abrir_bau({"id": "bau2"})
     assert res["ok"] is False
     assert res["erro"]["tipo"] == "FamaInsuficienteError"
     _serializavel(res)
+
+
+def test_abrir_bau_idempotente_nao_duplica_item():
+    """Abrir o MESMO baú duas vezes deve entregar o item só na 1ª vez (D-13).
+    2ª chamada: ok=True, ja_aberto=True, item=None, inventário NÃO cresce de novo.
+    Regressão do bug 'clicar repetido pega item infinito'."""
+    api = _api_com_banda()
+    camp = api.obter_campanha()
+    bau = next(b for b in camp["baus"] if b.get("fama_minima", 0) == 0)
+
+    eq0 = api.obter_equipamento()
+    tam0 = len(eq0["banda"][0]["inventario"])
+
+    r1 = api.abrir_bau({"id": bau["id"]})
+    assert r1["ok"] is True and r1["item"] is not None
+    assert r1.get("ja_aberto") is False
+    tam1 = len(api.obter_equipamento()["banda"][0]["inventario"])
+    assert tam1 == tam0 + 1
+
+    r2 = api.abrir_bau({"id": bau["id"]})
+    assert r2["ok"] is True
+    assert r2.get("ja_aberto") is True
+    assert r2["item"] is None
+    tam2 = len(api.obter_equipamento()["banda"][0]["inventario"])
+    assert tam2 == tam1   # não duplicou
+    _serializavel(r2)
 
 
 def test_abrir_bau_id_invalido_retorna_erro_dto():

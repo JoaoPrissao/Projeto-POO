@@ -316,6 +316,17 @@
       checar("bau: bau aberto nao aparece em bau_perto", mundo.estado.bau_perto, null);
     }
 
+    // marcarBauAberto: após abrir, o baú some de bau_perto (regressão do item infinito)
+    {
+      const { mundo, aoBauChamados } = novoMundoComBaus({ inicioX: 758 });
+      checar("bau-marcar: bau_perto antes de abrir", mundo.estado.bau_perto, "bau_rev");
+      mundo.pressionar("w");                 // dispara aoBau (main.js abriria a ponte)
+      mundo.marcarBauAberto("bau_rev");      // main.js marca aberto no sucesso
+      checar("bau-marcar: bau_perto null após marcarBauAberto", mundo.estado.bau_perto, null);
+      mundo.pressionar("w");                 // W de novo não deve re-disparar aoBau
+      checar("bau-marcar: W repetido nao reabre (so 1 aoBau)", aoBauChamados, ["bau_rev"]);
+    }
+
     // Prioridade: NPC > baú quando ambos no alcance
     {
       // NPC em x=810; baú revelado em x=800; banda inicioX=758 → centro=780

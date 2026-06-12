@@ -423,21 +423,28 @@ def test_bau1_revelado_sem_fama():
     assert bau1["revelado"] is True
 
 
-def test_bau2_oculto_com_fama_baixa():
-    """Baú 2 (fama_minima=6) deve estar oculto (revelado=False) com fama < 6."""
+def test_bau2_gate_e_fama_3():
+    """Baú 2 deve ter gate de fama_minima=3 (alcançável antes do boss final — D-11 revisada).
+    Com bar=1, feira=2, arena=3, fama 3 = vencer bar+feira ANTES da arena."""
     c = Campanha.padrao()
-    assert c.fama_banda() < 6
-    baus = c.listar_baus()
-    bau2 = next(b for b in baus if b.get("fama_minima", 0) >= 6)
+    bau2 = next(b for b in c.listar_baus() if b["id"] == "bau2")
+    assert bau2["fama_minima"] == 3
+
+
+def test_bau2_oculto_com_fama_baixa():
+    """Baú 2 deve estar oculto (revelado=False) com fama abaixo do gate (< 3)."""
+    c = Campanha.padrao()
+    c.ganhar_fama(2)   # bar vencido só (1) ou bar parcial — abaixo do gate
+    assert c.fama_banda() < 3
+    bau2 = next(b for b in c.listar_baus() if b["id"] == "bau2")
     assert bau2["revelado"] is False
 
 
 def test_bau2_revelado_com_fama_suficiente():
-    """Baú 2 deve ficar revelado após fama_banda >= 6."""
+    """Baú 2 deve ficar revelado após fama_banda >= 3 (bar+feira vencidos)."""
     c = Campanha.padrao()
-    c.ganhar_fama(6)
-    baus = c.listar_baus()
-    bau2 = next(b for b in baus if b.get("fama_minima", 0) >= 6)
+    c.ganhar_fama(3)
+    bau2 = next(b for b in c.listar_baus() if b["id"] == "bau2")
     assert bau2["revelado"] is True
 
 
@@ -459,24 +466,23 @@ def test_abrir_bau1_marca_aberto_e_retorna_tipo():
 
 
 def test_abrir_bau2_gated_com_fama_baixa_levanta():
-    """abrir_bau(bau2) com fama < 6 deve levantar FamaInsuficienteError sem marcar aberto."""
+    """abrir_bau(bau2) com fama < 3 deve levantar FamaInsuficienteError sem marcar aberto."""
     c = Campanha.padrao()
-    bau_id = next(b["id"] for b in c.listar_baus() if b.get("fama_minima", 0) >= 6)
+    c.ganhar_fama(2)
     with pytest.raises(FamaInsuficienteError):
-        c.abrir_bau(bau_id)
+        c.abrir_bau("bau2")
     # não deve ter marcado aberto
-    marcado = next(b for b in c.listar_baus() if b["id"] == bau_id)
+    marcado = next(b for b in c.listar_baus() if b["id"] == "bau2")
     assert marcado["aberto"] is False
 
 
 def test_abrir_bau2_liberado_com_fama_suficiente():
-    """abrir_bau(bau2) com fama >= 6 deve marcar aberto e retornar tipo."""
+    """abrir_bau(bau2) com fama >= 3 deve marcar aberto e retornar tipo."""
     c = Campanha.padrao()
-    c.ganhar_fama(6)
-    bau_id = next(b["id"] for b in c.listar_baus() if b.get("fama_minima", 0) >= 6)
-    tipo = c.abrir_bau(bau_id)
+    c.ganhar_fama(3)
+    tipo = c.abrir_bau("bau2")
     assert isinstance(tipo, str) and len(tipo) > 0
-    marcado = next(b for b in c.listar_baus() if b["id"] == bau_id)
+    marcado = next(b for b in c.listar_baus() if b["id"] == "bau2")
     assert marcado["aberto"] is True
 
 

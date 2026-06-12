@@ -590,9 +590,15 @@ async function abrirBau(bau) {
     return;
   }
   if (owHandle && owHandle.mundo) {
-    owHandle.mundo.abrirBalao(`Baú aberto!`, `Item recebido: ${res.item} [W/Esc fechar]`);
+    // D-13: marca aberto localmente — o baú some e não pode ser reaberto (bug do item infinito).
+    owHandle.mundo.marcarBauAberto(bau.id);
+    if (res.item) {
+      owHandle.mundo.abrirBalao(`Baú aberto!`, `Item recebido: ${res.item} [W/Esc fechar]`);
+    } else {
+      owHandle.mundo.abrirBalao(`Baú vazio`, `Você já abriu este baú. [W/Esc] fechar`);
+    }
   }
-  avisoOverworld(`✨ Baú aberto! Item: ${esc(res.item)}`);
+  if (res.item) avisoOverworld(`✨ Baú aberto! Item: ${esc(res.item)}`);
 }
 
 async function voltarAoMapa() {

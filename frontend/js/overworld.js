@@ -171,6 +171,13 @@
       if (v) v.concluida = true;
     }
 
+    // MAP-03 (Phase 1): marca o baú como aberto localmente (D-13 — uma vez só).
+    // Sem isto, bauPerto() continua retornando o baú e cada W reabre (item infinito).
+    function marcarBauAberto(id) {
+      const b = baus.find((x) => x.id === id);
+      if (b) b.aberto = true;
+    }
+
     // Mapa de teclas → ação. Mantém o motor agnóstico do DOM.
     function pressionar(tecla) {
       const t = (tecla || "").toLowerCase();
@@ -252,6 +259,24 @@
         ctx.arc(px, C.CHAO_Y - 16, 10, 0, Math.PI * 2);
         ctx.fill();
       }
+      // MAP-02 (Phase 1): NPCs — figura placeholder (arte pixel definitiva é Phase 2).
+      // Já-dados ficam esmaecidos; perto mostra [W] falar. (Sempre desenhados — D-07.)
+      for (const n of npcs) {
+        const px = n.x - cameraX;
+        if (px < -60 || px > C.LARGURA + 60) continue;
+        ctx.fillStyle = n.dado ? "#6b7280" : "#46c08b";   // corpo
+        ctx.fillRect(px - 10, C.CHAO_Y - 38, 20, 38);
+        ctx.fillStyle = "#ece6f5";                         // cabeça
+        ctx.beginPath();
+        ctx.arc(px, C.CHAO_Y - 45, 7, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.font = "10px monospace";
+        ctx.textAlign = "center";
+        ctx.fillText(n.nome || "NPC", px, C.CHAO_Y - 58);
+        if (npcPerto() && npcPerto().id === n.id) {
+          ctx.fillText("[W] falar", px, C.CHAO_Y - 70);
+        }
+      }
       // MAP-03 (Phase 1): baús/segredos — só desenha quando revelado e não aberto (D-11).
       for (const b of baus) {
         if (!b.revelado || b.aberto) continue;
@@ -329,7 +354,7 @@
 
     return {
       iniciar, parar, passo, pressionar, soltar, interagir,
-      marcarVenueConcluida,
+      marcarVenueConcluida, marcarBauAberto,
       abrirBalao, fecharBalao,   // MAP-02 (Phase 1): expostos para main.js e harness
       get estado() { return estado(); },
       get rodando() { return rodando; },

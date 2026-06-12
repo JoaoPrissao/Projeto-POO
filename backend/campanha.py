@@ -58,10 +58,12 @@ _LOJA_PADRAO = {"x": 700.0}
 POSICAO_INICIAL = 60.0
 # MAP-03 (Phase 1): 2 segredos/baús escondidos.
 # bau1: à ESQUERDA do ponto inicial (D-10) — fora do caminho óbvio (x=20).
-# bau2: DEPOIS da arena (D-11) — na margem do mundo, oculto por fama (x=1820).
+# bau2: DEPOIS da arena (D-11 revisada) — na margem do mundo, oculto por fama.
+# Gate = 3 (bar=1 + feira=2): acessível ANTES de vencer a arena/boss final, andando
+# além dela. Com mais vilões no futuro (v2) o gate pode subir.
 _BAUS_PADRAO = [
     {"id": "bau1", "x": 20.0,   "item": "jaqueta_lendaria"},
-    {"id": "bau2", "x": 1820.0, "item": "capa_de_lp", "fama_minima": 6},
+    {"id": "bau2", "x": 1820.0, "item": "capa_de_lp", "fama_minima": 3},
 ]
 
 DURACAO_BASE_BLOQUEIO = 30      # segundos de bloqueio por nível de fama da venue
