@@ -45,7 +45,7 @@
   // Cores-assinatura por tipo (espelha COR_POR_TIPO em main.js).
   const BASE = {
     guitarrista: "#e23b4e",  // Geraldo Muleta
-    vocalista:   "#b04ad8",  // Vando Bicuda
+    vocalista:   "#b04ad8",  // Vande Bicuda
     baixista:    "#4a78d8",  // Marivaldo
     baterista:   "#e0b341",  // Ramiro Paulada
   };
@@ -126,6 +126,9 @@
     // Pernas
     [6, 1, C.PRETO],         [6, 2, C.PRETO],         [6, 3, C.PRETO],
     [7, 1, C.PRETO],         [7, 3, C.PRETO],
+    // Sapatos estilosos vermelho-couro (cor-assinatura do guitarrista)
+    [7, 0, BASE.guitarrista], [7, 1, BASE.guitarrista], [7, 2, C.COURO_PRETO],
+    [7, 3, BASE.guitarrista], [7, 4, BASE.guitarrista],
   ];
 
   // Ramiro Paulada — Baterista (#e0b341): cabelo loiro curto, pele negra, camiseta preta
@@ -144,26 +147,34 @@
     // Pernas
     [6, 1, C.ROUPA_PRETA],  [6, 2, C.ROUPA_PRETA],  [6, 3, C.ROUPA_PRETA],
     [7, 1, C.ROUPA_PRETA],  [7, 3, C.ROUPA_PRETA],
+    // Sapatos estilosos dourados (cor-assinatura do baterista)
+    [7, 0, BASE.baterista], [7, 1, BASE.baterista], [7, 2, C.ROUPA_PRETA],
+    [7, 3, BASE.baterista], [7, 4, BASE.baterista],
   ];
 
-  // Vando Bicuda — Vocalista (#b04ad8): cabelo marrom longo, óculos escuros, camiseta P&B
+  // Vande Bicuda — Vocalista (#b04ad8): cabelo marrom CURTO, pele branca, jaqueta preta c/ detalhes roxos, óculos escuros, pose confiante
   const SPRITE_VOCALISTA = [
-    // Cabelo marrom longo (sobe na linha 0, desce até linha 3 laterais)
+    // Cabelo marrom curto (só no topo, não cai lateralmente)
     [0, 1, C.CABELO_CAST], [0, 2, C.CABELO_CAST], [0, 3, C.CABELO_CAST],
-    [1, 0, C.CABELO_CAST], [1, 1, C.PELE_CLARA],  [1, 2, C.PELE_CLARA],  [1, 3, C.PELE_CLARA],  [1, 4, C.CABELO_CAST],
-    // Óculos escuros
+    // Cabeça (pele clara/branca) com óculos escuros na linha da testa
+    [1, 0, C.PRETO],        [1, 1, C.PELE_CLARA],  [1, 2, C.PELE_CLARA],  [1, 3, C.PELE_CLARA],  [1, 4, C.PRETO],
     [1, 1, C.OCULOS_ESC],  [1, 2, C.OCULOS_ESC],  [1, 3, C.OCULOS_ESC],
-    // Pescoço com cabelo caindo
-    [2, 0, C.CABELO_CAST], [2, 1, C.PELE_CLARA],  [2, 2, C.PELE_CLARA],  [2, 3, C.PELE_CLARA],  [2, 4, C.CABELO_CAST],
-    // Corpo — camiseta P&B com faixa roxa (base #b04ad8)
-    [3, 0, C.CABELO_CAST], [3, 1, C.CAMISA_PB],   [3, 2, BASE.vocalista], [3, 3, C.CAMISA_PB],   [3, 4, C.CABELO_CAST],
-    [4, 0, C.CABELO_CAST], [4, 1, C.CAMISA_PB],   [4, 2, PALETA.vocalista.realce], [4, 3, C.CAMISA_PB], [4, 4, C.CABELO_CAST],
-    [5, 0, C.CABELO_CAST], [5, 1, C.CAMISA_PB],   [5, 2, C.CAMISA_PB],   [5, 3, C.CAMISA_PB],   [5, 4, C.CABELO_CAST],
-    // Microfone
-    [4, 5, C.CINZA], [3, 5, C.CINZA_ESC],
+    // Pescoço — sem cabelo caindo (curto)
+    [2, 1, C.PRETO],        [2, 2, C.PELE_CLARA],  [2, 3, C.PELE_CLARA],  [2, 4, C.PRETO],
+    // Corpo — jaqueta preta com ombros roxos (pose confiante = braço afastado col 5)
+    [3, 0, C.COURO_PRETO],  [3, 1, BASE.vocalista], [3, 2, C.COURO_PRETO], [3, 3, BASE.vocalista], [3, 4, C.COURO_PRETO],
+    [4, 0, C.COURO_PRETO],  [4, 1, C.COURO_PRETO],  [4, 2, PALETA.vocalista.sombra], [4, 3, C.COURO_PRETO], [4, 4, C.COURO_PRETO],
+    [5, 0, C.COURO_PRETO],  [5, 1, C.COURO_PRETO],  [5, 2, C.COURO_PRETO],  [5, 3, C.COURO_PRETO], [5, 4, C.COURO_PRETO],
+    // Braço confiante estendido (pose)
+    [4, 5, C.COURO_PRETO], [4, 6, C.PELE_CLARA],
+    // Microfone na mão (col 6-7)
+    [3, 5, C.CINZA_ESC], [3, 6, C.CINZA],
     // Pernas
     [6, 1, C.PRETO],       [6, 2, C.PRETO],       [6, 3, C.PRETO],
     [7, 1, C.PRETO],       [7, 3, C.PRETO],
+    // Sapatos estilosos roxos (cor-assinatura do vocalista)
+    [7, 0, BASE.vocalista], [7, 1, BASE.vocalista], [7, 2, C.PRETO],
+    [7, 3, BASE.vocalista], [7, 4, BASE.vocalista],
   ];
 
   // Marivaldo — Baixista (#4a78d8): cabelo preto, óculos nerd, camiseta azul-escura
@@ -185,6 +196,9 @@
     // Pernas
     [6, 1, C.PRETO],         [6, 2, C.PRETO],         [6, 3, C.PRETO],
     [7, 1, C.PRETO],         [7, 3, C.PRETO],
+    // Sapatos estilosos azuis (cor-assinatura do baixista)
+    [7, 0, BASE.baixista], [7, 1, BASE.baixista], [7, 2, C.PRETO],
+    [7, 3, BASE.baixista], [7, 4, BASE.baixista],
   ];
 
   const SPRITES_MEMBRO = {

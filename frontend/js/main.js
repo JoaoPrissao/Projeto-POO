@@ -13,7 +13,7 @@ const esc = (s) => String(s).replace(/[&<>"']/g, (c) =>
 
 const COMPOSICAO_DEMO = [
   { tipo: "guitarrista", nome: "Geraldo Muleta", forca: 14, ego: 0 },
-  { tipo: "vocalista",   nome: "Vando Bicuda",   folego: 50, inteligencia: 12 },
+  { tipo: "vocalista",   nome: "Vande Bicuda",   folego: 50, inteligencia: 12 },
   { tipo: "baterista",   nome: "Ramiro Paulada", agilidade: 12, chance_critico: 0.3 },
   { tipo: "baixista",    nome: "Marivaldo",      forca: 12, fe: 20 },
 ];
