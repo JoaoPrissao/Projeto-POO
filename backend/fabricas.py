@@ -101,6 +101,36 @@ class ItemFactory:
             bonus=kw.get("bonus", 12),
             classes_permitidas=None,   # qualquer membro
         ),
+        # 02-01 (VIS-01 fix): itens específicos para Vocalista e Baterista.
+        # Garante distribuição equilibrada: todos os 4 membros têm itens úteis.
+        "partitura_magica": lambda **kw: Equipavel(
+            kw.get("nome", "Partitura Mágica"),
+            kw.get("descricao", "Anotações de um maestro louco. Aguça a inteligência do vocalista."),
+            atributo="inteligencia",
+            bonus=kw.get("bonus", 6),
+            classes_permitidas=("Vocalista",),   # específico para Vande
+        ),
+        "oculos_do_ritmo": lambda **kw: Equipavel(
+            kw.get("nome", "Óculos do Ritmo"),
+            kw.get("descricao", "Lentes calibradas no pulso perfeito. Amplifica a agilidade do baterista."),
+            atributo="agilidade",
+            bonus=kw.get("bonus", 5),
+            classes_permitidas=("Baterista",),   # específico para Ramiro
+        ),
+        "microfone_de_ouro": lambda **kw: Equipavel(
+            kw.get("nome", "Microfone de Ouro"),
+            kw.get("descricao", "Microfone de estúdio lendário. Potencializa a inteligência vocal."),
+            atributo="inteligencia",
+            bonus=kw.get("bonus", 10),
+            classes_permitidas=("Vocalista",),   # baú único para Vande
+        ),
+        "baquetas_fantasma": lambda **kw: Equipavel(
+            kw.get("nome", "Baquetas Fantasma"),
+            kw.get("descricao", "Levíssimas, quase invisíveis. Dobra a agilidade e aguça o timing."),
+            atributo="agilidade",
+            bonus=kw.get("bonus", 8),
+            classes_permitidas=("Baterista",),   # baú único para Ramiro
+        ),
     }
 
     @classmethod

@@ -41,6 +41,7 @@ _ITENS_PADRAO = [
 ]
 # MAP-02 (Phase 1): NPCs espalhados entre/perto das venues.
 # npc1 entre bar(420) e loja(700); npc2 entre feira(980) e arena(1600); npc3 apos arena.
+# 02-01 fix: npc4/npc5 adicionados para cobrir Vocalista e Baterista (VIS-01).
 _NPCS_PADRAO = [
     {"id": "npc1", "x": 560,  "nome": "Roadie Aposentado",
      "fala": "Saudades do estradao... Fica com essa bandana, vai precisar.",
@@ -51,6 +52,12 @@ _NPCS_PADRAO = [
     {"id": "npc3", "x": 1750, "nome": "Vendedor de Vinil",
      "fala": "Raríssimo! Pressagem original de 1973. So pra voce, cara.",
      "item": "vinil_raro"},
+    {"id": "npc4", "x": 340,  "nome": "Maestro Excêntrico",
+     "fala": "Ah, um vocalista talentoso! Essa partitura vai agucar sua inteligencia.",
+     "item": "partitura_magica"},
+    {"id": "npc5", "x": 860,  "nome": "Percussionista de Rua",
+     "fala": "Baterista? Esses oculos vao alinhar seu ritmo com o universo!",
+     "item": "oculos_do_ritmo"},
 ]
 # F3.8 — a loja é um PONTO do mapa (entre o bar e a feira): o jogador precisa
 # ir até lá pra comprar. A van vira só armazenamento/equipamento.
@@ -62,8 +69,8 @@ POSICAO_INICIAL = 60.0
 # Gate = 3 (bar=1 + feira=2): acessível ANTES de vencer a arena/boss final, andando
 # além dela. Com mais vilões no futuro (v2) o gate pode subir.
 _BAUS_PADRAO = [
-    {"id": "bau1", "x": 20.0,   "item": "jaqueta_lendaria"},
-    {"id": "bau2", "x": 1820.0, "item": "capa_de_lp", "fama_minima": 3},
+    {"id": "bau1", "x": 20.0,   "item": "microfone_de_ouro"},      # único para Vande (Vocalista)
+    {"id": "bau2", "x": 1820.0, "item": "baquetas_fantasma", "fama_minima": 3},  # único para Ramiro (Baterista)
 ]
 
 DURACAO_BASE_BLOQUEIO = 30      # segundos de bloqueio por nível de fama da venue

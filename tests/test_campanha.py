@@ -282,11 +282,12 @@ def test_van_estagio_fama_acima_de_6_retorna_3():
 from excecoes import NpcInvalidoError
 
 
-def test_listar_npcs_retorna_3_npcs():
-    """Campanha.padrao() deve expor 3 NPCs, cada um com flag dado=False."""
+def test_listar_npcs_retorna_npcs_padrao():
+    """Campanha.padrao() deve expor todos os NPCs padrão, cada um com flag dado=False.
+    02-01 fix: total subiu de 3 para 5 (npc4=Vocalista, npc5=Baterista)."""
     c = Campanha.padrao()
     npcs = c.listar_npcs()
-    assert len(npcs) == 3
+    assert len(npcs) == 5
     assert all(not n["dado"] for n in npcs)
 
 
@@ -342,13 +343,14 @@ def test_round_trip_preserva_npcs_e_npcs_dados():
 
     clone = Campanha.from_dict(c.to_dict())
 
-    assert len(clone.listar_npcs()) == 3
+    assert len(clone.listar_npcs()) == 5
     marcado = next(n for n in clone.listar_npcs() if n["id"] == nid)
     assert marcado["dado"] is True
 
 
 def test_from_dict_save_antigo_sem_npcs_usa_defaults():
-    """from_dict com save sem chaves 'npcs'/'npcs_dados' usa _NPCS_PADRAO e conjunto vazio."""
+    """from_dict com save sem chaves 'npcs'/'npcs_dados' usa _NPCS_PADRAO e conjunto vazio.
+    02-01 fix: total subiu de 3 para 5 (npc4=Vocalista, npc5=Baterista)."""
     import json
     c = Campanha.padrao()
     d = c.to_dict()
@@ -357,7 +359,7 @@ def test_from_dict_save_antigo_sem_npcs_usa_defaults():
 
     clone = Campanha.from_dict(d)
     npcs = clone.listar_npcs()
-    assert len(npcs) == 3
+    assert len(npcs) == 5
     assert all(not n["dado"] for n in npcs)
 
 

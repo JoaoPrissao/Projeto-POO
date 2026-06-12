@@ -16,6 +16,11 @@ class Baterista(Musico):
     def get_agilidade(self) -> int:
         return self.__agilidade
 
+    def aumentar_agilidade(self, quantidade: int) -> None:
+        if quantidade > 0:
+            self.__agilidade += quantidade
+            print(f"  {self._nome} ganhou +{quantidade} de agilidade. Agilidade: {self.__agilidade}")
+
     def get_chance_critico(self) -> float:
         return self.__chance_critico
 

@@ -17,6 +17,11 @@ class Vocalista(Musico):
     def get_inteligencia(self) -> int:
         return self.__inteligencia
 
+    def aumentar_inteligencia(self, quantidade: int) -> None:
+        if quantidade > 0:
+            self.__inteligencia += quantidade
+            print(f"  {self._nome} ganhou +{quantidade} de inteligência. Inteligência: {self.__inteligencia}")
+
     def to_dict(self) -> dict:
         dados = super().to_dict()
         dados["inteligencia"] = self.__inteligencia
