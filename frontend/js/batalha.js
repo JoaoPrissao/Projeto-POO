@@ -204,18 +204,20 @@
 
       // Banda no palco (de trás pra frente, pra sobreposição ficar certa).
       // Na intro ela "toca": os sprites oscilam e soltam notas.
+      // escala do sprite: 8px/célula → sprite 8 linhas × 7 cols = 56×64px ≈ MEMBRO_W/H
+      const SPRITE_ESC = 7;
       const ms = membros();
       const pos = layoutBanda(ms);
       ms.map((m, i) => i).sort((a, b) => pos[a].y - pos[b].y).forEach((i) => {
         const m = ms[i], p = pos[i];
         const balanco = naIntro ? Math.sin(introT / 90 + i * 1.7) * 4 : 0;
+        ctx.save();
+        ctx.translate(p.x, p.y + balanco);
         ctx.globalAlpha = m.vivo ? 1 : 0.3;
-        ctx.fillStyle = corPorTipo[m.tipo] || "#e0457b";
-        ctx.fillRect(p.x, p.y + balanco, C.MEMBRO_W, C.MEMBRO_H);
-        // "instrumento": haste na frente (lado direito = encarando o vilão).
-        ctx.fillStyle = "#0d0a14";
-        ctx.fillRect(p.x + C.MEMBRO_W, p.y + balanco + C.MEMBRO_H * 0.45, 16, 7);
+        // D-08: baixista (Marivaldo) menor — escala * 0.8 aplicada internamente
+        Sprites.desenharMembro(ctx, m.tipo, SPRITE_ESC);
         ctx.globalAlpha = 1;
+        ctx.restore();
         if (naIntro && tBanda > 120) {
           ctx.fillStyle = "#ece6f5"; ctx.font = "16px monospace"; ctx.textAlign = "center";
           ctx.fillText("🎵", p.x + C.MEMBRO_W / 2 + Math.sin(introT / 150 + i) * 14,
@@ -242,12 +244,13 @@
         if (introT < C.INTRO_BANDA_MS) bx = C.LARGURA + 20;            // ainda fora
         else bx = C.LARGURA + 20 - (C.LARGURA + 20 - C.BOSS_X) * (tVilao / C.INTRO_VILAO_MS);
       }
+      // Boss: sprite pixel art (9 linhas × 7 cols + braço @ escala 8 = 56×72px ≈ BOSS_W/H)
+      const BOSS_ESC = 8;
+      ctx.save();
       ctx.globalAlpha = bossAtordoado ? 0.6 : 1;
-      ctx.fillStyle = "#b8324a";
-      ctx.fillRect(bx, C.CHAO_Y - C.BOSS_H, C.BOSS_W, C.BOSS_H);
-      ctx.fillStyle = "#0d0a14";        // detalhe "encarando" a esquerda
-      ctx.fillRect(bx - 14, C.CHAO_Y - C.BOSS_H * 0.6, 14, 8);
+      Sprites.desenharBoss(ctx, bx, C.CHAO_Y - C.BOSS_H, BOSS_ESC);
       ctx.globalAlpha = 1;
+      ctx.restore();
       ctx.fillStyle = "#ece6f5"; ctx.font = "12px monospace"; ctx.textAlign = "center";
       ctx.fillText(boss.nome || "Vilão", bx + C.BOSS_W / 2, C.CHAO_Y - C.BOSS_H - 9);
       if (bossAtordoado) {

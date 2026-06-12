@@ -222,31 +222,38 @@
       ctx.fillStyle = "#14111c"; ctx.fillRect(0, 0, C.LARGURA, C.ALTURA);
       ctx.fillStyle = "#211b2e"; ctx.fillRect(0, C.CHAO_Y, C.LARGURA, C.ALTURA - C.CHAO_Y);
 
-      // Venues (portas).
+      // Venues (portas) — sprite pixel art por status (concluída=verde / não=rosa).
       for (const v of venues) {
         const px = v.x - cameraX;
         if (px < -80 || px > C.LARGURA + 80) continue;
-        ctx.fillStyle = v.concluida ? "#3fae6b" : "#e0457b";
-        ctx.fillRect(px - 24, C.CHAO_Y - 80, 48, 80);
+        // Venue: 8 cols × 10 rows @ escala 5 = 40×50px; centro em px, base no chão.
+        const venueEsc = 5;
+        const venueW = 8 * venueEsc, venueH = 10 * venueEsc;
+        ctx.save();
+        Sprites.desenharVenue(ctx, px - venueW / 2, C.CHAO_Y - venueH, venueEsc, v.concluida);
+        ctx.restore();
         ctx.fillStyle = "#ece6f5";
         ctx.font = "12px monospace";
         ctx.textAlign = "center";
-        ctx.fillText(v.nome || "Venue", px, C.CHAO_Y - 88);
+        ctx.fillText(v.nome || "Venue", px, C.CHAO_Y - venueH - 8);
         if (!v.concluida && venuePerto() && venuePerto().id === v.id) {
-          ctx.fillText("[W] entrar", px, C.CHAO_Y - 100);
+          ctx.fillText("[W] entrar", px, C.CHAO_Y - venueH - 20);
         }
       }
-      // Loja (F3.8) — prédio próprio, com aviso de interação ao chegar perto.
+      // Loja (F3.8) — sprite pixel art (prédio azul com letreiro dourado).
       if (loja) {
         const px = loja.x - cameraX;
         if (px > -80 && px < C.LARGURA + 80) {
-          ctx.fillStyle = "#3f7fae";
-          ctx.fillRect(px - 28, C.CHAO_Y - 70, 56, 70);
+          const lojaEsc = 5;
+          const lojaW = 8 * lojaEsc, lojaH = 10 * lojaEsc;
+          ctx.save();
+          Sprites.desenharLoja(ctx, px - lojaW / 2, C.CHAO_Y - lojaH, lojaEsc);
+          ctx.restore();
           ctx.fillStyle = "#ece6f5";
           ctx.font = "12px monospace";
           ctx.textAlign = "center";
-          ctx.fillText("🏪 Loja", px, C.CHAO_Y - 78);
-          if (lojaPerto()) ctx.fillText("[W] comprar", px, C.CHAO_Y - 92);
+          ctx.fillText("🏪 Loja", px, C.CHAO_Y - lojaH - 8);
+          if (lojaPerto()) ctx.fillText("[W] comprar", px, C.CHAO_Y - lojaH - 20);
         }
       }
       // Itens.
@@ -259,22 +266,25 @@
         ctx.arc(px, C.CHAO_Y - 16, 10, 0, Math.PI * 2);
         ctx.fill();
       }
-      // MAP-02 (Phase 1): NPCs — figura placeholder (arte pixel definitiva é Phase 2).
-      // Já-dados ficam esmaecidos; perto mostra [W] falar. (Sempre desenhados — D-07.)
+      // MAP-02 (Phase 1): NPCs — sprite pixel art. Já-dados ficam esmaecidos.
+      // Perto mostra [W] falar. (Sempre desenhados — D-07.)
       for (const n of npcs) {
         const px = n.x - cameraX;
         if (px < -60 || px > C.LARGURA + 60) continue;
-        ctx.fillStyle = n.dado ? "#6b7280" : "#46c08b";   // corpo
-        ctx.fillRect(px - 10, C.CHAO_Y - 38, 20, 38);
-        ctx.fillStyle = "#ece6f5";                         // cabeça
-        ctx.beginPath();
-        ctx.arc(px, C.CHAO_Y - 45, 7, 0, Math.PI * 2);
-        ctx.fill();
+        // NPC: 5 cols × 7 rows @ escala 5 = 25×35px; centro em px, base no chão.
+        const npcEsc = 5;
+        const npcW = 5 * npcEsc, npcH = 7 * npcEsc;
+        ctx.save();
+        ctx.globalAlpha = n.dado ? 0.5 : 1;
+        Sprites.desenharNpc(ctx, px - npcW / 2, C.CHAO_Y - npcH, npcEsc, n.dado);
+        ctx.globalAlpha = 1;
+        ctx.restore();
         ctx.font = "10px monospace";
         ctx.textAlign = "center";
-        ctx.fillText(n.nome || "NPC", px, C.CHAO_Y - 58);
+        ctx.fillStyle = "#ece6f5";
+        ctx.fillText(n.nome || "NPC", px, C.CHAO_Y - npcH - 8);
         if (npcPerto() && npcPerto().id === n.id) {
-          ctx.fillText("[W] falar", px, C.CHAO_Y - 70);
+          ctx.fillText("[W] falar", px, C.CHAO_Y - npcH - 20);
         }
       }
       // MAP-03 (Phase 1): baús/segredos — só desenha quando revelado e não aberto (D-11).
@@ -282,29 +292,27 @@
         if (!b.revelado || b.aberto) continue;
         const px = b.x - cameraX;
         if (px < -40 || px > C.LARGURA + 40) continue;
-        // Baú: caixa dourada (placeholder — arte pixel definitiva é Phase 2).
-        ctx.fillStyle = "#c8a400";
-        ctx.fillRect(px - 14, C.CHAO_Y - 30, 28, 22);
-        ctx.strokeStyle = "#e0b341";
-        ctx.lineWidth = 2;
-        ctx.strokeRect(px - 14, C.CHAO_Y - 30, 28, 22);
-        ctx.fillStyle = "#e0b341";
-        ctx.fillRect(px - 14, C.CHAO_Y - 22, 28, 4);  // faixa central
+        // Baú: sprite pixel art (caixa dourada). 7 cols × 5 rows @ escala 4 = 28×20px.
+        const bauEsc = 4;
+        const bauW = 7 * bauEsc, bauH = 5 * bauEsc;
+        ctx.save();
+        Sprites.desenharBau(ctx, px - bauW / 2, C.CHAO_Y - bauH, bauEsc);
+        ctx.restore();
         ctx.fillStyle = "#ece6f5";
         ctx.font = "9px monospace";
         ctx.textAlign = "center";
-        ctx.fillText("BAU", px, C.CHAO_Y - 34);
+        ctx.fillText("BAU", px, C.CHAO_Y - bauH - 4);
         if (bauPerto() && bauPerto().id === b.id) {
-          ctx.fillText("[W] abrir", px, C.CHAO_Y - 44);
+          ctx.fillText("[W] abrir", px, C.CHAO_Y - bauH - 14);
         }
       }
-      // Van da banda por estágio (MAP-01, Phase 1 — arte pixel definitiva é Phase 2).
+      // Van da banda por estágio — sprite pixel art (10 cols × 6 rows @ escala 4 = 40×24px).
       const bx = banda.x - cameraX;
-      ctx.fillStyle = VAN_COR[(vanEstagio || 1) - 1];
-      ctx.fillRect(bx, C.CHAO_Y - C.TAM_BANDA, C.TAM_BANDA, C.TAM_BANDA);
-      // Label de estágio (placeholder — substituir por sprite na Phase 2).
-      ctx.fillStyle = "#ece6f5"; ctx.font = "10px monospace"; ctx.textAlign = "center";
-      ctx.fillText("VAN " + (vanEstagio || 1), bx + C.TAM_BANDA / 2, C.CHAO_Y - C.TAM_BANDA - 6);
+      const vanEsc = 4;
+      const vanW = 10 * vanEsc, vanH = 6 * vanEsc;
+      ctx.save();
+      Sprites.desenharVan(ctx, bx, C.CHAO_Y - vanH, vanEsc, vanEstagio || 1);
+      ctx.restore();
     }
 
     // MAP-02 (Phase 1): balão de fala sobre a van — desenhado no canvas (D-15).
