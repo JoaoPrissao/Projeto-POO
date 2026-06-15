@@ -196,6 +196,11 @@ async function aplicarDropEm(botao) {
 function mostrarDerrota(res, venue) {
   const caixa = $("#fim-caixa");
   const ok = res && res.ok !== false;
+  // VIS-03: atualiza fama no DTO local (derrota pode reduzir fama) e no badge.
+  if (ok && campanhaAtual) {
+    campanhaAtual.fama_banda = res.fama_banda ?? campanhaAtual.fama_banda;
+    atualizarBadgeFama();
+  }
   caixa.innerHTML = `
     <h2>💀 Derrota</h2>
     <p class="fim-derrota-info">A banda foi nocauteada em <b>${esc(venue.nome)}</b>.<br>
@@ -270,6 +275,31 @@ function atualizarStatusMapa() {
   const el = $("#ow-status");
   if (el && campanhaAtual) {
     el.textContent = `💰 ${campanhaAtual.cache ?? 0} · ⭐ ${campanhaAtual.fama_banda ?? 0}`;
+  }
+}
+
+// VIS-03: Badge de fama fixo topo-direita do overworld E da batalha (D-09).
+// Lê fama_banda/cache do DTO autoritativo (campanhaAtual) — sem calcular nem persistir.
+// Usa textContent (sem innerHTML) — sem vetor XSS mesmo com DTO adulterado (T-02-04).
+// Faixas espelham os estágios da van (0-2→faixa 1, 3-5→faixa 2, 6+→faixa 3) com
+// rótulo NEUTRO — não menciona van (D-10).
+function atualizarBadgeFama() {
+  const fama  = campanhaAtual?.fama_banda ?? 0;
+  const cache = campanhaAtual?.cache      ?? 0;
+  // Calcula progresso dentro da faixa atual.
+  let faixaMin, faixaMax;
+  if (fama >= 6) { faixaMin = 6; faixaMax = 6; }       // nível máximo — barra cheia
+  else if (fama >= 3) { faixaMin = 3; faixaMax = 6; }  // faixa 2: 3→6
+  else { faixaMin = 0; faixaMax = 3; }                  // faixa 1: 0→3
+  const intervalo = faixaMax - faixaMin || 1;
+  const pct = Math.min(1, (fama - faixaMin) / intervalo);
+  for (const sel of ["#badge-fama-ow", "#badge-fama-bt"]) {
+    const el = $(sel);
+    if (!el) continue;
+    const labelEl = el.querySelector(".badge-label");
+    const fillEl  = el.querySelector(".badge-barra-fill");
+    if (labelEl) labelEl.textContent = `⭐ ${fama}  💰 ${cache}`;
+    if (fillEl)  fillEl.style.width  = (pct * 100).toFixed(1) + "%";
   }
 }
 
@@ -483,6 +513,7 @@ async function acaoComprar(tipo) {
   lojaCache = res.cache;
   if (campanhaAtual) campanhaAtual.cache = res.cache;   // HUD do mapa coerente
   atualizarStatusMapa();
+  atualizarBadgeFama();    // VIS-03: cachê do badge cai ao comprar
   const eq = await window.pywebview.api.obter_equipamento();
   if (eq && eq.ok !== false) lojaBanda = eq.banda;
   renderLoja(`🛒 ${res.item} comprado!`);
@@ -569,6 +600,7 @@ async function abrirOverworld() {
   const faltam = camp.venues.filter((v) => !v.concluida).length;
   avisoOverworld(faltam > 0 ? `${faltam} venue(s) restante(s) na turnê.` : "Turnê completa! 🤘");
   atualizarStatusMapa();
+  atualizarBadgeFama();    // VIS-03: atualiza badge de fama ao entrar/voltar ao mapa
   iniciarRegen();          // F3.7: HP regenera devagar na estrada
 }
 
@@ -586,6 +618,7 @@ async function entrarNaVenue(venue) {
     return;
   }
   mostrarTela("tela-show");
+  atualizarBadgeFama();    // VIS-03: badge da batalha reflete fama ao entrar no show
   $("#btn-voltar-mapa").hidden = true;
   atualizarLuta({ fase: "intro", turno: "banda", especialDisponivel: false, perfeitosSeguidos: 0 });
   log(`🎤 <b>${esc(venue.nome)}</b> — encare <b>${esc(venue.capanga.nome)}</b>! Escolha um músico e toque.`);
