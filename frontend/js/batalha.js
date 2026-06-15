@@ -625,6 +625,7 @@
     function onClick(e) {
       if (batalha.ocupado || batalha.fase !== "luta" || !canvas) return;
       const r = canvas.getBoundingClientRect();
+      if (!r.width || !r.height) return;   // WR-04: rect 0x0 (transição .tela) → evita NaN/Infinity
       const x = (e.clientX - r.left) * (CONFIG.LARGURA / r.width);
       const y = (e.clientY - r.top) * (CONFIG.ALTURA / r.height);
       const i = batalha.membroNoPonto(x, y);
