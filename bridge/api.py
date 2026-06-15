@@ -584,7 +584,8 @@ class API:
                 return {
                     "ok": True,
                     "escolha_necessaria": True,
-                    "item": {
+                    # WR-02: chave distinta — "item" fica reservado p/ string|None.
+                    "item_escolha": {
                         "nome": item.nome,
                         "descricao": item.descricao,
                         "classes_permitidas": (list(item.classes_permitidas)
@@ -638,7 +639,8 @@ class API:
                         "escolha_necessaria": True,
                         "ja_deu": False,
                         "fala": npc["fala"],
-                        "item": {
+                        # WR-02: chave distinta — "item" fica reservado p/ string|None.
+                        "item_escolha": {
                             "nome": item.nome,
                             "descricao": item.descricao,
                             "classes_permitidas": (list(item.classes_permitidas)
@@ -693,7 +695,8 @@ class API:
                         "ok": True,
                         "escolha_necessaria": True,
                         "ja_aberto": False,
-                        "item": {
+                        # WR-02: chave distinta — "item" fica reservado p/ string|None.
+                        "item_escolha": {
                             "nome": item.nome,
                             "descricao": item.descricao,
                             "classes_permitidas": (list(item.classes_permitidas)

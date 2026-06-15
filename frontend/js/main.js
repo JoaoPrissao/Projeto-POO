@@ -684,7 +684,7 @@ async function coletarItemNoMapa(item) {
   if (res.escolha_necessaria) {
     // Mais de 1 elegível: pausa o overworld e mostra diálogo de escolha.
     if (owHandle) { owHandle.mundo.parar(); pararRegen(); }
-    mostrarEscolhaDestinatario(res.item, res.elegiveis,
+    mostrarEscolhaDestinatario(res.item_escolha, res.elegiveis,
       async (indice) => {
         // Re-chama com o índice escolhido — desta vez consome e marca.
         const r2 = await window.pywebview.api.coletar_item({ id: item.id, indice });
@@ -715,7 +715,7 @@ async function abordarNpc(npc) {
   if (res.escolha_necessaria) {
     // >1 elegível: pausa + diálogo de escolha antes de entregar.
     if (owHandle) { owHandle.mundo.parar(); pararRegen(); }
-    mostrarEscolhaDestinatario(res.item, res.elegiveis,
+    mostrarEscolhaDestinatario(res.item_escolha, res.elegiveis,
       async (indice) => {
         const r2 = await window.pywebview.api.abordar_npc({ id: npc.id, indice });
         if (owHandle) {
@@ -758,7 +758,7 @@ async function abrirBau(bau) {
   if (res.escolha_necessaria) {
     // >1 elegível: pausa + diálogo de escolha antes de abrir o baú.
     if (owHandle) { owHandle.mundo.parar(); pararRegen(); }
-    mostrarEscolhaDestinatario(res.item, res.elegiveis,
+    mostrarEscolhaDestinatario(res.item_escolha, res.elegiveis,
       async (indice) => {
         const r2 = await window.pywebview.api.abrir_bau({ id: bau.id, indice });
         if (owHandle) {

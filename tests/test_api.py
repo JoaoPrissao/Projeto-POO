@@ -433,6 +433,10 @@ def test_coletar_item_sem_classe_retorna_escolha_necessaria():
     assert res["ok"] is True
     assert res["escolha_necessaria"] is True
     assert len(res["elegiveis"]) == 4   # todos os 4 músicos
+    # WR-02: o payload do chooser usa "item_escolha" (dict); "item" não
+    # carrega mais o dict no branch de escolha.
+    assert isinstance(res["item_escolha"], dict)
+    assert "item" not in res or not isinstance(res.get("item"), dict)
     # Item NÃO deve estar no inventário de ninguém ainda.
     eq = api.obter_equipamento()
     for membro in eq["banda"]:
