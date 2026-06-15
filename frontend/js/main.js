@@ -150,6 +150,7 @@ function mostrarVitoria(res, venue) {
       const pode = !drop.classes_permitidas ||
         drop.classes_permitidas.some((c) => String(c).toLowerCase() === m.tipo);
       return `<button data-membro="${esc(m.id)}" data-tipo="${esc(drop.tipo)}"
+                data-venue="${esc(venue.id)}"
                 ${pode ? "" : "disabled"}>${esc(m.nome)}</button>`;
     }).join("") : "";
     caixa.innerHTML = `
@@ -179,6 +180,7 @@ function mostrarVitoria(res, venue) {
 async function aplicarDropEm(botao) {
   const res = await window.pywebview.api.aplicar_drop({
     tipo: botao.dataset.tipo, indice: Number(botao.dataset.membro),
+    venue_id: botao.dataset.venue,   // CR-01: gateia entrega única por venue
   });
   const aviso = $("#fim-aviso");
   if (!res || res.ok === false) {

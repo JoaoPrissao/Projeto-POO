@@ -93,7 +93,7 @@ class Campanha:
     def __init__(self, venues, itens, posicao=POSICAO_INICIAL,
                  concluidas=None, coletados=None, fama_banda=0, bloqueios=None,
                  cache=0, loja=None, npcs=None, npcs_dados=None,
-                 baus=None, baus_abertos=None):
+                 baus=None, baus_abertos=None, drops_coletados=None):
         # Cópias defensivas das definições (não compartilha listas/dicts externos).
         self._venues = [dict(v) for v in venues]
         self._itens = [dict(i) for i in itens]
@@ -111,6 +111,10 @@ class Campanha:
         # MAP-03 (Phase 1): baús/segredos e progresso de aberturas.
         self._baus = [dict(b) for b in (baus or _BAUS_PADRAO)]
         self._baus_abertos = set(baus_abertos or ())
+        # CR-01: drops de vitória já coletados (por venue_id) — espelha
+        # baus_abertos/npcs_dados pra impedir duplicar item equipável ao
+        # re-vencer/reabrir o overlay de vitória da mesma venue.
+        self._drops_coletados = set(drops_coletados or ())
 
     @classmethod
     def padrao(cls) -> "Campanha":
@@ -244,6 +248,15 @@ class Campanha:
             self.ganhar_fama(self._fama_venue(venue_id))  # vencer dá fama
         self._bloqueios.pop(venue_id, None)               # e limpa o bloqueio
 
+    def drop_ja_coletado(self, venue_id: str) -> bool:
+        """CR-01: True se o drop de vitória desta venue já foi entregue."""
+        return venue_id in self._drops_coletados
+
+    def marcar_drop_coletado(self, venue_id: str) -> None:
+        """CR-01: registra que o drop de vitória da venue já foi entregue
+        (entrega única, sobrevive ao save/load)."""
+        self._drops_coletados.add(venue_id)
+
     def peek_item(self, item_id: str) -> str:
         """Retorna o tipo do item SEM marcar como coletado (peek para decisão de escolha)."""
         item = self.get_item(item_id)       # valida (→ ItemMapaInvalidoError)
@@ -323,6 +336,8 @@ class Campanha:
             # MAP-03 (Phase 1): baús e progresso de aberturas.
             "baus": [dict(b) for b in self._baus],
             "baus_abertos": sorted(self._baus_abertos),
+            # CR-01: drops de vitória já entregues (por venue_id).
+            "drops_coletados": sorted(self._drops_coletados),
         }
 
     @classmethod
@@ -341,4 +356,5 @@ class Campanha:
             npcs_dados=dados.get("npcs_dados", ()),  # MAP-02: save antigo → conjunto vazio
             baus=dados.get("baus"),         # MAP-03: None → _BAUS_PADRAO
             baus_abertos=dados.get("baus_abertos", ()),  # MAP-03: save antigo → conjunto vazio
+            drops_coletados=dados.get("drops_coletados", ()),  # CR-01: save antigo → vazio
         )

@@ -225,6 +225,51 @@ def test_van_estagio_dto_e_serializavel():
     json.dumps(camp)  # não levanta
 
 
+# ── CR-01: idempotência do drop de vitória (entrega única por venue) ──────────
+
+def test_aplicar_drop_duas_vezes_na_mesma_venue_nao_duplica():
+    """CR-01: vencer (concluir) a mesma venue e reaplicar o drop NÃO duplica o
+    item equipável no inventário — o segundo aplicar_drop vira ErroDTO."""
+    api = _api_com_banda([{"tipo": "vocalista", "nome": "Vande",
+                           "folego": 50, "inteligencia": 10}])
+    res = api.concluir_venue("bar")
+    tipo_drop = res["drop"]["tipo"]          # partitura_magica (Vocalista)
+
+    eq0 = api.obter_equipamento()
+    tam0 = len(eq0["banda"][0]["inventario"])
+
+    # 1ª entrega: ok, item vai pro inventário.
+    r1 = api.aplicar_drop({"tipo": tipo_drop, "indice": 0, "venue_id": "bar"})
+    assert r1["ok"] is True
+
+    # Re-vencer a mesma venue e tentar o drop de novo (overlay reaberto).
+    api.concluir_venue("bar")
+    r2 = api.aplicar_drop({"tipo": tipo_drop, "indice": 0, "venue_id": "bar"})
+    assert r2["ok"] is False                 # gateado: drop já coletado
+
+    eq1 = api.obter_equipamento()
+    tam1 = len(eq1["banda"][0]["inventario"])
+    assert tam1 == tam0 + 1                  # exatamente UM item, sem dupe
+
+
+def test_drops_coletados_sobrevive_save_load(tmp_path):
+    """CR-01: o guard de drop coletado entra no to_dict/from_dict e sobrevive
+    ao save/load — não dá pra re-coletar depois de carregar."""
+    api = _api_com_banda([{"tipo": "vocalista", "nome": "Vande",
+                           "folego": 50, "inteligencia": 10}])
+    res = api.concluir_venue("bar")
+    tipo_drop = res["drop"]["tipo"]
+    api.aplicar_drop({"tipo": tipo_drop, "indice": 0, "venue_id": "bar"})
+
+    api.salvar("slot_drop", str(tmp_path))
+    GerenciadorJogo.resetar()
+    api2 = API()
+    api2.carregar("slot_drop", str(tmp_path))
+    api2.concluir_venue("bar")
+    r = api2.aplicar_drop({"tipo": tipo_drop, "indice": 0, "venue_id": "bar"})
+    assert r["ok"] is False                  # guard persistiu
+
+
 # ── MAP-02: abordar_npc na ponte (Phase 1) ───────────────────────────────────
 
 def _serializavel(obj):

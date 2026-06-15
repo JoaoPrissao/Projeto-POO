@@ -332,14 +332,24 @@ class API:
     def aplicar_drop(self, payload: dict) -> dict:
         """Entrega o item dropado a um membro escolhido — vai pro INVENTÁRIO
         (equipar é na van, via Tab — F3.6). Equipável incompatível com a classe
-        ainda é recusado (o item ficaria preso: não há transferência)."""
+        ainda é recusado (o item ficaria preso: não há transferência).
+
+        CR-01: o drop de vitória é ÚNICO por venue. `venue_id` gateia a entrega
+        (espelha baús/NPCs); re-vencer ou reabrir o overlay não duplica o item.
+        """
         tipo = payload["tipo"]
+        venue_id = payload.get("venue_id")
         indice = int(payload.get("indice", 0))
+        camp = self._garantir_campanha()
+        if venue_id and camp.drop_ja_coletado(venue_id):
+            raise JogoError("O item desta venue já foi coletado.")
         musico = self._gerenciador.listar_jogadores()[indice]   # IndexError → ErroDTO
         item = ItemFactory.criar(tipo)                          # TipoInvalidoError → ErroDTO
         if not getattr(item, "consumir_ao_usar", False):
             item.validar_alvo(musico)                           # ItemIncompativelError → ErroDTO
         musico.get_inventario().adicionar(item)                 # InventarioCheioError → ErroDTO
+        if venue_id:
+            camp.marcar_drop_coletado(venue_id)                 # entrega única
         return {
             "ok": True,
             "aplicado": "guardado",
