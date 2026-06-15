@@ -359,29 +359,6 @@ class API:
 
     # ── Equipamento (F3.6 — equipar na van via Tab, nunca em batalha) ─────────
 
-    def _indice_elegivel(self, item) -> int:
-        """Retorna o índice do primeiro músico elegível para receber `item`.
-
-        Elegibilidade:
-          1. Se `item` tem `classes_permitidas`, o músico precisa ter o
-             `TIPO` listado nelas (comparação case-insensitive — o catalogo
-             usa "Vocalista" (PascalCase) e o TIPO é "vocalista").
-          2. Se ninguém for elegível (ex.: nenhum vivo da classe), cai no
-             índice 0 como fallback seguro.
-
-        Não exige que o músico esteja vivo — itens podem ir para KO para
-        o jogador equipar depois na van; o domínio não impede isso.
-        """
-        classes = getattr(item, "classes_permitidas", None)
-        if not classes:
-            return 0  # sem restrição: vai pro índice 0 (fallback sensato)
-        classes_lower = {c.lower() for c in classes}
-        for i, musico in enumerate(self._gerenciador.listar_jogadores()):
-            tipo = getattr(musico, "TIPO", None)
-            if tipo and tipo.lower() in classes_lower:
-                return i
-        return 0  # fallback: nenhum membro da classe certa na banda
-
     def _elegiveis(self, item) -> list:
         """Retorna TODOS os músicos elegíveis para receber `item`.
 

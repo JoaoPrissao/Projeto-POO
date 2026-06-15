@@ -29,7 +29,7 @@ from excecoes import VenueInvalidaError, ItemMapaInvalidoError, NpcInvalidoError
 #   bar    → partitura_magica    (Vocalista — Vande)
 #   feira  → oculos_do_ritmo    (Baterista — Ramiro)
 #   arena  → pedal              (Guitarrista+Baixista — Geraldo ou Marivaldo)
-# O backend roteia cada drop para o membro elegível via _indice_elegivel
+# O backend roteia cada drop para os membros elegíveis via _elegiveis
 # (api.py); o diálogo de vitória desabilita quem não pode receber.
 _VENUES_PADRAO = [
     {"id": "bar",   "x": 420,  "nome": "Bar do Zé",

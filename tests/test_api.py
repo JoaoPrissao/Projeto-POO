@@ -551,8 +551,9 @@ def test_bau_de_vocalista_vai_ao_vocalista():
     assert "Microfone de Ouro" not in nomes_geraldo
 
 
-def test_indice_elegivel_fallback_quando_classe_ausente():
-    """Se a banda não tem membro da classe exigida, item cai no índice 0 (fallback)."""
+def test_elegiveis_fallback_quando_classe_ausente():
+    """Se a banda não tem membro da classe exigida, item cai no índice 0 (fallback
+    do roteamento _elegiveis, exercitado via abordar_npc)."""
     # Banda só com guitarrista — sem vocalista para receber partitura
     api = _api_com_banda([{"tipo": "guitarrista", "nome": "Solo", "forca": 10}])
     api.nova_campanha()
