@@ -134,6 +134,12 @@ class Musico(ABC):
     def get_energia(self) -> int:
         return self._energia
 
+    def set_energia(self, qtd: int) -> None:
+        """Define a energia atual, limitada a [0, ENERGIA_MAXIMA]. Usado por
+        subclasses/saves que recebem uma energia inicial sem tocar no atributo
+        protegido `_energia` diretamente (WR-06)."""
+        self._energia = max(0, min(int(qtd), self.ENERGIA_MAXIMA))
+
     def gastar_energia(self, qtd: int) -> None:
         from excecoes import EnergiaInsuficienteError
         qtd = max(0, int(qtd))

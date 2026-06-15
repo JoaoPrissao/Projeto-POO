@@ -11,7 +11,7 @@ class Vocalista(Musico):
         # tem; os golpes consomem). `folego` segue aceito como alias de compat
         # pra saves/payloads antigos — vira a energia inicial.
         if folego is not None:
-            self._energia = min(int(folego), self.ENERGIA_MAXIMA)
+            self.set_energia(folego)        # WR-06: via accessor da base, sem tocar _energia
         self.__inteligencia = inteligencia
 
     def get_inteligencia(self) -> int:
@@ -29,7 +29,7 @@ class Vocalista(Musico):
 
     def exibir_status(self) -> None:
         super().exibir_status()
-        print(f"  Energia    : {self._energia}")
+        print(f"  Energia    : {self.get_energia()}")   # WR-06: accessor da base
         print(f"  Inteligência: {self.__inteligencia}")
         print("========================================")
 
