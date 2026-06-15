@@ -148,7 +148,7 @@ function mostrarVitoria(res, venue) {
     const banda = (batalhaHandle && batalhaHandle.batalha.estado.banda) || [];
     const botoesMembros = drop ? banda.filter((m) => m.vivo).map((m) => {
       const pode = !drop.classes_permitidas ||
-        drop.classes_permitidas.some((c) => String(c).toLowerCase() === m.tipo);
+        drop.classes_permitidas.some((c) => String(c).toLowerCase() === String(m.tipo).toLowerCase());
       return `<button data-membro="${esc(m.id)}" data-tipo="${esc(drop.tipo)}"
                 data-venue="${esc(venue.id)}"
                 ${pode ? "" : "disabled"}>${esc(m.nome)}</button>`;
@@ -362,7 +362,7 @@ function renderEquipamento(aviso) {
 
   const m = equipBanda[equipSel];
   const podeEquipar = (it) => it.equipavel &&
-    (!it.classes_permitidas || it.classes_permitidas.some((c) => String(c).toLowerCase() === m.tipo));
+    (!it.classes_permitidas || it.classes_permitidas.some((c) => String(c).toLowerCase() === String(m.tipo).toLowerCase()));
 
   // Monta lista plana de itens com índice global para navegação por teclado.
   // Formato: { item, acao, idx }
