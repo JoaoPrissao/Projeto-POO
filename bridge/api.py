@@ -499,9 +499,14 @@ class API:
         banda = self._gerenciador.listar_jogadores()
         for musico in banda:
             musico.descansar()              # cansaço é coisa de batalha
-            if musico.esta_vivo() and cura > 0:
-                musico.curar(cura)          # capa no hp_maximo
-                musico.recuperar_energia(energia)
+            # WR-05: cura e energia são recuperações INDEPENDENTES — não acopla
+            # o regen de energia ao guard de HP (se HP_REGEN fosse 0 a energia
+            # ainda regenera).
+            if musico.esta_vivo():
+                if cura > 0:
+                    musico.curar(cura)          # capa no hp_maximo
+                if energia > 0:
+                    musico.recuperar_energia(energia)
         return {
             "ok": True,
             "banda": [self._musico_dto(i, m) for i, m in enumerate(banda)],
