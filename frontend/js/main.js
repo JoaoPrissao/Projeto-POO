@@ -430,12 +430,16 @@ async function abrirLoja() {
   lojaCache = (camp && camp.cache) || 0;
   lojaBanda = res.banda;
   if (lojaSel >= lojaBanda.length) lojaSel = 0;
+  // Congela o overworld enquanto a loja está aberta (espelha abrirEquipamento).
+  if (owHandle) { owHandle.mundo.parar(); pararRegen(); }
   renderLoja("");
   $("#loja-overlay").classList.add("aberto");
 }
 
 function fecharLoja() {
   $("#loja-overlay").classList.remove("aberto");
+  // Retoma o overworld após fechar a loja (espelha fecharEquipamento).
+  if (owHandle) { owHandle.mundo.iniciar(); iniciarRegen(); }
 }
 
 function renderLoja(aviso) {
@@ -745,6 +749,15 @@ async function voltarAoMapa() {
   await abrirOverworld();
 }
 
+// Retorna true se qualquer overlay modal do overworld estiver aberto.
+// Usado no handler de keydown para congelar A/D/W/S enquanto qualquer modal cobre o mapa.
+function algumOverlayAberto() {
+  return equipAberto() ||
+    $("#pausa-overlay").classList.contains("aberto") ||
+    lojaAberta() ||
+    $("#fim-overlay").classList.contains("aberto");
+}
+
 function bind() {
   $("#btn-novo-jogo").addEventListener("click", novoJogo);
   $("#btn-continuar").addEventListener("click", continuarJogo);
@@ -826,6 +839,29 @@ function bind() {
           // nenhum botão focado ainda: foca o primeiro
           btns[0].focus();
         }
+      }
+      return;
+    }
+
+    // ── Overlay da loja (loja-overlay) ───────────────────────────────────────
+    if (lojaAberta()) {
+      // Engole teclas de movimento para que não cheguem ao overworld.
+      if (isNav || isActivate || e.key === "Escape") {
+        e.preventDefault();
+        e.stopImmediatePropagation();
+      }
+      if (e.key === "Escape") { fecharLoja(); return; }
+      return;
+    }
+
+    // ── Overlay de fim/escolha (#fim-overlay no overworld) ───────────────────
+    // Cobre: diálogo de escolha de destinatário de item de chão (coletarItemNoMapa,
+    // abordarNpc, abrirBau). Não interfere quando #fim-overlay é usado na vitória
+    // de batalha, pois nesse contexto owHandle é null e o overworld não está ativo.
+    if ($("#fim-overlay").classList.contains("aberto")) {
+      if (isNav || isActivate || e.key === "Escape") {
+        e.preventDefault();
+        e.stopImmediatePropagation();
       }
       return;
     }
