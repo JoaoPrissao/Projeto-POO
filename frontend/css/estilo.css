@@ -297,6 +297,51 @@ button:disabled { opacity: .35; cursor: not-allowed; }
 /* Status do mapa (cachê + fama — F3.7) */
 .ow-status { font-size: .85rem; font-weight: 700; color: var(--ritmo); white-space: nowrap; }
 
+/* ── VIS-03: Badge de fama fixo topo-direita (overworld + batalha) ───────────
+ * .overworld-palco já tem overflow:hidden — position:relative libera o absolute.
+ * Na batalha fica dentro de .arena-wrap (já position:relative) abaixo do hud-boss. */
+.overworld-palco { position: relative; }
+
+.badge-fama {
+  position: absolute;
+  top: 8px;
+  right: 10px;
+  background: rgba(13, 10, 20, .82);
+  border: 1px solid #352b48;
+  border-radius: 8px;
+  padding: 5px 10px;
+  z-index: 10;
+  pointer-events: none;
+  min-width: 120px;
+  max-width: 200px;
+}
+.badge-label {
+  display: block;
+  font-size: .78rem;
+  font-weight: 700;
+  color: var(--texto);
+  white-space: nowrap;
+  margin-bottom: 4px;
+}
+.badge-barra {
+  height: 6px;
+  background: #0d0a14;
+  border-radius: 4px;
+  overflow: hidden;
+}
+.badge-barra-fill {
+  height: 100%;
+  width: 0%;
+  background: var(--ritmo);
+  border-radius: 4px;
+  transition: width .4s ease;
+}
+
+/* Na batalha: posicionar abaixo do #hud-boss (que ocupa top:10px + ~55px de altura) */
+.badge-fama-bt {
+  top: 72px;
+}
+
 /* Menu de equipamento (Tab na van — F3.6) */
 .equip-cache { font-size: .85rem; color: var(--ritmo); margin-left: 8px; }
 .equip-caixa { width: min(560px, 94vw); text-align: left; }
