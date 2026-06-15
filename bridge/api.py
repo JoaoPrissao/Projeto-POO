@@ -686,9 +686,11 @@ class API:
             # Peek do tipo sem marcar aberto ainda.
             tipo = bau["item"]
             item = ItemFactory.criar(tipo)
+            # WR-03: gate de fama UMA vez, antes de ramificar por `indice`. Vale
+            # tanto para o caminho do chooser quanto para o re-call com indice —
+            # o domínio (checar_fama_bau) vira a única fonte da verdade.
+            camp.checar_fama_bau(payload["id"])   # FamaInsuficienteError → ErroDTO
             if "indice" not in payload:
-                # Gate de fama primeiro (lança FamaInsuficienteError → ErroDTO antes da escolha).
-                camp.checar_fama_bau(payload["id"])
                 elegiveis = self._elegiveis(item)
                 if len(elegiveis) > 1:
                     return {
