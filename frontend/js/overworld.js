@@ -33,7 +33,7 @@
 
   // ── Núcleo do mundo (shell injetável) ───────────────────────────────────────
   // opts: { agora, agendarFrame, ctx, venues, itens, loja, vanEstagio, npcs, baus, inicioX,
-  //         aoEntrar, aoColetar, aoLoja, aoNpc, aoBau, aoAtualizar }
+  //         aoEntrar, aoColetar, aoLoja, aoNpc, aoBau, aoAtualizar, aoSfx }
   function criarMundo(opts) {
     const agora = opts.agora;
     const agendarFrame = opts.agendarFrame;
@@ -46,6 +46,8 @@
     const aoNpc = opts.aoNpc || function () {};
     // MAP-03 (Phase 1): callback disparado ao abrir baú com W.
     const aoBau = opts.aoBau || function () {};
+    // VIS-02: callback de SFX — aoSfx(nome) dispara audio[nome]().
+    const aoSfx = opts.aoSfx || function () {};
 
     // Estado mutável, clonado das definições (não mexe nos dicts do chamador).
     const venues = (opts.venues || []).map((v) => ({ ...v, concluida: !!v.concluida }));
@@ -84,8 +86,16 @@
     function abrirBalao(texto, subtexto) { balao = { texto: texto || "", subtexto: subtexto || "" }; }
     function fecharBalao() { balao = null; }
 
+    // VIS-02: sparkle de coleta — timer e posição (não entram em estado()).
+    let sparkleT = 0;
+    let sparkleX = 0;
+
     // Avança a simulação por `dt` ms — núcleo determinístico (sem relógio nem rAF).
     function passo(dt) {
+      // VIS-02: decrementar sparkle ANTES do return do balão, para que o brilho
+      // apareça e termine mesmo se o balão abrir logo após a coleta.
+      if (sparkleT > 0) sparkleT = Math.max(0, sparkleT - dt);
+
       if (balao) return;   // D-16: congela tudo enquanto balão está aberto
       if (direcao !== 0) {
         banda.x += direcao * CONFIG.VEL * dt;
@@ -102,6 +112,10 @@
         if (item.coletado) continue;
         if (Math.abs(cx - item.x) <= CONFIG.RAIO_ITEM) {
           item.coletado = true;
+          // VIS-02: dispara SFX e inicia sparkle na posição do item
+          aoSfx("item");
+          sparkleT = 500;  // 500ms de brilho
+          sparkleX = item.x;
           aoColetar(item);
         }
       }
@@ -313,6 +327,39 @@
       ctx.save();
       Sprites.desenharVan(ctx, vanEstagio || 1, bx, C.CHAO_Y - vanH, vanEsc);
       ctx.restore();
+
+      // VIS-02: sparkle de coleta — brilho radiante na posição do item coletado.
+      if (sparkleT > 0) {
+        const sx = sparkleX - cameraX;
+        const sy = C.CHAO_Y - 16;
+        const frac = sparkleT / 500;  // 1→0 conforme o timer esgota
+        ctx.save();
+        ctx.globalAlpha = frac * 0.9;
+        // Círculo expansivo amarelo-dourado
+        ctx.strokeStyle = "#e0b341";
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(sx, sy, 10 + (1 - frac) * 22, 0, Math.PI * 2);
+        ctx.stroke();
+        // Raios em 8 direções
+        ctx.strokeStyle = "#ffe97a";
+        ctx.lineWidth = 1.5;
+        for (let a = 0; a < 8; a++) {
+          const ang = (a / 8) * Math.PI * 2;
+          const r1 = 13 + (1 - frac) * 10;
+          const r2 = r1 + 8 * frac;
+          ctx.beginPath();
+          ctx.moveTo(sx + Math.cos(ang) * r1, sy + Math.sin(ang) * r1);
+          ctx.lineTo(sx + Math.cos(ang) * r2, sy + Math.sin(ang) * r2);
+          ctx.stroke();
+        }
+        // Emoji ✨ no centro
+        ctx.globalAlpha = frac;
+        ctx.font = "14px monospace";
+        ctx.textAlign = "center";
+        ctx.fillText("✨", sx, sy - 18 - (1 - frac) * 10);
+        ctx.restore();
+      }
     }
 
     // MAP-02 (Phase 1): balão de fala sobre a van — desenhado no canvas (D-15).
@@ -371,7 +418,7 @@
 
   // ── Entrada de produção: liga canvas + teclado ──────────────────────────────
   function montar({ canvas, venues, itens, loja, vanEstagio, npcs, baus, corTipo, inicioX,
-                    aoEntrar, aoColetar, aoLoja, aoNpc, aoBau, aoAtualizar } = {}) {
+                    aoEntrar, aoColetar, aoLoja, aoNpc, aoBau, aoAtualizar, aoSfx } = {}) {
     const ctx = canvas ? canvas.getContext("2d") : null;
     if (canvas) { canvas.width = CONFIG.LARGURA; canvas.height = CONFIG.ALTURA; }
 
@@ -379,7 +426,7 @@
       agora: () => performance.now(),
       agendarFrame: (cb) => requestAnimationFrame(cb),
       ctx, venues, itens, loja, vanEstagio, npcs, baus, corTipo, inicioX,
-      aoEntrar, aoColetar, aoLoja, aoNpc, aoBau, aoAtualizar,
+      aoEntrar, aoColetar, aoLoja, aoNpc, aoBau, aoAtualizar, aoSfx,
     });
 
     function onKeyDown(e) {

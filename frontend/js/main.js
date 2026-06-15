@@ -31,6 +31,13 @@ let owHandle = null;            // handle do overworld em execução
 let batalhaHandle = null;       // handle da batalha em execução
 let campanhaAtual = null;       // último DTO de campanha lido do backend
 
+// VIS-02: instância única de áudio — criada uma vez, passada como callback às engines.
+// Usa nulo() como fallback automático dentro de criar() quando não há AudioContext.
+const audio = (window.RitmoAudio && window.RitmoAudio.criar)
+  ? window.RitmoAudio.criar()
+  : { golpe(){}, critico(){}, vitoria(){}, item(){}, acerto(){}, erro(){}, batida(){}, iniciar(){}, parar(){} };
+function aoSfx(nome) { try { if (audio[nome]) audio[nome](); } catch (_) {} }
+
 function pct(v, max) {
   if (!max) return 100;
   return Math.max(0, Math.min(100, (v / max) * 100));
@@ -555,6 +562,7 @@ async function abrirOverworld() {
     aoLoja: abrirLoja,            // F3.8: W perto do 🏪 abre a loja
     aoNpc: abordarNpc,            // MAP-02 (Phase 1): W perto de NPC
     aoBau: abrirBau,              // MAP-03 (Phase 1): W perto de baú revelado
+    aoSfx,                        // VIS-02: dispara SFX de coleta (item)
   });
   window.__overworld = owHandle;
 
@@ -594,6 +602,7 @@ async function entrarNaVenue(venue) {
     aoPausar,
     aoLuta: atualizarLuta,
     aoSelecionar: atualizarMovesHud,
+    aoSfx,                        // VIS-02: dispara SFX de golpe/crítico/vitória
   });
 }
 

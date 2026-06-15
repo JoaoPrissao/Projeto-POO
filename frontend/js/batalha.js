@@ -113,7 +113,7 @@
 
   // ── Núcleo (shell injetável) ────────────────────────────────────────────────
   // opts: { ctx, api, jogarRitmo, estado, corPorTipo, agora, agendarFrame,
-  //         aoAtualizar, aoFim, aoLog, aoPausar, aoLuta }
+  //         aoAtualizar, aoFim, aoLog, aoPausar, aoLuta, aoSfx }
   function criarBatalha(opts) {
     const ctx = opts.ctx || null;
     const api = opts.api;
@@ -127,6 +127,9 @@
     const aoPausar = opts.aoPausar || function () {};
     const aoLuta = opts.aoLuta || function () {};
     const aoSelecionar = opts.aoSelecionar || function () {};
+    // VIS-02: callback de SFX — aoSfx(nome) dispara audio[nome]().
+    // Agnóstico do DOM/áudio: a batalha só chama o callback, main.js injeta.
+    const aoSfx = opts.aoSfx || function () {};
 
     let estado = opts.estado;
     let selecionado = 0;
@@ -148,6 +151,14 @@
 
     let rodando = false;       // loop de produção (rAF)
     let ultimoT = null;
+
+    // VIS-02: timers de animação procedural (decrementados em passo(dt), lidos em desenhar()).
+    // shakeT: translate aleatório no golpe; flashT: overlay branco no crítico;
+    // vitoriaT: notas musicais subindo na vitória. Nunca afetam estado() nem getters.
+    let shakeT = 0;
+    let flashT = 0;
+    let vitoriaT = 0;
+    const particulasVitoria = [];  // { x, y, vy, alpha, emoji }
 
     function membros() { return (estado && estado.banda) || []; }
 
@@ -193,6 +204,13 @@
     function desenhar() {
       if (!ctx) return;
       const C = CONFIG;
+
+      // VIS-02: shake — translate aleatório pequeno enquanto shakeT > 0
+      if (shakeT > 0) {
+        ctx.save();
+        ctx.translate((Math.random() - 0.5) * 6, (Math.random() - 0.5) * 3);
+      }
+
       ctx.clearRect(0, 0, C.LARGURA, C.ALTURA);
       ctx.fillStyle = "#14111c"; ctx.fillRect(0, 0, C.LARGURA, C.ALTURA);
       ctx.fillStyle = "#1b1526"; ctx.fillRect(0, 0, C.LARGURA, 70);   // fundo do palco
@@ -278,6 +296,33 @@
         ctx.fillStyle = "#e0b341"; ctx.font = "bold 64px monospace"; ctx.textAlign = "center";
         ctx.fillText("FIGHT!", C.LARGURA / 2, C.ALTURA / 2);
       }
+
+      // VIS-02: flash branco semitransparente proporcional ao flashT (crítico)
+      if (flashT > 0) {
+        const alpha = Math.min(0.55, (flashT / 300) * 0.55);
+        ctx.save();
+        ctx.globalAlpha = alpha;
+        ctx.fillStyle = "#ffffff";
+        ctx.fillRect(0, 0, C.LARGURA, C.ALTURA);
+        ctx.restore();
+      }
+
+      // VIS-02: notas/emojis musicais subindo na vitória
+      if (vitoriaT > 0 && particulasVitoria.length > 0) {
+        ctx.save();
+        ctx.font = "22px monospace";
+        ctx.textAlign = "center";
+        for (const p of particulasVitoria) {
+          if (p.alpha <= 0) continue;
+          ctx.globalAlpha = p.alpha;
+          ctx.fillText(p.emoji, p.x, p.y);
+        }
+        ctx.globalAlpha = 1;
+        ctx.restore();
+      }
+
+      // VIS-02: fecha o ctx.save() do shake (deve ser o último restore)
+      if (shakeT > 0) ctx.restore();
     }
 
     // ── Seleção (só entre vivos; cansado não é selecionável — F3.8) ───────────
@@ -307,6 +352,16 @@
     // Avança a simulação por `dt` ms. Pode devolver uma Promise (quando um
     // relógio estoura e o vilão age) — o harness dá `await`, o loop ignora.
     function passo(dt) {
+      // VIS-02: decrementar timers de animação SEMPRE, antes de qualquer return,
+      // para garantir que as animações terminam mesmo se a fase mudar.
+      if (shakeT > 0) shakeT = Math.max(0, shakeT - dt);
+      if (flashT > 0) flashT = Math.max(0, flashT - dt);
+      if (vitoriaT > 0) {
+        vitoriaT = Math.max(0, vitoriaT - dt);
+        // Avança as partículas de vitória
+        for (const p of particulasVitoria) { p.y += p.vy * dt; p.alpha = Math.max(0, p.alpha - dt / 1200); }
+      }
+
       if (encerrado) return;
       if (fase === "intro") {
         introT += dt;
@@ -421,6 +476,15 @@
                    : res.modo_refrao_ativo ? FRASES_REFRAO : FRASES_ATAQUE;
         aoLog(_frase(pool, m.nome, alvoBoss, res.dano));
 
+        // VIS-02: SFX + animação no momento do golpe/crítico
+        if (res.critico) {
+          aoSfx("critico");
+          flashT = 300;  // 300ms de flash branco para crítico
+        } else {
+          aoSfx("golpe");
+          shakeT = 200;  // 200ms de shake para golpe normal
+        }
+
         bossAtordoado = !!res.atordoado;
         perfeitosSeguidos = res.perfeitos_seguidos || 0;
         especialDisponivel = !!res.especial_disponivel;
@@ -466,6 +530,23 @@
       if (encerrado) return;
       encerrado = true;
       fase = "fim";
+      // VIS-02: SFX + partículas musicais na vitória
+      if (resultado === "vitoria") {
+        aoSfx("vitoria");
+        vitoriaT = 1800;  // 1.8s de animação de vitória
+        // Spawna notas musicais subindo aleatoriamente no canvas
+        particulasVitoria.length = 0;
+        const emojis = ["🎵", "🎶", "🎸", "⭐", "✨"];
+        for (let k = 0; k < 14; k++) {
+          particulasVitoria.push({
+            x: 60 + Math.random() * (CONFIG.LARGURA - 120),
+            y: CONFIG.CHAO_Y - 20 - Math.random() * 60,
+            vy: -(0.06 + Math.random() * 0.08),   // px/ms subindo
+            alpha: 0.9 + Math.random() * 0.1,
+            emoji: emojis[k % emojis.length],
+          });
+        }
+      }
       aoFim(resultado);
     }
 
@@ -511,7 +592,7 @@
 
   // ── Entrada de produção: liga canvas + teclado + minigame real ──────────────
   function montar({ canvas, api, estado, corPorTipo,
-                    aoAtualizar, aoFim, aoLog, aoPausar, aoLuta, aoSelecionar } = {}) {
+                    aoAtualizar, aoFim, aoLog, aoPausar, aoLuta, aoSelecionar, aoSfx } = {}) {
     const ctx = canvas ? canvas.getContext("2d") : null;
     if (canvas) { canvas.width = CONFIG.LARGURA; canvas.height = CONFIG.ALTURA; }
     const jogarRitmo = (window.RitmoMinigame && window.RitmoMinigame.jogarRitmo)
@@ -520,7 +601,7 @@
 
     const batalha = criarBatalha({
       ctx, api, jogarRitmo, estado, corPorTipo,
-      aoAtualizar, aoFim, aoLog, aoPausar, aoLuta, aoSelecionar,
+      aoAtualizar, aoFim, aoLog, aoPausar, aoLuta, aoSelecionar, aoSfx,
     });
 
     function onKeyDown(e) {
