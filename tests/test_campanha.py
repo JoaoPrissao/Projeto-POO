@@ -476,6 +476,37 @@ def test_bau2_revelado_com_fama_suficiente():
     assert bau2["revelado"] is True
 
 
+def test_bau3_oculto_com_fama_baixa():
+    """IN-04: Baú 3 (fama_minima=4) deve estar oculto com fama abaixo do gate (< 4).
+    Boundary inferior: fama 3 (bar+feira) ainda não revela o bau3."""
+    c = Campanha.padrao()
+    c.ganhar_fama(3)
+    assert c.fama_banda() < 4
+    bau3 = next(b for b in c.listar_baus() if b["id"] == "bau3")
+    assert bau3["fama_minima"] == 4
+    assert bau3["revelado"] is False
+
+
+def test_bau3_revelado_com_fama_suficiente():
+    """IN-04: Baú 3 deve ficar revelado com fama_banda >= 4 (gate de bau3).
+    Boundary: exatamente fama 4 já revela."""
+    c = Campanha.padrao()
+    c.ganhar_fama(4)
+    bau3 = next(b for b in c.listar_baus() if b["id"] == "bau3")
+    assert bau3["revelado"] is True
+
+
+def test_abrir_bau3_gated_com_fama_3_levanta():
+    """IN-04: abrir_bau(bau3) com fama 3 (< 4) deve levantar FamaInsuficienteError
+    sem marcar aberto."""
+    c = Campanha.padrao()
+    c.ganhar_fama(3)
+    with pytest.raises(FamaInsuficienteError):
+        c.abrir_bau("bau3")
+    marcado = next(b for b in c.listar_baus() if b["id"] == "bau3")
+    assert marcado["aberto"] is False
+
+
 def test_get_bau_invalido_levanta():
     """get_bau com id inválido deve levantar BauInvalidoError."""
     c = Campanha.padrao()
