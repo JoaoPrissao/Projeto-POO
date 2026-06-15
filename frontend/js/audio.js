@@ -45,11 +45,17 @@
       acerto() { bipe(880, 0.09, "triangle", 0.25); },   // agudo, limpo
       erro() { bipe(120, 0.18, "sawtooth", 0.2); },       // grave, áspero
       batida() { bipe(220, 0.05, "sine", 0.12); },        // pulso de compasso
+      // VIS-02: SFX dos momentos-chave de gameplay
+      golpe() { bipe(300, 0.12, "sawtooth", 0.3); },                         // impacto médio
+      critico() { bipe(660, 0.07, "square", 0.35); bipe(880, 0.12, "triangle", 0.2); }, // dois bipes agudos
+      vitoria() { bipe(523, 0.18, "triangle", 0.3); bipe(659, 0.22, "triangle", 0.3); }, // intervalo ascendente
+      item() { bipe(1046, 0.06, "sine", 0.2); },                              // sine agudo curto
     };
   }
 
   function nulo() {
-    return { iniciar() {}, parar() {}, acerto() {}, erro() {}, batida() {} };
+    return { iniciar() {}, parar() {}, acerto() {}, erro() {}, batida() {},
+             golpe() {}, critico() {}, vitoria() {}, item() {} };
   }
 
   window.RitmoAudio = { criar, nulo };
