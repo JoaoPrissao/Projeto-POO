@@ -636,6 +636,236 @@
     ctx.restore();
   }
 
+  // ── Background parallax overworld (UX-03 / D-08) ────────────────────────
+  // Camadas desenhadas ANTES dos sprites no overworld:
+  //   0 — céu: degradê estático em faixas verticais (#1a1040 → #3a2a60 → #5a3a20)
+  //   1 — skyline: silhuetas de prédios #0d0820 com janelas âmbar, parallax 0.2×
+  //   2 — rua/calçada: faixa inferior ~20% (#1e1830 + sarjeta #0a0812)
+  //
+  // JANELAS_SKYLINE: pré-computado por índice (seed determinístico, sem Math.random no draw).
+  // Pitfall 4: NUNCA usar Math.random dentro de funções de draw.
+  const JANELAS_SKYLINE = (function () {
+    // Gera posições de prédios e janelas com seed por índice (LCG simples).
+    // Resultado é um array de objetos { bx, bw, bh, janelas: [{jx,jy,jw,jh}] }.
+    const predios = [];
+    // LCG seed: a=1664525, c=1013904223, m=2^32 (suficiente para distribução visual)
+    let s = 0x12345678;
+    function rand() { s = (Math.imul(s, 1664525) + 1013904223) >>> 0; return s / 0xFFFFFFFF; }
+
+    const larguraTile = 1600; // tile repetível (skyline cobre 2× para tiling)
+    let bx = 0;
+    let idx = 0;
+    while (bx < larguraTile) {
+      const bw = Math.floor(30 + rand() * 60);   // largura do prédio: 30–90px
+      const bh = Math.floor(40 + rand() * 100);  // altura do prédio: 40–140px
+      const janelas = [];
+      // 1 a 3 fileiras de janelas por prédio
+      const nFileiras = 1 + Math.floor(rand() * 3);
+      for (let f = 0; f < nFileiras; f++) {
+        const jy = Math.floor(bh * 0.15 + f * (bh / (nFileiras + 1)));
+        const nColunas = 1 + Math.floor(rand() * 3);
+        const jw = 4, jh = 4;
+        const passo = Math.floor(bw / (nColunas + 1));
+        for (let c = 0; c < nColunas; c++) {
+          const acesa = rand() > 0.3; // 70% das janelas acesas
+          if (acesa) {
+            janelas.push({ jx: Math.floor(passo * (c + 1)), jy, jw, jh });
+          }
+        }
+      }
+      predios.push({ bx, bw, bh, janelas });
+      bx += bw + Math.floor(4 + rand() * 10); // espaço entre prédios: 4–14px
+      idx++;
+    }
+    return { predios, larguraTile };
+  })();
+
+  // desenharFundo(ctx, largura, altura, scrollX)
+  // Guard: se ctx for null/undefined, retorna imediatamente sem erro.
+  function desenharFundo(ctx, largura, altura, scrollX) {
+    if (!ctx) return;
+
+    // Camada 0: céu — degradê estático em 7 faixas verticais (#1a1040 → #3a2a60 → #5a3a20)
+    const ceuFaixas = [
+      { y: 0,                          h: Math.floor(altura * 0.10), cor: "#1a1040" },
+      { y: Math.floor(altura * 0.10),  h: Math.floor(altura * 0.10), cor: "#211548" },
+      { y: Math.floor(altura * 0.20),  h: Math.floor(altura * 0.10), cor: "#2a1a55" },
+      { y: Math.floor(altura * 0.30),  h: Math.floor(altura * 0.10), cor: "#32205a" },
+      { y: Math.floor(altura * 0.40),  h: Math.floor(altura * 0.10), cor: "#3a2a60" },
+      { y: Math.floor(altura * 0.50),  h: Math.floor(altura * 0.10), cor: "#442a48" },
+      { y: Math.floor(altura * 0.60),  h: Math.floor(altura * 0.20), cor: "#5a3a20" },
+    ];
+    // Preenche até CHAO_Y (~83% de altura=360 → y≈300)
+    const alturaCeu = Math.floor(altura * 0.833); // até o chão (~300/360)
+    for (const f of ceuFaixas) {
+      if (f.y >= alturaCeu) break;
+      const fh = Math.min(f.h, alturaCeu - f.y);
+      ctx.fillStyle = f.cor;
+      ctx.fillRect(0, f.y, largura, fh);
+    }
+
+    // Camada 1: skyline — prédios com janelas âmbar, parallax 0.2× (tile seamless)
+    const offsetX = -((scrollX * 0.2) % JANELAS_SKYLINE.larguraTile);
+    // Desenha 2 cópias do tile para cobertura contínua (tile seamless)
+    for (let tile = 0; tile < 3; tile++) {
+      const tileOfsX = offsetX + tile * JANELAS_SKYLINE.larguraTile;
+      for (const p of JANELAS_SKYLINE.predios) {
+        const px = p.bx + tileOfsX;
+        if (px + p.bw < 0 || px > largura) continue;
+        // Base do prédio: toca o CHAO_Y (~300px = altura*0.833)
+        const py = alturaCeu - p.bh;
+        ctx.fillStyle = "#0d0820";
+        ctx.fillRect(px, py, p.bw, p.bh);
+        // Janelas acesas (#d4921e âmbar)
+        for (const j of p.janelas) {
+          ctx.fillStyle = "#d4921e";
+          ctx.fillRect(px + j.jx, py + j.jy, j.jw, j.jh);
+        }
+      }
+    }
+
+    // Camada 2: rua/calçada — faixa inferior ~17% (CHAO_Y até o fundo)
+    ctx.fillStyle = "#1e1830";
+    ctx.fillRect(0, alturaCeu, largura, altura - alturaCeu);
+    // Sarjeta: linha mais escura logo abaixo do calçamento
+    ctx.fillStyle = "#0a0812";
+    ctx.fillRect(0, alturaCeu, largura, 4);
+  }
+
+  // ── Fachadas por venue (D-09) ─────────────────────────────────────────────
+  // Sprites de fachada sobre a rua para cada venue.
+  // Switch por venueId: bar/feira/arena com default seguro (cai no bar).
+  // Guard: se ctx for null/undefined, retorna imediatamente.
+
+  // Cores de fachada (declaradas no objeto C, mas como são específicas de fachada,
+  // usamos constantes locais para não poluir o C global que pertence à paleta base).
+  // Usam fillRect matricial análogo a desenharVenue.
+
+  // Fachada "Bar do Zé": neon âmbar, porta de madeira, janelas quentes
+  function _desenharFachadaBar(ctx, x, y, escala) {
+    // Grade: 12 cols × 14 rows. Escala tipicamente 5 → 60×70px.
+    // Parede principal
+    ctx.fillStyle = "#1a0e2a";
+    ctx.fillRect(x, y, 12 * escala, 14 * escala);
+    // Teto/cornija
+    ctx.fillStyle = "#0d0820";
+    ctx.fillRect(x, y, 12 * escala, 2 * escala);
+    // Letreiro neon "BAR DO ZÉ" (faixa âmbar brilhante)
+    ctx.fillStyle = "#d4921e";
+    ctx.fillRect(x + escala, y + 2 * escala, 10 * escala, 2 * escala);
+    // Brilho interior do letreiro
+    ctx.fillStyle = "#ffe082";
+    ctx.fillRect(x + 2 * escala, y + 2 * escala, 8 * escala, escala);
+    // Janelas (2 janelas com luz quente âmbar)
+    ctx.fillStyle = "#c8780a";
+    ctx.fillRect(x + escala,      y + 5 * escala, 3 * escala, 3 * escala);
+    ctx.fillRect(x + 8 * escala,  y + 5 * escala, 3 * escala, 3 * escala);
+    // Caixilho das janelas
+    ctx.fillStyle = "#4a2a14";
+    ctx.fillRect(x + 2 * escala,      y + 6 * escala, escala, 2 * escala);
+    ctx.fillRect(x + 9 * escala,  y + 6 * escala, escala, 2 * escala);
+    // Porta de madeira central
+    ctx.fillStyle = "#5a3010";
+    ctx.fillRect(x + 4 * escala, y + 9 * escala, 4 * escala, 5 * escala);
+    // Detalhe da porta (maçaneta)
+    ctx.fillStyle = "#d4921e";
+    ctx.fillRect(x + 7 * escala, y + 11 * escala, escala, escala);
+    // Friso inferior
+    ctx.fillStyle = "#0d0820";
+    ctx.fillRect(x, y + 13 * escala, 12 * escala, escala);
+  }
+
+  // Fachada "Feira Punk": toldo listrado, bandeiras, grafite
+  function _desenharFachadaFeira(ctx, x, y, escala) {
+    // Grade: 12 cols × 14 rows.
+    // Parede com grafite (cor cinza escuro base)
+    ctx.fillStyle = "#1e1a28";
+    ctx.fillRect(x, y, 12 * escala, 14 * escala);
+    // Toldo listrado (alternando roxo-escuro e âmbar claro)
+    for (let c = 0; c < 12; c++) {
+      ctx.fillStyle = c % 2 === 0 ? "#3a1060" : "#d4921e";
+      ctx.fillRect(x + c * escala, y, escala, 3 * escala);
+    }
+    // Franja do toldo
+    ctx.fillStyle = "#2a0a50";
+    ctx.fillRect(x, y + 3 * escala, 12 * escala, escala);
+    // Bandeiras penduradas (pequenos retângulos coloridos)
+    const coresBandeira = ["#e23b4e", "#d4921e", "#4a78d8", "#b04ad8", "#3fae6b"];
+    for (let i = 0; i < 5; i++) {
+      ctx.fillStyle = coresBandeira[i % coresBandeira.length];
+      ctx.fillRect(x + (i * 2 + 1) * escala, y + 4 * escala, escala, 2 * escala);
+    }
+    // Grafite no muro (bloco âmbar estilizado)
+    ctx.fillStyle = "#d4921e";
+    ctx.fillRect(x + escala, y + 7 * escala, 4 * escala, 3 * escala);
+    ctx.fillStyle = "#e0b341";
+    ctx.fillRect(x + 2 * escala, y + 8 * escala, 2 * escala, escala);
+    // Balcão/barracão (faixa inferior escura com abertura central)
+    ctx.fillStyle = "#0d0820";
+    ctx.fillRect(x, y + 10 * escala, 12 * escala, 4 * escala);
+    ctx.fillStyle = "#1a0e2a";
+    ctx.fillRect(x + 3 * escala, y + 10 * escala, 6 * escala, 4 * escala);
+  }
+
+  // Fachada "Arena": concreto, letreiro "ARENA" âmbar, bilheteria
+  function _desenharFachadaArena(ctx, x, y, escala) {
+    // Grade: 12 cols × 14 rows.
+    // Concreto escuro (cor base)
+    ctx.fillStyle = "#181825";
+    ctx.fillRect(x, y, 12 * escala, 14 * escala);
+    // Nervuras de concreto verticais
+    ctx.fillStyle = "#0f0f1a";
+    ctx.fillRect(x,                y, escala,     14 * escala);
+    ctx.fillRect(x + 11 * escala,  y, escala,     14 * escala);
+    ctx.fillRect(x + 5 * escala,   y, escala,     14 * escala);
+    ctx.fillRect(x + 6 * escala,   y, escala,     14 * escala);
+    // Letreiro "ARENA" em âmbar brilhante (faixa com pixels dourados)
+    ctx.fillStyle = "#d4921e";
+    ctx.fillRect(x + escala, y + escala, 10 * escala, 3 * escala);
+    ctx.fillStyle = "#ffe082";
+    ctx.fillRect(x + 2 * escala, y + escala, 8 * escala, escala);
+    // Janelas superiores (estreitas, vidro frio)
+    ctx.fillStyle = "#2a4060";
+    ctx.fillRect(x + 2 * escala, y + 5 * escala, 2 * escala, 2 * escala);
+    ctx.fillRect(x + 8 * escala, y + 5 * escala, 2 * escala, 2 * escala);
+    // Bilheteria central (caixa menor na base)
+    ctx.fillStyle = "#0d0820";
+    ctx.fillRect(x + 3 * escala, y + 8 * escala, 6 * escala, 6 * escala);
+    // Janelinha da bilheteria
+    ctx.fillStyle = "#d4921e";
+    ctx.fillRect(x + 5 * escala, y + 9 * escala, 2 * escala, 2 * escala);
+    // Degrau de entrada
+    ctx.fillStyle = "#2a2a38";
+    ctx.fillRect(x + 2 * escala, y + 13 * escala, 8 * escala, escala);
+  }
+
+  // desenharFachada(ctx, venueId, x, y, escala)
+  // Guard: se ctx for null/undefined, retorna imediatamente.
+  // Switch por venueId; default cai no bar sem crash.
+  function desenharFachada(ctx, venueId, x, y, escala) {
+    if (!ctx) return;
+    // Centraliza a fachada: 12 colunas de largura
+    const fachadaW = 12 * escala;
+    const fx = x - fachadaW / 2;
+    // Altura: 14 linhas; base no y (CHAO_Y), então fy = y - 14*escala
+    const fachadaH = 14 * escala;
+    const fy = y - fachadaH;
+    switch (venueId) {
+      case "bar":
+        _desenharFachadaBar(ctx, fx, fy, escala);
+        break;
+      case "feira":
+        _desenharFachadaFeira(ctx, fx, fy, escala);
+        break;
+      case "arena":
+        _desenharFachadaArena(ctx, fx, fy, escala);
+        break;
+      default:
+        _desenharFachadaBar(ctx, fx, fy, escala);
+        break;
+    }
+  }
+
   // ── Exportação ─────────────────────────────────────────────────────────────
   window.Sprites = {
     PALETA,
@@ -650,5 +880,8 @@
     // UX-01/D-05 — tipografia pixel + cartaz do menu
     desenharTextoPixel,
     desenharCartaz,
+    // UX-03/D-08-09 — background parallax + fachadas por venue
+    desenharFundo,
+    desenharFachada,
   };
 })();

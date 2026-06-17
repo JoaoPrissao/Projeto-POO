@@ -233,8 +233,8 @@
       if (!ctx) return;
       const C = CONFIG;
       ctx.clearRect(0, 0, C.LARGURA, C.ALTURA);
-      ctx.fillStyle = "#14111c"; ctx.fillRect(0, 0, C.LARGURA, C.ALTURA);
-      ctx.fillStyle = "#211b2e"; ctx.fillRect(0, C.CHAO_Y, C.LARGURA, C.ALTURA - C.CHAO_Y);
+      // UX-03/D-08: background parallax 3 camadas (céu+skyline+rua) via Sprites.
+      Sprites.desenharFundo(ctx, C.LARGURA, C.ALTURA, cameraX);
 
       // Venues (portas) — sprite pixel art por status (concluída=verde / não=rosa).
       for (const v of venues) {
@@ -246,6 +246,8 @@
         ctx.save();
         Sprites.desenharVenue(ctx, px - venueW / 2, C.CHAO_Y - venueH, venueEsc, v.concluida);
         ctx.restore();
+        // D-09: fachada temática por venue sobre a rua (prenunciando o cenário).
+        Sprites.desenharFachada(ctx, v.id, px, C.CHAO_Y, venueEsc);
         ctx.fillStyle = "#ece6f5";
         ctx.font = "12px monospace";
         ctx.textAlign = "center";
