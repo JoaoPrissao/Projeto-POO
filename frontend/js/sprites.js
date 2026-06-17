@@ -456,6 +456,186 @@
     }
   }
 
+  // ── Tipografia pixel 5×7 (UX-01 / D-05) ─────────────────────────────────────
+  // Cada glifo é array de [lin, col] dos pixels ACESOS na grade 5 cols × 7 linhas.
+  // Convenção: col 0..4, lin 0..6. Largura por char = 6*escala (5 glifo + 1 gap).
+  // Cobertura: A-Z, a-z (mapeados para maiúscula), 0-9, espaço, acentuados,
+  //            '.', ',', '!', "'" — necessários para textos do UI-SPEC.
+  const GLIFOS = {
+    // ── Letras ────────────────────────────────────────────────────────────────
+    "A": [[0,1],[0,2],[0,3],[1,0],[1,4],[2,0],[2,4],[3,0],[3,1],[3,2],[3,3],[3,4],[4,0],[4,4],[5,0],[5,4],[6,0],[6,4]],
+    "B": [[0,0],[0,1],[0,2],[0,3],[1,0],[1,4],[2,0],[2,4],[3,0],[3,1],[3,2],[3,3],[4,0],[4,4],[5,0],[5,4],[6,0],[6,1],[6,2],[6,3]],
+    "C": [[0,1],[0,2],[0,3],[1,0],[1,4],[2,0],[3,0],[4,0],[5,0],[5,4],[6,1],[6,2],[6,3]],
+    "D": [[0,0],[0,1],[0,2],[0,3],[1,0],[1,4],[2,0],[2,4],[3,0],[3,4],[4,0],[4,4],[5,0],[5,4],[6,0],[6,1],[6,2],[6,3]],
+    "E": [[0,0],[0,1],[0,2],[0,3],[0,4],[1,0],[2,0],[3,0],[3,1],[3,2],[3,3],[4,0],[5,0],[6,0],[6,1],[6,2],[6,3],[6,4]],
+    "F": [[0,0],[0,1],[0,2],[0,3],[0,4],[1,0],[2,0],[3,0],[3,1],[3,2],[3,3],[4,0],[5,0],[6,0]],
+    "G": [[0,1],[0,2],[0,3],[1,0],[1,4],[2,0],[3,0],[3,3],[3,4],[4,0],[4,4],[5,0],[5,4],[6,1],[6,2],[6,3]],
+    "H": [[0,0],[0,4],[1,0],[1,4],[2,0],[2,4],[3,0],[3,1],[3,2],[3,3],[3,4],[4,0],[4,4],[5,0],[5,4],[6,0],[6,4]],
+    "I": [[0,1],[0,2],[0,3],[1,2],[2,2],[3,2],[4,2],[5,2],[6,1],[6,2],[6,3]],
+    "J": [[0,3],[0,4],[1,4],[2,4],[3,4],[4,4],[5,0],[5,4],[6,1],[6,2],[6,3]],
+    "K": [[0,0],[0,4],[1,0],[1,3],[2,0],[2,2],[3,0],[3,1],[4,0],[4,2],[5,0],[5,3],[6,0],[6,4]],
+    "L": [[0,0],[1,0],[2,0],[3,0],[4,0],[5,0],[6,0],[6,1],[6,2],[6,3],[6,4]],
+    "M": [[0,0],[0,4],[1,0],[1,1],[1,3],[1,4],[2,0],[2,2],[2,4],[3,0],[3,4],[4,0],[4,4],[5,0],[5,4],[6,0],[6,4]],
+    "N": [[0,0],[0,4],[1,0],[1,1],[1,4],[2,0],[2,2],[2,4],[3,0],[3,3],[3,4],[4,0],[4,4],[5,0],[5,4],[6,0],[6,4]],
+    "O": [[0,1],[0,2],[0,3],[1,0],[1,4],[2,0],[2,4],[3,0],[3,4],[4,0],[4,4],[5,0],[5,4],[6,1],[6,2],[6,3]],
+    "P": [[0,0],[0,1],[0,2],[0,3],[1,0],[1,4],[2,0],[2,4],[3,0],[3,1],[3,2],[3,3],[4,0],[5,0],[6,0]],
+    "Q": [[0,1],[0,2],[0,3],[1,0],[1,4],[2,0],[2,4],[3,0],[3,4],[4,0],[4,2],[4,4],[5,0],[5,3],[5,4],[6,1],[6,2],[6,4]],
+    "R": [[0,0],[0,1],[0,2],[0,3],[1,0],[1,4],[2,0],[2,4],[3,0],[3,1],[3,2],[3,3],[4,0],[4,2],[5,0],[5,3],[6,0],[6,4]],
+    "S": [[0,1],[0,2],[0,3],[0,4],[1,0],[2,0],[3,1],[3,2],[3,3],[4,4],[5,4],[6,0],[6,1],[6,2],[6,3]],
+    "T": [[0,0],[0,1],[0,2],[0,3],[0,4],[1,2],[2,2],[3,2],[4,2],[5,2],[6,2]],
+    "U": [[0,0],[0,4],[1,0],[1,4],[2,0],[2,4],[3,0],[3,4],[4,0],[4,4],[5,0],[5,4],[6,1],[6,2],[6,3]],
+    "V": [[0,0],[0,4],[1,0],[1,4],[2,0],[2,4],[3,0],[3,4],[4,1],[4,3],[5,1],[5,3],[6,2]],
+    "W": [[0,0],[0,4],[1,0],[1,4],[2,0],[2,4],[3,0],[3,2],[3,4],[4,0],[4,2],[4,4],[5,1],[5,3],[6,1],[6,3]],
+    "X": [[0,0],[0,4],[1,1],[1,3],[2,2],[3,2],[4,1],[4,3],[5,1],[5,3],[6,0],[6,4]],
+    "Y": [[0,0],[0,4],[1,0],[1,4],[2,1],[2,3],[3,2],[4,2],[5,2],[6,2]],
+    "Z": [[0,0],[0,1],[0,2],[0,3],[0,4],[1,4],[2,3],[3,2],[4,1],[5,0],[6,0],[6,1],[6,2],[6,3],[6,4]],
+    // ── Dígitos ───────────────────────────────────────────────────────────────
+    "0": [[0,1],[0,2],[0,3],[1,0],[1,4],[2,0],[2,3],[2,4],[3,0],[3,2],[3,4],[4,0],[4,1],[4,4],[5,0],[5,4],[6,1],[6,2],[6,3]],
+    "1": [[0,2],[1,1],[1,2],[2,2],[3,2],[4,2],[5,2],[6,1],[6,2],[6,3]],
+    "2": [[0,1],[0,2],[0,3],[1,0],[1,4],[2,4],[3,3],[4,2],[5,1],[6,0],[6,1],[6,2],[6,3],[6,4]],
+    "3": [[0,1],[0,2],[0,3],[1,0],[1,4],[2,4],[3,2],[3,3],[4,4],[5,0],[5,4],[6,1],[6,2],[6,3]],
+    "4": [[0,3],[1,2],[1,3],[2,1],[2,3],[3,0],[3,3],[4,0],[4,1],[4,2],[4,3],[4,4],[5,3],[6,3]],
+    "5": [[0,0],[0,1],[0,2],[0,3],[0,4],[1,0],[2,0],[3,0],[3,1],[3,2],[3,3],[4,4],[5,4],[6,0],[6,1],[6,2],[6,3]],
+    "6": [[0,1],[0,2],[0,3],[1,0],[2,0],[3,0],[3,1],[3,2],[3,3],[4,0],[4,4],[5,0],[5,4],[6,1],[6,2],[6,3]],
+    "7": [[0,0],[0,1],[0,2],[0,3],[0,4],[1,4],[2,3],[3,2],[4,2],[5,2],[6,2]],
+    "8": [[0,1],[0,2],[0,3],[1,0],[1,4],[2,0],[2,4],[3,1],[3,2],[3,3],[4,0],[4,4],[5,0],[5,4],[6,1],[6,2],[6,3]],
+    "9": [[0,1],[0,2],[0,3],[1,0],[1,4],[2,0],[2,4],[3,1],[3,2],[3,3],[3,4],[4,4],[5,4],[6,1],[6,2],[6,3]],
+    // ── Pontuação ─────────────────────────────────────────────────────────────
+    " ": [],
+    ".": [[5,2],[6,2]],
+    ",": [[4,2],[5,2],[6,1]],
+    "!": [[0,2],[1,2],[2,2],[3,2],[4,2],[6,2]],
+    "'": [[0,2],[1,2]],
+    // ── Maiúsculas acentuadas (necessário para "DECIBÉIS", "EMPRESÁRIO", etc.) ─
+    "Á": [[0,2],[1,1],[1,3],[2,0],[2,1],[2,2],[2,3],[2,4],[3,0],[3,4],[4,0],[4,4],[5,0],[5,4],[6,0],[6,4]],
+    "É": [[0,2],[1,0],[1,1],[1,2],[1,3],[1,4],[2,0],[3,0],[3,1],[3,2],[3,3],[4,0],[5,0],[6,0],[6,1],[6,2],[6,3],[6,4]],
+    "Í": [[0,2],[1,1],[1,2],[1,3],[2,2],[3,2],[4,2],[5,2],[6,1],[6,2],[6,3]],
+    "Ó": [[0,2],[1,1],[1,2],[1,3],[2,0],[2,4],[3,0],[3,4],[4,0],[4,4],[5,0],[5,4],[6,1],[6,2],[6,3]],
+    "Ú": [[0,2],[1,0],[1,4],[2,0],[2,4],[3,0],[3,4],[4,0],[4,4],[5,0],[5,4],[6,1],[6,2],[6,3]],
+    "Ã": [[0,0],[0,2],[0,4],[1,1],[1,3],[2,0],[2,1],[2,2],[2,3],[2,4],[3,0],[3,4],[4,0],[4,4],[5,0],[5,4],[6,0],[6,4]],
+    "Ç": [[0,1],[0,2],[0,3],[1,0],[1,4],[2,0],[3,0],[4,0],[5,0],[5,4],[6,1],[6,2],[6,3],[5,2]],
+    // ── Minúsculas acentuadas mapeadas para maiúscula ─────────────────────────
+    "á": [[0,2],[1,1],[1,3],[2,0],[2,1],[2,2],[2,3],[2,4],[3,0],[3,4],[4,0],[4,4],[5,0],[5,4],[6,0],[6,4]],
+    "é": [[0,2],[1,0],[1,1],[1,2],[1,3],[1,4],[2,0],[3,0],[3,1],[3,2],[3,3],[4,0],[5,0],[6,0],[6,1],[6,2],[6,3],[6,4]],
+    "ê": [[0,2],[1,1],[1,3],[2,0],[2,1],[2,2],[2,3],[2,4],[3,0],[3,4],[4,0],[4,4],[5,0],[5,4],[6,1],[6,2],[6,3]],
+    "í": [[0,2],[1,1],[1,2],[1,3],[2,2],[3,2],[4,2],[5,2],[6,1],[6,2],[6,3]],
+    "ó": [[0,2],[1,1],[1,2],[1,3],[2,0],[2,4],[3,0],[3,4],[4,0],[4,4],[5,0],[5,4],[6,1],[6,2],[6,3]],
+    "ú": [[0,2],[1,0],[1,4],[2,0],[2,4],[3,0],[3,4],[4,0],[4,4],[5,0],[5,4],[6,1],[6,2],[6,3]],
+    "ã": [[0,0],[0,2],[0,4],[1,1],[1,3],[2,0],[2,1],[2,2],[2,3],[2,4],[3,0],[3,4],[4,0],[4,4],[5,0],[5,4],[6,0],[6,4]],
+    "ç": [[0,1],[0,2],[0,3],[1,0],[1,4],[2,0],[3,0],[4,0],[5,0],[5,4],[6,1],[6,2],[6,3],[5,2]],
+  };
+
+  // desenharTextoPixel(ctx, texto, x, y, escala, cor)
+  // Retorna a largura total desenhada (N * 6 * escala) — útil para centralizar.
+  // Guard: se ctx for null/undefined, retorna 0 sem lançar.
+  function desenharTextoPixel(ctx, texto, x, y, escala, cor) {
+    if (!ctx) return 0;
+    ctx.fillStyle = cor;
+    let cursorX = x;
+    for (const ch of String(texto)) {
+      const glifo = GLIFOS[ch] || GLIFOS[ch.toUpperCase()] || [];
+      for (const [lin, col] of glifo) {
+        ctx.fillRect(cursorX + col * escala, y + lin * escala, escala, escala);
+      }
+      cursorX += 6 * escala;
+    }
+    return String(texto).length * 6 * escala;
+  }
+
+  // _roundRect(ctx, x, y, w, h, r)
+  // Desenha um retângulo com cantos arredondados usando arcTo.
+  // NÃO usa a API roundRect nativa (ausente no JSDOM — Pitfall 1).
+  function _roundRect(ctx, x, y, w, h, r) {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.lineTo(x + w - r, y);
+    ctx.arcTo(x + w, y, x + w, y + r, r);
+    ctx.lineTo(x + w, y + h - r);
+    ctx.arcTo(x + w, y + h, x + w - r, y + h, r);
+    ctx.lineTo(x + r, y + h);
+    ctx.arcTo(x, y + h, x, y + h - r, r);
+    ctx.lineTo(x, y + r);
+    ctx.arcTo(x, y, x + r, y, r);
+    ctx.closePath();
+  }
+
+  // desenharCartaz(ctx, largura, altura, membros, frame)
+  // Renderiza o cartaz do menu com fundo âmbar + título pixel + 4 membros idle.
+  // Guard: se ctx for null/undefined, retorna imediatamente sem erro.
+  // membros: array de { tipo } (guitarrista/vocalista/baixista/baterista).
+  // frame: contador incremental do rAF do menu (para idle senoidal D-07).
+  function desenharCartaz(ctx, largura, altura, membros, frame) {
+    if (!ctx) return;
+
+    // Fundo do cartaz: faixa âmbar escura
+    ctx.save();
+    ctx.fillStyle = "#14111c";
+    ctx.fillRect(0, 0, largura, altura);
+
+    // Halo âmbar (--amber-glow)
+    ctx.fillStyle = "rgba(212,146,30,0.15)";
+    ctx.fillRect(0, 0, largura, altura);
+
+    // Faixa de palco (gradiente simplificado em faixas)
+    const faixas = [
+      { y: 0,           h: Math.floor(altura * 0.15), cor: "#1a1040" },
+      { y: Math.floor(altura * 0.15), h: Math.floor(altura * 0.25), cor: "#1e1530" },
+      { y: Math.floor(altura * 0.40), h: Math.floor(altura * 0.25), cor: "#211b2e" },
+      { y: Math.floor(altura * 0.65), h: Math.floor(altura * 0.35), cor: "#14111c" },
+    ];
+    for (const f of faixas) {
+      ctx.fillStyle = f.cor;
+      ctx.fillRect(0, f.y, largura, f.h);
+    }
+
+    // Linha de chão/palco
+    ctx.fillStyle = "#2a1a3a";
+    ctx.fillRect(0, Math.floor(altura * 0.72), largura, 4);
+
+    // Título pixel "DECIBÉIS" centralizado
+    const titulo = "DECIBÉIS";
+    const escTitulo = 4;
+    const wTitulo = titulo.length * 6 * escTitulo;
+    const xTitulo = Math.floor((largura - wTitulo) / 2);
+    const yTitulo = 16;
+    ctx.fillStyle = "#d4921e";
+    desenharTextoPixel(ctx, titulo, xTitulo, yTitulo, escTitulo, "#d4921e");
+
+    // Subtítulo "a turne contra O Empresario" (escala 2, opacidade 70%)
+    const sub = "a turne contra O Empresario";
+    const escSub = 2;
+    const wSub = sub.length * 6 * escSub;
+    const xSub = Math.floor((largura - wSub) / 2);
+    const ySub = yTitulo + 7 * escTitulo + 8;
+    ctx.save();
+    ctx.globalAlpha = 0.7;
+    ctx.fillStyle = "#ece6f5";
+    desenharTextoPixel(ctx, sub, xSub, ySub, escSub, "#ece6f5");
+    ctx.restore();
+
+    // 4 membros enfileirados com idle senoidal (D-07: reuso padrão batalha.js:231)
+    const tiposMembro = membros && membros.length === 4
+      ? membros.map((m) => m.tipo)
+      : ["guitarrista", "vocalista", "baterista", "baixista"];
+    const nMembros = tiposMembro.length;
+    const SPRITE_ESC = 6;
+    const spriteW = 7 * SPRITE_ESC;
+    const espacoTotal = largura;
+    const gap = Math.floor((espacoTotal - nMembros * spriteW) / (nMembros + 1));
+    const yMembro = Math.floor(altura * 0.72) - 8 * SPRITE_ESC;
+
+    for (let i = 0; i < nMembros; i++) {
+      const mX = gap + i * (spriteW + gap);
+      const balanco = Math.sin(frame / 90 + i * 1.7) * 4;
+      ctx.save();
+      ctx.translate(mX, yMembro + balanco);
+      desenharMembro(ctx, tiposMembro[i], SPRITE_ESC);
+      ctx.restore();
+    }
+
+    ctx.restore();
+  }
+
   // ── Exportação ─────────────────────────────────────────────────────────────
   window.Sprites = {
     PALETA,
@@ -467,5 +647,8 @@
     desenharBau,
     desenharVenue,
     desenharLoja,
+    // UX-01/D-05 — tipografia pixel + cartaz do menu
+    desenharTextoPixel,
+    desenharCartaz,
   };
 })();
