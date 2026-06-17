@@ -2,7 +2,9 @@
   --bg: #14111c;
   --painel: #211b2e;
   --texto: #ece6f5;
-  --acento: #e0457b;
+  --acento: #d4921e;          /* âmbar/holofote — substitui rosa (UX-02/D-02) */
+  --acento-hover: #e8a832;    /* hover do acento (D-04) */
+  --amber-glow: rgba(212,146,30,0.15); /* halo fundo cartaz (D-04) */
   --boss: #3fae6b;
   --ego: #e23b4e;
   --folego: #b04ad8;
@@ -231,7 +233,7 @@ button {
   cursor: pointer;
   transition: filter .12s ease;
 }
-button:hover:not(:disabled) { filter: brightness(1.15); }
+button:hover:not(:disabled) { filter: brightness(1.12); }
 button:disabled { opacity: .35; cursor: not-allowed; }
 
 .log { font-size: .9rem; line-height: 1.5; min-height: 1.4em; }
