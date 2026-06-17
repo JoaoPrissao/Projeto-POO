@@ -364,29 +364,135 @@
       }
     }
 
-    // MAP-02 (Phase 1): balão de fala sobre a van — desenhado no canvas (D-15).
-    // Nunca usa innerHTML; toda string vai para ctx.fillText (sem XSS).
+    // MAP-02 (Phase 1): balão de fala HQ sobre a van — desenhado no canvas (D-15/D-17).
+    // Nunca usa innerHTML; toda string vai para ctx.fillText (sem XSS — T-03-04).
+    // Reescrita UX-06: quebra de linha por palavra, borda arredondada (arcTo), cauda triangular.
+    //
+    // _roundRectLocal: replica _roundRect de sprites.js via arcTo.
+    // Não usa a API roundRect nativa (ausente no JSDOM — Pitfall 1).
+    // Interno a desenharBalao para não poluir o escopo do IIFE.
+    function _roundRectLocal(c, x, y, w, h, r) {
+      c.beginPath();
+      c.moveTo(x + r, y);
+      c.lineTo(x + w - r, y);
+      c.arcTo(x + w, y, x + w, y + r, r);
+      c.lineTo(x + w, y + h - r);
+      c.arcTo(x + w, y + h, x + w - r, y + h, r);
+      c.lineTo(x + r, y + h);
+      c.arcTo(x, y + h, x, y + h - r, r);
+      c.lineTo(x, y + r);
+      c.arcTo(x, y, x + r, y, r);
+      c.closePath();
+    }
+
     function desenharBalao() {
       if (!balao || !ctx) return;
       const C = CONFIG;
-      const bx = banda.x - cameraX + C.TAM_BANDA / 2;
-      const by = C.CHAO_Y - C.TAM_BANDA - 50;
-      const w = 280, h = 60, rx = bx - w / 2, ry = by - h;
-      // caixa de fundo
-      ctx.fillStyle = "rgba(20,17,28,0.93)";
-      ctx.fillRect(rx, ry, w, h);
+
+      // Dimensões do balão (UX-06)
+      const LARGURA_MAX = Math.min(320, C.LARGURA - 32);
+      const PAD_H = 12;       // padding horizontal
+      const PAD_V = 8;        // padding vertical
+      const RAIO = 8;         // raio de borda arredondada
+      const CAUDA_H = 8;      // altura da cauda triangular
+      const MAX_LINHAS = 5;
+
+      // Fonte do texto principal (NÃO pixel font — Segoe UI 700 13px, UX-06)
+      ctx.font = "700 13px \"Segoe UI\", system-ui, sans-serif";
+
+      // Quebra de linha por palavra (acumulando measureText com fallback length*7.5 — Pitfall 2)
+      const larguraUtil = LARGURA_MAX - PAD_H * 2;
+      const palavras = String(balao.texto || "").split(" ");
+      const linhas = [];
+      let linhaAtual = "";
+
+      for (const palavra of palavras) {
+        const teste = linhaAtual ? linhaAtual + " " + palavra : palavra;
+        const medida = ctx.measureText(teste).width || teste.length * 7.5;
+        if (medida > larguraUtil && linhaAtual) {
+          linhas.push(linhaAtual);
+          linhaAtual = palavra;
+          if (linhas.length >= MAX_LINHAS) break;
+        } else {
+          linhaAtual = teste;
+        }
+      }
+      if (linhaAtual && linhas.length < MAX_LINHAS) {
+        linhas.push(linhaAtual);
+      }
+      // Truncar última linha com "…" se excedeu MAX_LINHAS
+      if (linhas.length === MAX_LINHAS) {
+        const ultima = linhas[MAX_LINHAS - 1];
+        // Truncar com "…" se ainda sobrou texto
+        const palavrasRestantes = palavras.slice(
+          palavras.indexOf(ultima.split(" ").pop()) + 1
+        );
+        if (palavrasRestantes.length > 0) {
+          let truncada = ultima;
+          while (truncada.length > 0) {
+            const candidata = truncada + "…";
+            const w = ctx.measureText(candidata).width || candidata.length * 7.5;
+            if (w <= larguraUtil) { linhas[MAX_LINHAS - 1] = candidata; break; }
+            truncada = truncada.slice(0, -1).trimEnd();
+          }
+        }
+      }
+
+      // Dimensões do balão
+      const alturaLinha = 18;
+      const alturaTexto = linhas.length * alturaLinha;
+      const alturaSubtexto = 16;  // linha de subtexto abaixo
+      const balaW = LARGURA_MAX;
+      const balaH = PAD_V + alturaTexto + PAD_V + alturaSubtexto + PAD_V;
+
+      // Posição: acima da van/NPC, clampada às bordas do canvas
+      const alvoX = banda.x - cameraX + C.TAM_BANDA / 2;
+      const alvoY = C.CHAO_Y - C.TAM_BANDA - CAUDA_H;
+      let balaX = Math.max(RAIO, Math.min(alvoX - balaW / 2, C.LARGURA - balaW - RAIO));
+      const balaY = alvoY - balaH;
+
+      // Centro horizontal do alvo (onde a cauda aponta)
+      const caudaX = Math.max(balaX + RAIO + 4, Math.min(alvoX, balaX + balaW - RAIO - 4));
+
+      // Fundo do balão: rgba(13,10,20,0.92) com borda arredondada
+      ctx.save();
+      _roundRectLocal(ctx, balaX, balaY, balaW, balaH, RAIO);
+      ctx.fillStyle = "rgba(13,10,20,0.92)";
+      ctx.fill();
       ctx.strokeStyle = "#ece6f5";
       ctx.lineWidth = 2;
-      ctx.strokeRect(rx, ry, w, h);
-      // linha 1: texto principal
+      ctx.stroke();
+
+      // Cauda triangular apontando para o NPC/van (abaixo do balão)
+      ctx.beginPath();
+      ctx.moveTo(caudaX - CAUDA_H, balaY + balaH);
+      ctx.lineTo(caudaX + CAUDA_H, balaY + balaH);
+      ctx.lineTo(caudaX, balaY + balaH + CAUDA_H);
+      ctx.closePath();
+      ctx.fillStyle = "rgba(13,10,20,0.92)";
+      ctx.fill();
+      ctx.strokeStyle = "#ece6f5";
+      ctx.lineWidth = 2;
+      ctx.stroke();
+
+      // Texto principal: linhas quebradas
       ctx.fillStyle = "#ece6f5";
-      ctx.font = "13px monospace";
-      ctx.textAlign = "center";
-      ctx.fillText(balao.texto, bx, ry + 22);
-      // linha 2: subtexto / instrução
+      ctx.textAlign = "left";
+      for (let i = 0; i < linhas.length; i++) {
+        ctx.fillText(linhas[i], balaX + PAD_H, balaY + PAD_V + (i + 1) * alturaLinha - 4);
+      }
+
+      // Subtexto / instrução de fechamento
       ctx.fillStyle = "#b0a8c8";
-      ctx.font = "11px monospace";
-      ctx.fillText(balao.subtexto || "[W/Esc] fechar", bx, ry + 44);
+      ctx.font = "11px \"Segoe UI\", system-ui, sans-serif";
+      ctx.textAlign = "center";
+      ctx.fillText(
+        balao.subtexto || "[W/Esc] fechar",
+        balaX + balaW / 2,
+        balaY + balaH - PAD_V + 2
+      );
+
+      ctx.restore();
     }
 
     function frame() {
