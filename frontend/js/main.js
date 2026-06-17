@@ -802,6 +802,55 @@ function algumOverlayAberto() {
     $("#fim-overlay").classList.contains("aberto");
 }
 
+// ── 3º loop rAF: cartaz animado do menu (UX-01 / D-06/D-07) ─────────────────
+// Iniciado ao mostrar #tela-menu; cancelado ao trocar de tela.
+// frame: contador incremental (sem Date.now) — determinístico para harnesses.
+// Guard: window._semAnimacaoMenu (flag de opt-out para harnesses que não
+//        carregam main.js diretamente).
+let _rAFMenu = null;
+let _frameMenu = 0;
+
+function _iniciarLoopMenu() {
+  if (window._semAnimacaoMenu) return;      // harness opt-out
+  const canvas = document.getElementById("menu-canvas");
+  if (!canvas) return;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return;
+
+  const membros = window.COMPOSICAO_DEMO || [
+    { tipo: "guitarrista" }, { tipo: "vocalista" },
+    { tipo: "baterista" },   { tipo: "baixista" },
+  ];
+
+  function _tick() {
+    _frameMenu++;
+    if (window.Sprites && window.Sprites.desenharCartaz) {
+      window.Sprites.desenharCartaz(ctx, canvas.width, canvas.height, membros, _frameMenu);
+    }
+    _rAFMenu = requestAnimationFrame(_tick);
+  }
+  _rAFMenu = requestAnimationFrame(_tick);
+}
+
+function _pararLoopMenu() {
+  if (_rAFMenu !== null) {
+    cancelAnimationFrame(_rAFMenu);
+    _rAFMenu = null;
+  }
+  _frameMenu = 0;
+}
+
+// Sobrescreve mostrarTela para intercalar o controle do loop do menu.
+const _mostrarTelaOriginal = mostrarTela;
+function mostrarTela(id) {  // eslint-disable-line no-redeclare
+  _mostrarTelaOriginal(id);
+  if (id === "tela-menu") {
+    _iniciarLoopMenu();
+  } else {
+    _pararLoopMenu();
+  }
+}
+
 function bind() {
   $("#btn-novo-jogo").addEventListener("click", novoJogo);
   $("#btn-continuar").addEventListener("click", continuarJogo);
