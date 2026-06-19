@@ -135,6 +135,9 @@
     let selecionado = 0;
     let ocupado = false;       // true enquanto um ataque (minigame + resolução) roda
     let encerrado = false;
+    let venueId = opts.venueId || "arena";  // D-10/D-11/D-12: skin e cenário por venue
+    let introAtiva = false;                 // D-13: true durante a intro dramática da arena
+    let introAtivaT = 0;                    // acumulador em ms (sem Date.now/setTimeout)
 
     // F3.5b — máquina de fases + estado de luta. F3.8 — turnos revezados:
     // `turno` alterna banda ⇄ vilão; `timerIdle` pune banda parada (10s →
@@ -212,9 +215,8 @@
       }
 
       ctx.clearRect(0, 0, C.LARGURA, C.ALTURA);
-      ctx.fillStyle = "#14111c"; ctx.fillRect(0, 0, C.LARGURA, C.ALTURA);
-      ctx.fillStyle = "#1b1526"; ctx.fillRect(0, 0, C.LARGURA, 70);   // fundo do palco
-      ctx.fillStyle = "#211b2e"; ctx.fillRect(0, C.CHAO_Y, C.LARGURA, C.ALTURA - C.CHAO_Y);
+      // UX-04/D-10: cenário temático por venue (substitui fundo preto fixo — Pitfall 5)
+      Sprites.desenharCenario(ctx, venueId, C.LARGURA, C.ALTURA);
 
       const naIntro = fase === "intro";
       const tBanda = Math.min(introT, C.INTRO_BANDA_MS);
@@ -266,7 +268,8 @@
       const BOSS_ESC = 8;
       ctx.save();
       ctx.globalAlpha = bossAtordoado ? 0.6 : 1;
-      Sprites.desenharBoss(ctx, bx, C.CHAO_Y - C.BOSS_H, BOSS_ESC);
+      // UX-05/D-11/D-12: skin do boss por venueId; anim carrega introT para idle senoidal
+      Sprites.desenharBoss(ctx, bx, C.CHAO_Y - C.BOSS_H, BOSS_ESC, { atordoado: bossAtordoado, introT }, venueId);
       ctx.globalAlpha = 1;
       ctx.restore();
       ctx.fillStyle = "#ece6f5"; ctx.font = "12px monospace"; ctx.textAlign = "center";
@@ -295,6 +298,15 @@
       if (naIntro && introT >= C.INTRO_BANDA_MS + C.INTRO_VILAO_MS) {
         ctx.fillStyle = "#e0b341"; ctx.font = "bold 64px monospace"; ctx.textAlign = "center";
         ctx.fillText("FIGHT!", C.LARGURA / 2, C.ALTURA / 2);
+      }
+
+      // D-13: entrada dramática d'O Empresário — chuva de dinheiro + flash (~120 frames ≈ 2s).
+      // Só dispara quando venueId === 'arena' e introAtiva está ligado.
+      // Renderizado sobre tudo (após boss, antes do flash de crítico).
+      if (venueId === "arena" && introAtiva) {
+        // introAtivaT em ms → frames a 60fps (1 frame ≈ 16.7ms)
+        const introFrame = Math.floor(introAtivaT / 16.7);
+        Sprites.desenharIntroEmpresario(ctx, introFrame, C.LARGURA, C.ALTURA);
       }
 
       // VIS-02: flash branco semitransparente proporcional ao flashT (crítico)
@@ -356,6 +368,11 @@
       // para garantir que as animações terminam mesmo se a fase mudar.
       if (shakeT > 0) shakeT = Math.max(0, shakeT - dt);
       if (flashT > 0) flashT = Math.max(0, flashT - dt);
+      // D-13: acumulador da intro d'O Empresário (2000ms, sem Date.now/setTimeout)
+      if (introAtiva) {
+        introAtivaT += dt;
+        if (introAtivaT >= 2000) introAtiva = false;
+      }
       if (vitoriaT > 0) {
         vitoriaT = Math.max(0, vitoriaT - dt);
         // Avança as partículas de vitória
@@ -387,6 +404,8 @@
       introT = INTRO_TOTAL_MS;
       turno = "banda";
       timerIdle = CONFIG.IDLE_MS;
+      // D-13: intro dramática d'O Empresário na arena (~2s com input bloqueado)
+      if (venueId === "arena") { introAtiva = true; introAtivaT = 0; }
       emitirLuta();
       desenhar();
     }
@@ -439,6 +458,7 @@
     // Cansado/sem energia: nem chama a API (o backend revalida de toda forma).
     async function atacar(moveIdx) {
       if (fase !== "luta" || turno !== "banda" || ocupado || encerrado ||
+          introAtiva ||  // D-13: bloqueia input durante intro da arena
           !estado || estado.fim_de_jogo) return;
       normalizarSelecao();
       const m = membros()[selecionado];
@@ -500,7 +520,7 @@
 
     // ── Golpe especial (espaço; 4 perfeitos seguidos; consome a vez — F3.8) ────
     async function especial() {
-      if (fase !== "luta" || turno !== "banda" || ocupado || encerrado) return;
+      if (fase !== "luta" || turno !== "banda" || ocupado || encerrado || introAtiva) return;
       if (!especialDisponivel) {
         aoLog(`⚡ Especial ainda não está pronto — ${esc(perfeitosSeguidos)}/4 combos perfeitos.`);
         return;
@@ -592,6 +612,7 @@
 
   // ── Entrada de produção: liga canvas + teclado + minigame real ──────────────
   function montar({ canvas, api, estado, corPorTipo,
+                    venueId,  // D-10/D-11/D-12/D-13: venue para cenário, skin e intro
                     aoAtualizar, aoFim, aoLog, aoPausar, aoLuta, aoSelecionar, aoSfx } = {}) {
     const ctx = canvas ? canvas.getContext("2d") : null;
     if (canvas) { canvas.width = CONFIG.LARGURA; canvas.height = CONFIG.ALTURA; }
@@ -600,7 +621,7 @@
       : (() => Promise.resolve(null));
 
     const batalha = criarBatalha({
-      ctx, api, jogarRitmo, estado, corPorTipo,
+      ctx, api, jogarRitmo, estado, corPorTipo, venueId,
       aoAtualizar, aoFim, aoLog, aoPausar, aoLuta, aoSelecionar, aoSfx,
     });
 

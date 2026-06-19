@@ -631,6 +631,7 @@ async function entrarNaVenue(venue) {
     api: window.pywebview.api,
     estado,
     corPorTipo: COR_POR_TIPO,
+    venueId: venue.id,            // D-10/D-11/D-12/D-13: cenário, skin e intro por venue
     aoAtualizar: atualizarHud,
     aoLog: (html) => log(html),
     aoFim: (res) => aplicarFim(res, venue),
