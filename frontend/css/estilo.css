@@ -508,3 +508,19 @@ button:disabled { opacity: .35; cursor: not-allowed; }
 .ritmo-pistas .nota.erro   { background: #555; opacity: .4; }
 
 #ritmo-dica { margin-top: 12px; font-size: .8rem; opacity: .65; text-align: center; }
+
+/* ── Overlay de transição fade entre telas (D-16) ─────────────────────────── */
+#transicao-overlay {
+  position: fixed;
+  inset: 0;
+  background: #14111c;
+  z-index: 100;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 300ms ease;
+}
+
+/* ── Overlay de vitória final (D-14) ──────────────────────────────────────── */
+#vitoria-overlay { z-index: 70; }
+#vitoria-canvas { display: block; margin: 0 auto 12px; }
+#vitoria-sub { margin: 0 0 14px; line-height: 1.5; opacity: .85; }

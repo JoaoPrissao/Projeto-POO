@@ -95,6 +95,17 @@
     <div id="fim-caixa" class="modal-caixa painel"></div>
   </div>
 
+  <!-- Overlay de vitória final (D-14): derrota d'O Empresário na arena -->
+  <div id="vitoria-overlay" class="overlay-modal">
+    <div class="modal-caixa painel">
+      <canvas id="vitoria-canvas" width="400" height="300"></canvas>
+      <p id="vitoria-sub">A turnê foi um sucesso. O Empresário não tem mais poder sobre a banda.</p>
+      <div class="menu-opcoes">
+        <button id="btn-vitoria-menu">🏠 Menu principal</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Overlay de equipamento: Tab na van (mapa, pré-show) — F3.6/F3.8 -->
   <div id="equip-overlay" class="overlay-modal">
     <div class="modal-caixa painel equip-caixa">
@@ -129,6 +140,9 @@
       <div id="ritmo-dica">Acerte no tempo: <b>D F J K</b> (ou clique na pista). <b>Esc</b> cancela.</div>
     </div>
   </div>
+
+  <!-- Overlay de transição fade entre telas (D-16) -->
+  <div id="transicao-overlay"></div>
 
   <script src="js/audio.js"></script>
   <script src="js/ritmo.js"></script>
