@@ -14,7 +14,11 @@ FRONTEND = os.path.join(os.path.dirname(__file__), "..", "frontend", "index.html
 
 
 def _gerar_icone_temp() -> str | None:
-    """Gera ícone PNG 32×32 via Pillow em runtime (sem binário no repo).
+    """Gera ícone .ico 32×32 via Pillow em runtime (sem binário no repo).
+
+    Formato ICO (não PNG): no Windows o backend WinForms usa System.Drawing.Icon,
+    que só aceita .ico — um PNG derruba o app dentro de webview.start(). ICO é
+    multiplataforma o bastante para os demais backends.
 
     Retorna o caminho do arquivo temporário, ou None se Pillow não estiver
     disponível — o app continua funcionando normalmente sem ícone (D-15).
@@ -34,8 +38,8 @@ def _gerar_icone_temp() -> str | None:
         for row in range(9, 23):
             draw.point((19, row), fill=cor_ambar)
 
-        tmp = tempfile.NamedTemporaryFile(suffix=".png", delete=False)
-        img.save(tmp.name)
+        tmp = tempfile.NamedTemporaryFile(suffix=".ico", delete=False)
+        img.save(tmp.name, format="ICO", sizes=[(32, 32)])
         tmp.close()
         return tmp.name
     except Exception:
@@ -48,7 +52,11 @@ def main() -> None:
     # D-15: ícone gerado em runtime via Pillow (fallback gracioso se ausente)
     icone = _gerar_icone_temp()
 
-    create_window_kwargs: dict = dict(
+    # Ajuste 3: MAXIMIZADO (não fullscreen) — preserva os controles de janela
+    # (barra de título, fechar, minimizar). fullscreen=True prendia o usuário
+    # sem forma de sair pelo sistema operacional. maximized=True preenche a
+    # tela mantendo a barra de título e o botão de fechar nativo.
+    webview.create_window(
         title="Decibéis",
         url=os.path.abspath(FRONTEND),
         js_api=api,
@@ -57,15 +65,19 @@ def main() -> None:
         min_size=(720, 520),
         maximized=True,
     )
-    if icone:
-        create_window_kwargs["icon"] = icone
-
-    # Ajuste 3: MAXIMIZADO (não fullscreen) — preserva os controles de janela
-    # (barra de título, fechar, minimizar). fullscreen=True prendia o usuário
-    # sem forma de sair pelo sistema operacional. maximized=True preenche a
-    # tela mantendo a barra de título e o botão de fechar nativo.
-    webview.create_window(**create_window_kwargs)
-    webview.start()
+    # D-15: o ícone da aplicação é passado a start(), não a create_window()
+    # — nesta versão do pywebview o parâmetro `icon` só existe em start().
+    start_kwargs = {"icon": icone} if icone else {}
+    try:
+        webview.start(**start_kwargs)
+    finally:
+        # CR-01: o .ico é criado com delete=False; remove ao fechar a janela
+        # (start() só retorna quando o usuário fecha) para não vazar em %TEMP%.
+        if icone:
+            try:
+                os.unlink(icone)
+            except OSError:
+                pass
 
 
 if __name__ == "__main__":
