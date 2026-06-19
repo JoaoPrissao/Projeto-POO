@@ -322,8 +322,373 @@
     [9, 4, C.PRETO], [9, 5, C.PRETO], [9, 6, C.PRETO],
   ];
 
-  function desenharBoss(ctx, x, y, escala) {
-    desenharSprite(ctx, SPRITE_BOSS, x, y, escala);
+  // ── 3 skins de boss por venueId (UX-05 / D-11, D-12) ─────────────────────
+  // Cores extras para as skins do boss (máx 8 cores cada).
+  // Capanga do Bar: brutamontes baixo/largo, colete cinza, tatuagem vermelha.
+  // Roadie Valentão: alto/magro, jaqueta punk, rebites âmbar, moicano roxo.
+  // O Empresário: terno escuro #1a1a3a, gravata âmbar, maleta — reutiliza SPRITE_BOSS.
+
+  const BOSS_COLETE      = "#4a4a58";  // cinza colete do capanga
+  const BOSS_COLETE_ESC  = "#2a2a34";
+  const BOSS_TATUAGEM    = "#e23b4e";  // tatuagem vermelha do capanga
+  const BOSS_PUNK_JAQUETA= "#1a1228";  // jaqueta preta punk do roadie
+  const BOSS_PUNK_REBITE = "#d4921e";  // rebites âmbar do roadie
+  const BOSS_PUNK_MOICANO= "#5050a0";  // moicano roxo do roadie
+  const BOSS_TERNO       = "#1a1a3a";  // terno escuro do empresário
+  const BOSS_GRAVATA     = "#d4921e";  // gravata âmbar do empresário
+
+  // Capanga do Bar (brutamontes): largo, colete cinza, tatuagem vermelha
+  // Grid 10 linhas × 8 colunas
+  const SPRITE_CAPANGA_BAR = [
+    // Cabeça grande (sem chapéu)
+    [0, 2, C.PELE_CLARA], [0, 3, C.PELE_CLARA], [0, 4, C.PELE_CLARA], [0, 5, C.PELE_CLARA],
+    [1, 1, C.PELE_CLARA], [1, 2, C.PELE_CLARA], [1, 3, C.PELE_CLARA],
+    [1, 4, C.PELE_CLARA], [1, 5, C.PELE_CLARA], [1, 6, C.PELE_CLARA],
+    // Cabelo raspado / testa larga
+    [0, 1, C.CABELO_PRETO], [0, 6, C.CABELO_PRETO],
+    // Olhos e sombra de barba
+    [1, 2, C.BOSS_SOMBRA], [1, 4, C.BOSS_SOMBRA],
+    // Pescoço grosso
+    [2, 2, C.PELE_CLARA], [2, 3, C.PELE_CLARA], [2, 4, C.PELE_CLARA], [2, 5, C.PELE_CLARA],
+    // Ombros largos + colete cinza
+    [3, 0, BOSS_COLETE], [3, 1, BOSS_COLETE], [3, 2, BOSS_COLETE_ESC], [3, 3, BOSS_COLETE],
+    [3, 4, BOSS_COLETE], [3, 5, BOSS_COLETE_ESC], [3, 6, BOSS_COLETE], [3, 7, BOSS_COLETE],
+    [4, 0, BOSS_COLETE], [4, 1, BOSS_COLETE],  [4, 2, BOSS_COLETE],   [4, 3, BOSS_COLETE_ESC],
+    [4, 4, BOSS_COLETE_ESC],[4, 5, BOSS_COLETE],[4, 6, BOSS_COLETE],  [4, 7, BOSS_COLETE],
+    // Tatuagem vermelha no braço esquerdo
+    [5, 0, BOSS_COLETE], [5, 1, BOSS_TATUAGEM],[5, 2, BOSS_TATUAGEM], [5, 3, BOSS_COLETE],
+    [5, 4, BOSS_COLETE], [5, 5, BOSS_COLETE],  [5, 6, BOSS_COLETE],   [5, 7, BOSS_COLETE],
+    [6, 0, BOSS_COLETE_ESC],[6, 1, BOSS_COLETE],[6, 2, BOSS_COLETE],  [6, 3, BOSS_COLETE],
+    [6, 4, BOSS_COLETE], [6, 5, BOSS_COLETE],  [6, 6, BOSS_COLETE],   [6, 7, BOSS_COLETE_ESC],
+    // Pernas (calça preta)
+    [7, 2, C.PRETO], [7, 3, C.PRETO], [7, 5, C.PRETO], [7, 6, C.PRETO],
+    [8, 2, C.PRETO], [8, 3, C.PRETO], [8, 5, C.PRETO], [8, 6, C.PRETO],
+    // Botas
+    [9, 1, C.PRETO], [9, 2, C.PRETO], [9, 3, C.PRETO],
+    [9, 5, C.PRETO], [9, 6, C.PRETO], [9, 7, C.PRETO],
+  ];
+
+  // Roadie Valentão (punk): alto/magro, jaqueta punk, rebites âmbar, moicano roxo
+  // Grid 10 linhas × 7 colunas
+  const SPRITE_ROADIE_VALENTAO = [
+    // Moicano roxo (topo)
+    [0, 2, BOSS_PUNK_MOICANO], [0, 3, BOSS_PUNK_MOICANO], [0, 4, BOSS_PUNK_MOICANO],
+    // Cabeça magra
+    [1, 2, C.PELE_CLARA], [1, 3, C.PELE_CLARA], [1, 4, C.PELE_CLARA],
+    // Olhos raivosos
+    [2, 2, C.BOSS_SOMBRA], [2, 4, C.BOSS_SOMBRA],
+    [2, 3, C.PELE_CLARA],
+    // Pescoço fino
+    [3, 3, C.PELE_CLARA],
+    // Jaqueta punk: estreita, rebites âmbar nas bordas
+    [4, 1, BOSS_PUNK_REBITE],[4, 2, BOSS_PUNK_JAQUETA],[4, 3, BOSS_PUNK_JAQUETA],
+    [4, 4, BOSS_PUNK_JAQUETA],[4, 5, BOSS_PUNK_REBITE],
+    [5, 1, BOSS_PUNK_JAQUETA],[5, 2, BOSS_PUNK_JAQUETA],[5, 3, C.BRANCO],
+    [5, 4, BOSS_PUNK_JAQUETA],[5, 5, BOSS_PUNK_JAQUETA],
+    [6, 1, BOSS_PUNK_REBITE],[6, 2, BOSS_PUNK_JAQUETA],[6, 3, BOSS_PUNK_JAQUETA],
+    [6, 4, BOSS_PUNK_JAQUETA],[6, 5, BOSS_PUNK_REBITE],
+    // Calça preta estreita
+    [7, 2, C.PRETO], [7, 3, C.PRETO], [7, 4, C.PRETO],
+    [8, 2, C.PRETO], [8, 4, C.PRETO],
+    // Botas com detalhe âmbar
+    [9, 1, BOSS_PUNK_REBITE],[9, 2, C.PRETO],[9, 3, C.PRETO],
+    [9, 4, C.PRETO],[9, 5, BOSS_PUNK_REBITE],
+  ];
+
+  // O Empresário (arena): reutiliza SPRITE_BOSS mas com terno escuro e gravata âmbar
+  // Grid 10 linhas × 9 colunas — versão remasterizada com paleta diferente
+  const SPRITE_EMPRESARIO = [
+    // Chapéu de empresário
+    [0, 1, BOSS_TERNO], [0, 2, BOSS_TERNO], [0, 3, BOSS_TERNO], [0, 4, BOSS_TERNO], [0, 5, BOSS_TERNO],
+    [1, 0, BOSS_TERNO], [1, 1, BOSS_TERNO], [1, 2, BOSS_TERNO], [1, 3, BOSS_TERNO],
+    [1, 4, BOSS_TERNO], [1, 5, BOSS_TERNO], [1, 6, BOSS_TERNO],
+    // Rosto
+    [2, 1, C.PELE_CLARA], [2, 2, C.PELE_CLARA], [2, 3, C.PELE_CLARA],
+    [2, 4, C.PELE_CLARA], [2, 5, C.PELE_CLARA],
+    [3, 1, C.PELE_CLARA], [3, 2, C.BOSS_SOMBRA], [3, 3, C.PELE_CLARA],
+    [3, 4, C.BOSS_SOMBRA], [3, 5, C.PELE_CLARA],
+    // Terno escuro
+    [4, 0, BOSS_TERNO], [4, 1, BOSS_TERNO], [4, 2, BOSS_TERNO], [4, 3, BOSS_GRAVATA],
+    [4, 4, BOSS_TERNO], [4, 5, BOSS_TERNO], [4, 6, BOSS_TERNO],
+    [5, 0, BOSS_TERNO], [5, 1, BOSS_TERNO], [5, 2, BOSS_TERNO], [5, 3, BOSS_GRAVATA],
+    [5, 4, BOSS_TERNO], [5, 5, BOSS_TERNO], [5, 6, BOSS_TERNO],
+    [6, 0, "#12122a"], [6, 1, BOSS_TERNO], [6, 2, BOSS_TERNO], [6, 3, BOSS_TERNO],
+    [6, 4, BOSS_TERNO],  [6, 5, BOSS_TERNO], [6, 6, "#12122a"],
+    // Maleta (detalhe no braço)
+    [5, 7, BOSS_TERNO], [6, 7, BOSS_GRAVATA], [6, 8, BOSS_GRAVATA],
+    // Pernas
+    [7, 1, BOSS_TERNO], [7, 2, BOSS_TERNO], [7, 4, BOSS_TERNO], [7, 5, BOSS_TERNO],
+    [8, 1, BOSS_TERNO], [8, 2, BOSS_TERNO], [8, 4, BOSS_TERNO], [8, 5, BOSS_TERNO],
+    // Sapatos pretos brilhantes
+    [9, 0, C.PRETO], [9, 1, C.PRETO], [9, 2, C.PRETO],
+    [9, 4, C.PRETO], [9, 5, C.PRETO], [9, 6, C.PRETO],
+  ];
+
+  // Sub-funções de skin do boss
+  function _desenharCapangaBar(ctx, x, y, escala, anim) {
+    const balanco = anim ? Math.sin((anim.introT || 0) / 120) * 2 : 0;
+    desenharSprite(ctx, SPRITE_CAPANGA_BAR, x, y + balanco, escala);
+  }
+
+  function _desenharRoadieValentao(ctx, x, y, escala, anim) {
+    const balanco = anim ? Math.sin((anim.introT || 0) / 100 + 1.5) * 3 : 0;
+    desenharSprite(ctx, SPRITE_ROADIE_VALENTAO, x, y + balanco, escala);
+  }
+
+  function _desenharEmpresario(ctx, x, y, escala, anim) {
+    const balanco = anim ? Math.sin((anim.introT || 0) / 140) * 1.5 : 0;
+    desenharSprite(ctx, SPRITE_EMPRESARIO, x, y + balanco, escala);
+  }
+
+  // desenharBoss(ctx, x, y, escala, anim, venueId)
+  // venueId opcional (default 'arena') — retrocompatível com chamadas de 4 args (Pitfall 3).
+  // Guard: se ctx for null/undefined, retorna imediatamente.
+  function desenharBoss(ctx, x, y, escala, anim, venueId) {
+    if (!ctx) return;
+    switch (venueId || "arena") {
+      case "bar":
+        _desenharCapangaBar(ctx, x, y, escala, anim);
+        break;
+      case "feira":
+        _desenharRoadieValentao(ctx, x, y, escala, anim);
+        break;
+      case "arena":
+      default:
+        _desenharEmpresario(ctx, x, y, escala, anim);
+        break;
+    }
+  }
+
+  // ── Cenários de batalha por venue (UX-04 / D-10) ──────────────────────────
+  // desenharCenario(ctx, venueId, largura, altura)
+  // Pinta um fundo temático para a arena de batalha. Guard: ctx=null retorna sem erro.
+  // Switch por venueId; default cai em 'arena'.
+  function desenharCenario(ctx, venueId, largura, altura) {
+    if (!ctx) return;
+    switch (venueId || "arena") {
+      case "bar":
+        _desenharCenarioBar(ctx, largura, altura);
+        break;
+      case "feira":
+        _desenharCenarioFeira(ctx, largura, altura);
+        break;
+      case "arena":
+      default:
+        _desenharCenarioArena(ctx, largura, altura);
+        break;
+    }
+  }
+
+  // Cenário "Bar do Zé": interior de bar — balcão, prateleiras de garrafas, palquinho,
+  // luz âmbar rasante.
+  function _desenharCenarioBar(ctx, largura, altura) {
+    // Fundo: paredes do bar (tom quente-escuro)
+    ctx.fillStyle = "#1a0e22";
+    ctx.fillRect(0, 0, largura, altura);
+    // Assoalho de madeira (inferior ~25%)
+    const CHAO = Math.floor(altura * 0.75);
+    ctx.fillStyle = "#3a1e0a";
+    ctx.fillRect(0, CHAO, largura, altura - CHAO);
+    // Tábuas do assoalho
+    ctx.fillStyle = "#2e1808";
+    for (let i = 0; i < 6; i++) {
+      ctx.fillRect(0, CHAO + i * Math.floor((altura - CHAO) / 6), largura, 2);
+    }
+    // Teto (faixa escura superior)
+    ctx.fillStyle = "#0d0812";
+    ctx.fillRect(0, 0, largura, Math.floor(altura * 0.10));
+    // Luz âmbar rasante (halo de baixo para cima)
+    ctx.save();
+    ctx.globalAlpha = 0.18;
+    ctx.fillStyle = "#d4921e";
+    ctx.fillRect(0, Math.floor(altura * 0.55), largura, Math.floor(altura * 0.20));
+    ctx.restore();
+    // Balcão (lado direito da tela)
+    ctx.fillStyle = "#4a2808";
+    ctx.fillRect(Math.floor(largura * 0.72), Math.floor(altura * 0.52), Math.floor(largura * 0.28), Math.floor(altura * 0.23));
+    // Tampo do balcão
+    ctx.fillStyle = "#6a3a0e";
+    ctx.fillRect(Math.floor(largura * 0.70), Math.floor(altura * 0.50), Math.floor(largura * 0.30), 6);
+    // Prateleiras de garrafas (fundo, atrás do balcão)
+    ctx.fillStyle = "#0d0812";
+    ctx.fillRect(Math.floor(largura * 0.74), Math.floor(altura * 0.15), Math.floor(largura * 0.24), Math.floor(altura * 0.35));
+    // Prateleira 1 e 2
+    ctx.fillStyle = "#3a1e0a";
+    ctx.fillRect(Math.floor(largura * 0.74), Math.floor(altura * 0.22), Math.floor(largura * 0.24), 4);
+    ctx.fillRect(Math.floor(largura * 0.74), Math.floor(altura * 0.35), Math.floor(largura * 0.24), 4);
+    // Garrafas (retângulos coloridos sobre as prateleiras)
+    const coresGarrafa = ["#e23b4e", "#4a78d8", "#2a8a5a", "#d4921e", "#b04ad8"];
+    for (let g = 0; g < 8; g++) {
+      ctx.fillStyle = coresGarrafa[g % coresGarrafa.length];
+      const gx = Math.floor(largura * 0.76) + g * Math.floor(largura * 0.026);
+      ctx.fillRect(gx, Math.floor(altura * 0.14), 6, 8);
+      ctx.fillRect(gx, Math.floor(altura * 0.27), 6, 8);
+    }
+    // Palquinho (esquerda — onde a banda toca)
+    ctx.fillStyle = "#2a1206";
+    ctx.fillRect(0, Math.floor(altura * 0.70), Math.floor(largura * 0.45), Math.floor(altura * 0.05));
+    // Borda do palco
+    ctx.fillStyle = "#4a2808";
+    ctx.fillRect(0, Math.floor(altura * 0.69), Math.floor(largura * 0.45), 4);
+    // Luzes de cena (efeito de spot âmbar)
+    ctx.save();
+    ctx.globalAlpha = 0.13;
+    ctx.fillStyle = "#ffe082";
+    ctx.fillRect(Math.floor(largura * 0.05), 0, Math.floor(largura * 0.15), Math.floor(altura * 0.75));
+    ctx.fillRect(Math.floor(largura * 0.25), 0, Math.floor(largura * 0.12), Math.floor(altura * 0.75));
+    ctx.restore();
+  }
+
+  // Cenário "Feira Punk": rua de feira — barracas coloridas, grafites, asfalto.
+  function _desenharCenarioFeira(ctx, largura, altura) {
+    // Céu noturno (fundo)
+    ctx.fillStyle = "#0f0a1e";
+    ctx.fillRect(0, 0, largura, altura);
+    // Parede de grafite (fundo)
+    ctx.fillStyle = "#1a1424";
+    ctx.fillRect(0, 0, largura, Math.floor(altura * 0.75));
+    // Tijolos da parede
+    ctx.fillStyle = "#12101e";
+    for (let row = 0; row < 8; row++) {
+      const h = Math.floor(altura * 0.75 / 8);
+      for (let col = 0; col < 10; col++) {
+        const offset = row % 2 === 0 ? 0 : Math.floor(largura * 0.05);
+        ctx.fillRect(offset + col * Math.floor(largura * 0.10) + 1, row * h + 1, Math.floor(largura * 0.10) - 2, h - 2);
+      }
+    }
+    // Grafite âmbar (blocos estilizados)
+    ctx.fillStyle = "#d4921e";
+    ctx.fillRect(Math.floor(largura * 0.05), Math.floor(altura * 0.15), Math.floor(largura * 0.12), 8);
+    ctx.fillRect(Math.floor(largura * 0.06), Math.floor(altura * 0.23), Math.floor(largura * 0.08), 6);
+    ctx.fillStyle = "#e0b341";
+    ctx.fillRect(Math.floor(largura * 0.55), Math.floor(altura * 0.18), Math.floor(largura * 0.14), 8);
+    ctx.fillRect(Math.floor(largura * 0.57), Math.floor(altura * 0.26), Math.floor(largura * 0.10), 5);
+    // Grafite vermelho
+    ctx.fillStyle = "#e23b4e";
+    ctx.fillRect(Math.floor(largura * 0.30), Math.floor(altura * 0.10), Math.floor(largura * 0.18), 6);
+    ctx.fillRect(Math.floor(largura * 0.32), Math.floor(altura * 0.16), Math.floor(largura * 0.12), 4);
+    // Asfalto (inferior)
+    const CHAO = Math.floor(altura * 0.75);
+    ctx.fillStyle = "#1c1a28";
+    ctx.fillRect(0, CHAO, largura, altura - CHAO);
+    // Linhas do asfalto
+    ctx.fillStyle = "#14121e";
+    ctx.fillRect(0, CHAO + 8, largura, 2);
+    // Barracas coloridas (toldo)
+    const coresToldo = ["#3a1060", "#d4921e"];
+    for (let b = 0; b < 3; b++) {
+      const bx = b * Math.floor(largura * 0.34);
+      for (let c = 0; c < 10; c++) {
+        ctx.fillStyle = coresToldo[c % 2];
+        ctx.fillRect(bx + c * Math.floor(largura * 0.034), Math.floor(altura * 0.40), Math.floor(largura * 0.034), Math.floor(altura * 0.10));
+      }
+      // Franja
+      ctx.fillStyle = "#2a0a50";
+      ctx.fillRect(bx, Math.floor(altura * 0.50), Math.floor(largura * 0.34), 4);
+    }
+    // Bandeiras penduradas
+    const coresBandeira = ["#e23b4e", "#d4921e", "#4a78d8", "#b04ad8"];
+    for (let f = 0; f < 14; f++) {
+      ctx.fillStyle = coresBandeira[f % coresBandeira.length];
+      ctx.fillRect(Math.floor(largura * 0.06) + f * Math.floor(largura * 0.065), Math.floor(altura * 0.38), 8, 12);
+    }
+  }
+
+  // Cenário "Arena": palco de arena — cortinas laterais, cones de holofote, plateia em silhueta.
+  function _desenharCenarioArena(ctx, largura, altura) {
+    // Fundo: escuridão da arena
+    ctx.fillStyle = "#080810";
+    ctx.fillRect(0, 0, largura, altura);
+    // Plateia em silhueta (faixa superior ~35%)
+    ctx.fillStyle = "#0d0a1e";
+    ctx.fillRect(0, 0, largura, Math.floor(altura * 0.35));
+    // Cabeças da plateia (silhueta ondulada com fillRect)
+    ctx.fillStyle = "#14101e";
+    for (let i = 0; i < 28; i++) {
+      const cx = i * Math.floor(largura / 28);
+      const cy = Math.floor(altura * 0.05) + (i % 3) * 6 + (i % 5) * 3;
+      ctx.fillRect(cx + 3, cy, 16, 18);
+      ctx.fillRect(cx + 1, cy + 8, 20, 12);
+    }
+    // Palco (inferior ~25%)
+    const PALCO_Y = Math.floor(altura * 0.72);
+    ctx.fillStyle = "#1a1428";
+    ctx.fillRect(0, PALCO_Y, largura, altura - PALCO_Y);
+    // Borda brilhante do palco
+    ctx.fillStyle = "#d4921e";
+    ctx.fillRect(0, PALCO_Y, largura, 3);
+    // Assoalho do palco com reflexo
+    ctx.save();
+    ctx.globalAlpha = 0.08;
+    ctx.fillStyle = "#d4921e";
+    ctx.fillRect(0, PALCO_Y + 3, largura, altura - PALCO_Y - 3);
+    ctx.restore();
+    // Cortinas laterais (vermelho escuro)
+    ctx.fillStyle = "#2a0a14";
+    ctx.fillRect(0, 0, Math.floor(largura * 0.08), PALCO_Y);
+    ctx.fillRect(Math.floor(largura * 0.92), 0, Math.floor(largura * 0.08), PALCO_Y);
+    // Detalhes das cortinas
+    ctx.fillStyle = "#3a1020";
+    for (let d = 0; d < 5; d++) {
+      ctx.fillRect(Math.floor(largura * 0.02), Math.floor(altura * 0.08) + d * Math.floor(altura * 0.12), Math.floor(largura * 0.04), Math.floor(altura * 0.06));
+      ctx.fillRect(Math.floor(largura * 0.94), Math.floor(altura * 0.08) + d * Math.floor(altura * 0.12), Math.floor(largura * 0.04), Math.floor(altura * 0.06));
+    }
+    // Cones de holofote (feixes de luz do teto)
+    ctx.save();
+    ctx.globalAlpha = 0.10;
+    ctx.fillStyle = "#ffe082";
+    // Holofote esquerdo
+    ctx.fillRect(Math.floor(largura * 0.10), 0, Math.floor(largura * 0.18), PALCO_Y);
+    // Holofote centro
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(Math.floor(largura * 0.40), 0, Math.floor(largura * 0.20), PALCO_Y);
+    // Holofote direito
+    ctx.fillStyle = "#ffe082";
+    ctx.fillRect(Math.floor(largura * 0.72), 0, Math.floor(largura * 0.16), PALCO_Y);
+    ctx.restore();
+    // Equipamentos de som (silhueta de caixas no palco)
+    ctx.fillStyle = "#0d0820";
+    ctx.fillRect(Math.floor(largura * 0.08), Math.floor(altura * 0.55), Math.floor(largura * 0.10), Math.floor(altura * 0.17));
+    ctx.fillRect(Math.floor(largura * 0.82), Math.floor(altura * 0.55), Math.floor(largura * 0.10), Math.floor(altura * 0.17));
+  }
+
+  // ── Intro d'O Empresário (D-13) ────────────────────────────────────────────
+  // desenharIntroEmpresario(ctx, frame, largura, altura)
+  // Chuva de dinheiro com posições determinísticas por frame + flash.
+  // Guard: ctx=null retorna sem erro. globalAlpha dentro de save/restore (Pitfall 8).
+  function desenharIntroEmpresario(ctx, frame, largura, altura) {
+    if (!ctx) return;
+    // Cédulas caindo: posições determinísticas via frame e índice (sem Math.random).
+    // Usa LCG seed-by-index para distribuição visual.
+    const N_CEDULAS = 18;
+    for (let i = 0; i < N_CEDULAS; i++) {
+      // LCG determinístico por índice (mesma semente do JANELAS_SKYLINE)
+      const s1 = ((Math.imul(i * 37 + 1, 1664525) + 1013904223) >>> 0) / 0xFFFFFFFF;
+      const s2 = ((Math.imul(i * 71 + 3, 1664525) + 1013904223) >>> 0) / 0xFFFFFFFF;
+      const s3 = ((Math.imul(i * 13 + 7, 1664525) + 1013904223) >>> 0) / 0xFFFFFFFF;
+      const cx = Math.floor(s1 * largura);
+      // As cédulas caem de cima: y avança com frame, com offset por índice
+      const cy = ((frame * 2 + Math.floor(s2 * altura)) % (altura + 20)) - 20;
+      const inclinacao = Math.floor(s3 * 16) - 8;  // rotação visual: desvio horizontal
+      // Cédula: retângulo âmbar (nota de dinheiro simplificada)
+      ctx.save();
+      ctx.globalAlpha = 0.85;
+      ctx.fillStyle = "#d4921e";
+      ctx.fillRect(cx + inclinacao, cy, 22, 12);
+      ctx.globalAlpha = 0.6;
+      ctx.fillStyle = "#e0b341";
+      ctx.fillRect(cx + inclinacao + 2, cy + 2, 18, 5);
+      ctx.restore();
+    }
+    // Flash branco crescente nos últimos 30 frames (frame ~90-120)
+    if (frame > 90) {
+      const fadeIn = Math.min(1, (frame - 90) / 30);
+      ctx.save();
+      ctx.globalAlpha = fadeIn * 0.45;
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(0, 0, largura, altura);
+      ctx.restore();
+    }
   }
 
   // ── NPC (D-05 prioridade 4) ────────────────────────────────────────────────
@@ -883,5 +1248,10 @@
     // UX-03/D-08-09 — background parallax + fachadas por venue
     desenharFundo,
     desenharFachada,
+    // UX-04/D-10 — cenários de batalha por venue
+    desenharCenario,
+    // UX-05/D-11,D-12 — boss com skin por venueId (desenharBoss já exportado acima)
+    // D-13 — intro d'O Empresário
+    desenharIntroEmpresario,
   };
 })();
