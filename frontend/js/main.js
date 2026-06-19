@@ -142,39 +142,122 @@ function mostrarVitoria(res, venue) {
     const msg = res && res.erro ? res.erro.mensagem : "erro ao concluir a venue";
     caixa.innerHTML = `<h2>🏆 Vitória!</h2><p class="fim-aviso">⚠️ ${esc(msg)}</p>
       <div class="menu-opcoes"><button id="btn-fim-mapa">🗺 Voltar ao mapa</button></div>`;
-  } else {
-    const final = venue.id === "arena";
-    const drop = res.drop;
-    const banda = (batalhaHandle && batalhaHandle.batalha.estado.banda) || [];
-    const botoesMembros = drop ? banda.filter((m) => m.vivo).map((m) => {
-      const pode = !drop.classes_permitidas ||
-        drop.classes_permitidas.some((c) => String(c).toLowerCase() === String(m.tipo).toLowerCase());
-      return `<button data-membro="${esc(m.id)}" data-tipo="${esc(drop.tipo)}"
-                data-venue="${esc(venue.id)}"
-                ${pode ? "" : "disabled"}>${esc(m.nome)}</button>`;
-    }).join("") : "";
-    caixa.innerHTML = `
-      <h2>${final ? "🏆 VITÓRIA FINAL!" : "🏆 Vitória!"}</h2>
-      <p>${final ? "O Empresário caiu. A banda é LENDÁRIA. 🤘"
-                 : `Vocês detonaram em <b>${esc(venue.nome)}</b>!`}</p>
-      <p class="fim-xp">+${esc(res.xp_ganho)} XP pra cada membro · 💰 +${esc(res.cache_ganho || 0)} de cachê</p>
-      ${drop ? `
-        <div class="fim-drop">
-          <div class="drop-nome">🎁 ${esc(drop.nome)}</div>
-          <div class="drop-desc">${esc(drop.descricao || "")}</div>
-          <div class="drop-desc">Escolha quem fica com o item:</div>
-        </div>
-        <div class="fim-membros">${botoesMembros}</div>
-        <p id="fim-aviso" class="fim-aviso"></p>` : ""}
-      <div class="menu-opcoes">
-        <button id="btn-fim-mapa">🗺 ${drop ? "Deixar pra trás e voltar" : "Voltar ao mapa"}</button>
-      </div>`;
-    caixa.querySelectorAll(".fim-membros button").forEach((b) => {
-      b.addEventListener("click", () => aplicarDropEm(b));
-    });
+    caixa.querySelector("#btn-fim-mapa").addEventListener("click", fecharFimEVoltar);
+    $("#fim-overlay").classList.add("aberto");
+    return;
   }
+
+  const final = venue.id === "arena";
+
+  // D-14: vitória final na arena — abre overlay de vitória dedicado com canvas pixel art
+  if (final) {
+    _iniciarCanvasVitoria();
+    // Ligar btn-vitoria-menu → sairProMenuPrincipal (registrado uma vez; remover listener antigo via clone)
+    const btnVit = document.getElementById("btn-vitoria-menu");
+    if (btnVit) {
+      const novo = btnVit.cloneNode(true);
+      btnVit.parentNode.replaceChild(novo, btnVit);
+      novo.addEventListener("click", sairProMenuPrincipal);
+    }
+    document.getElementById("vitoria-overlay").classList.add("aberto");
+    return;   // não abre #fim-overlay na vitória final
+  }
+
+  const drop = res.drop;
+  const banda = (batalhaHandle && batalhaHandle.batalha.estado.banda) || [];
+  const botoesMembros = drop ? banda.filter((m) => m.vivo).map((m) => {
+    const pode = !drop.classes_permitidas ||
+      drop.classes_permitidas.some((c) => String(c).toLowerCase() === String(m.tipo).toLowerCase());
+    return `<button data-membro="${esc(m.id)}" data-tipo="${esc(drop.tipo)}"
+              data-venue="${esc(venue.id)}"
+              ${pode ? "" : "disabled"}>${esc(m.nome)}</button>`;
+  }).join("") : "";
+  caixa.innerHTML = `
+    <h2>🏆 Vitória!</h2>
+    <p>Vocês detonaram em <b>${esc(venue.nome)}</b>!</p>
+    <p class="fim-xp">+${esc(res.xp_ganho)} XP pra cada membro · 💰 +${esc(res.cache_ganho || 0)} de cachê</p>
+    ${drop ? `
+      <div class="fim-drop">
+        <div class="drop-nome">🎁 ${esc(drop.nome)}</div>
+        <div class="drop-desc">${esc(drop.descricao || "")}</div>
+        <div class="drop-desc">Escolha quem fica com o item:</div>
+      </div>
+      <div class="fim-membros">${botoesMembros}</div>
+      <p id="fim-aviso" class="fim-aviso"></p>` : ""}
+    <div class="menu-opcoes">
+      <button id="btn-fim-mapa">🗺 ${drop ? "Deixar pra trás e voltar" : "Voltar ao mapa"}</button>
+    </div>`;
+  caixa.querySelectorAll(".fim-membros button").forEach((b) => {
+    b.addEventListener("click", () => aplicarDropEm(b));
+  });
   caixa.querySelector("#btn-fim-mapa").addEventListener("click", fecharFimEVoltar);
   $("#fim-overlay").classList.add("aberto");
+}
+
+// ── Canvas de vitória final: "VITÓRIA!" em pixel art âmbar + sparkle (D-14) ─
+// Loop cancelado por sairProMenuPrincipal via window._rAFVitoria.
+function _iniciarCanvasVitoria() {
+  if (window._rAFVitoria) { cancelAnimationFrame(window._rAFVitoria); window._rAFVitoria = null; }
+  const canvas = document.getElementById("vitoria-canvas");
+  if (!canvas) return;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return;
+  const W = canvas.width;   // 400
+  const H = canvas.height;  // 300
+
+  // Sparkles: posições fixas determinísticas (sem Math.random persistente no loop)
+  // Geradas uma vez ao iniciar e reutilizadas — determinísticas para harnesses.
+  const sparkles = [];
+  const seed7 = [
+    [60, 80], [130, 50], [200, 120], [270, 60], [340, 90],
+    [90, 200], [170, 180], [240, 220], [310, 160], [380, 240],
+    [50, 260], [150, 280], [230, 30],  [350, 270], [400, 130],
+  ];
+  seed7.forEach(([x, y]) => sparkles.push({ x, y, r: 0, fase: (x + y) % 60 }));
+
+  let frame = 0;
+  function tick() {
+    ctx.clearRect(0, 0, W, H);
+
+    // Fundo escuro com halo âmbar central
+    ctx.fillStyle = "#14111c";
+    ctx.fillRect(0, 0, W, H);
+    const grad = ctx.createRadialGradient(W / 2, H / 2, 10, W / 2, H / 2, 180);
+    grad.addColorStop(0, "rgba(212,146,30,0.18)");
+    grad.addColorStop(1, "rgba(20,17,28,0)");
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, W, H);
+
+    // Sparkles âmbar pulsantes (globalAlpha dentro de save/restore)
+    ctx.save();
+    sparkles.forEach((s) => {
+      const alpha = 0.4 + 0.6 * Math.abs(Math.sin((frame + s.fase) / 18));
+      ctx.globalAlpha = alpha;
+      ctx.fillStyle = "#d4921e";
+      const sz = 2 + Math.abs(Math.sin((frame + s.fase) / 22)) * 3;
+      ctx.fillRect(s.x - sz / 2, s.y - sz / 2, sz, sz);
+    });
+    ctx.globalAlpha = 1;
+    ctx.restore();
+
+    // "VITÓRIA!" em pixel art âmbar centrado — usa Sprites.desenharTextoPixel
+    if (window.Sprites && window.Sprites.desenharTextoPixel) {
+      const escala = 4;
+      // Cada glifo 5×7 + 1 espaço = 6 cols; "VITÓRIA!" = 8 chars
+      const largTexto = window.Sprites.desenharTextoPixel(ctx, "VITORIA!", 0, 0, escala, "#d4921e");
+      // Calcular x centralizado (desenharTextoPixel retorna largura total)
+      const xCentro = Math.floor((W - largTexto) / 2);
+      const yCentro = Math.floor(H / 2 - 20);
+      ctx.clearRect(0, yCentro - 4, W, escala * 7 + 8);  // limpa só a área do texto
+      ctx.fillStyle = "#14111c";
+      ctx.fillRect(0, yCentro - 4, W, escala * 7 + 8);
+      window.Sprites.desenharTextoPixel(ctx, "VITORIA!", xCentro, yCentro, escala, "#d4921e");
+    }
+
+    frame++;
+    window._rAFVitoria = requestAnimationFrame(tick);
+  }
+  window._rAFVitoria = requestAnimationFrame(tick);
 }
 
 async function aplicarDropEm(botao) {
@@ -215,7 +298,7 @@ function mostrarDerrota(res, venue) {
 
 async function fecharFimEVoltar() {
   $("#fim-overlay").classList.remove("aberto");
-  await abrirOverworld();
+  transicionar(() => { abrirOverworld(); });
 }
 
 // ── Menu de pausa (Esc na batalha E no mapa — F3.8) ─────────────────────────
@@ -249,11 +332,16 @@ async function reiniciarBatalha() {
 }
 function sairProMenuPrincipal() {
   $("#pausa-overlay").classList.remove("aberto");
+  // Fechar vitoria-overlay se aberto (vem da tela de vitória final)
+  const vitoriaEl = document.getElementById("vitoria-overlay");
+  if (vitoriaEl) vitoriaEl.classList.remove("aberto");
+  // Cancelar loop do canvas de vitória se ativo
+  if (window._rAFVitoria) { cancelAnimationFrame(window._rAFVitoria); window._rAFVitoria = null; }
   if (batalhaHandle) { batalhaHandle.desligar(); batalhaHandle = null; }
   if (owHandle) { owHandle.desligar(); owHandle = null; }   // mapa não fica ouvindo teclas
   venueAtual = null;
   pararRegen();
-  mostrarTela("tela-menu");
+  transicionar(() => { mostrarTela("tela-menu"); });
 }
 
 // ── Regen passivo na estrada (F3.7): tick enquanto o mapa está aberto ───────
@@ -531,7 +619,7 @@ async function novoJogo() {
   avisoMenu("");
   await window.pywebview.api.criar_banda(COMPOSICAO_DEMO);
   await window.pywebview.api.nova_campanha();
-  await abrirOverworld();
+  transicionar(() => { abrirOverworld(); });
 }
 
 async function continuarJogo() {
@@ -540,7 +628,7 @@ async function continuarJogo() {
     avisoMenu(`⚠️ ${res && res.erro ? res.erro.mensagem : "nenhum save encontrado"}`);
     return;
   }
-  await abrirOverworld();
+  transicionar(() => { abrirOverworld(); });
 }
 
 function sairDoJogo() {
@@ -571,6 +659,23 @@ function mostrarTela(id) {
 function avisoOverworld(texto) {
   const el = $("#ow-aviso");
   if (el) el.textContent = texto || "";
+}
+
+// ── Transição fade entre telas (D-16) ───────────────────────────────────────
+// Harness-safe: quando window._transicaoAtiva já está setado (pelos harnesses ou
+// por uma transição em curso), executa fn() imediatamente sem fade.
+// Usa a CSS transition do #transicao-overlay — não anima canvas.
+function transicionar(fn) {
+  if (window._transicaoAtiva) { fn(); return; }
+  const el = document.getElementById("transicao-overlay");
+  if (!el) { fn(); return; }
+  window._transicaoAtiva = true;
+  el.style.opacity = "1";
+  setTimeout(() => {
+    fn();
+    el.style.opacity = "0";
+    el.addEventListener("transitionend", () => { window._transicaoAtiva = false; }, { once: true });
+  }, 300);
 }
 
 // Abre/reabre o mapa a partir da campanha autoritativa do backend.
@@ -619,7 +724,7 @@ async function entrarNaVenue(venue) {
     avisoOverworld(`⚠️ ${estado.erro.mensagem}`);
     return;
   }
-  mostrarTela("tela-show");
+  transicionar(() => { mostrarTela("tela-show"); });
   atualizarBadgeFama();    // VIS-03: badge da batalha reflete fama ao entrar no show
   $("#btn-voltar-mapa").hidden = true;
   atualizarLuta({ fase: "intro", turno: "banda", especialDisponivel: false, perfeitosSeguidos: 0 });
