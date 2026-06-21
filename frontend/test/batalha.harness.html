@@ -108,10 +108,14 @@
     const ritmoCancel = () => Promise.resolve(null);
 
     // Por padrão pula a intro (testes do combate); `comIntro: true` mantém.
+    // venueId padrão = "bar" (não-arena): em produção criarBatalha SEMPRE recebe
+    // venueId; sem ele, o default "arena" liga a intro dramática (D-13) e bloqueia
+    // atacar(). Testes da arena podem passar venueId: "arena" explicitamente.
     function mk(estado, o) {
       o = o || {};
       const b = B.criarBatalha({
         ctx: null, estado, api: o.api, jogarRitmo: o.jogarRitmo || ritmoOk,
+        venueId: o.venueId || "bar",
         aoFim: o.aoFim || function () {}, aoAtualizar: o.aoAtualizar || function () {},
         aoPausar: o.aoPausar, aoLuta: o.aoLuta, aoSelecionar: o.aoSelecionar,
       });
