@@ -649,7 +649,12 @@ async function carregar() {
 }
 
 // ── Controlador de telas (menu ↔ overworld ↔ batalha) ───────────────────────
-function mostrarTela(id) {
+// _aplicarTela é a base (troca a classe .ativa). mostrarTela (definido mais
+// abaixo) embrulha esta base para também controlar o loop do cartaz do menu.
+// IMPORTANTE: precisam ter nomes DIFERENTES — duas `function mostrarTela` no
+// mesmo escopo de script clássico fazem o wrapper capturar a si mesmo (hoisting)
+// e toda troca de tela vira recursão infinita (RangeError).
+function _aplicarTela(id) {
   // Trocar de tela sempre fecha os overlays modais (pausa/fim) — evita
   // sobra de overlay quando o fluxo sai da batalha por outro caminho.
   document.querySelectorAll(".overlay-modal").forEach((o) => o.classList.remove("aberto"));
@@ -946,10 +951,11 @@ function _pararLoopMenu() {
   _frameMenu = 0;
 }
 
-// Sobrescreve mostrarTela para intercalar o controle do loop do menu.
-const _mostrarTelaOriginal = mostrarTela;
-function mostrarTela(id) {  // eslint-disable-line no-redeclare
-  _mostrarTelaOriginal(id);
+// Embrulha _aplicarTela para intercalar o controle do loop do cartaz do menu.
+// Único `mostrarTela` do arquivo — chamadas em qualquer ponto resolvem aqui
+// (function declaration é içada para o topo do escopo).
+function mostrarTela(id) {
+  _aplicarTela(id);
   if (id === "tela-menu") {
     _iniciarLoopMenu();
   } else {
