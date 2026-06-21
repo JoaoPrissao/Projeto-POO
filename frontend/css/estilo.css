@@ -242,13 +242,22 @@ button:disabled { opacity: .35; cursor: not-allowed; }
 
 /* ── Menu principal + overlays de pausa/fim (F3.5b) ───────────────────────── */
 .menu-principal {
-  max-width: 420px;
-  margin: 8vh auto 0;
+  max-width: 560px;
+  margin: 0 auto;
   text-align: center;
-  padding: 36px 28px;
+  padding: 28px 28px 32px;
+  border: 1px solid rgba(212,146,30,0.18);
+  box-shadow: 0 18px 60px rgba(0,0,0,.45), 0 0 0 1px rgba(0,0,0,.3);
 }
-.menu-titulo { font-size: 1.8rem; }
-.menu-sub { opacity: .6; margin: 4px 0 22px; }
+/* Cartaz pixel-art: escala até a largura do card e centraliza (não estoura). */
+#menu-canvas {
+  display: block;
+  width: 100%;
+  height: auto;
+  image-rendering: pixelated;
+  border-radius: 8px;
+  margin-bottom: 24px;
+}
 .menu-opcoes {
   display: flex;
   flex-direction: column;
@@ -256,6 +265,29 @@ button:disabled { opacity: .35; cursor: not-allowed; }
 }
 .menu-opcoes button { font-size: 1rem; padding: 12px 16px; }
 #menu-aviso { margin-top: 14px; }
+
+/* ── Tela inicial: header redundante escondido, card centralizado, fundo de palco ──
+ * O nome do jogo já aparece no cartaz pixel-art — esconde o <header> no menu.
+ * Fundo personalizado: noite roxa + holofote âmbar + dois feixes de luz (palco),
+ * em vez do preto chapado. :has() é suportado no WebView2 (pywebview/Windows). */
+body:has(#tela-menu.ativa) header { display: none; }
+
+body:has(#tela-menu.ativa) {
+  background:
+    radial-gradient(68% 52% at 50% 6%, rgba(212,146,30,0.22), rgba(212,146,30,0) 60%),
+    radial-gradient(95% 75% at 50% -5%, rgba(150,70,200,0.16), rgba(150,70,200,0) 65%),
+    linear-gradient(101deg, transparent 46.5%, rgba(212,146,30,0.05) 49.5%, transparent 53%),
+    linear-gradient(79deg, transparent 46.5%, rgba(212,146,30,0.05) 49.5%, transparent 53%),
+    radial-gradient(120% 90% at 50% 120%, rgba(0,0,0,0.55), rgba(0,0,0,0) 55%),
+    linear-gradient(180deg, #1c1442 0%, #181233 32%, #14111c 72%, #100d16 100%);
+  background-attachment: fixed;
+}
+
+body:has(#tela-menu.ativa) main {
+  min-height: calc(100vh - 32px);
+  justify-content: center;
+  max-width: 720px;
+}
 
 .overlay-modal {
   position: fixed;

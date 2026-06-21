@@ -138,8 +138,10 @@
     [1, 0, C.CABELO_LOIRO], [1, 1, C.PELE_NEGRA],   [1, 2, C.PELE_NEGRA],   [1, 3, C.PELE_NEGRA], [1, 4, C.CABELO_LOIRO],
     // Pescoço
     [2, 1, C.PELE_NEGRA],   [2, 2, C.PELE_NEGRA],   [2, 3, C.PELE_NEGRA],   [2, 4, C.PELE_NEGRA],
-    // Corpo — camiseta preta com detalhe amarelo (base #e0b341)
-    [3, 0, C.ROUPA_PRETA],  [3, 1, BASE.baterista],  [3, 2, BASE.baterista],  [3, 3, BASE.baterista], [3, 4, C.ROUPA_PRETA],
+    // Corpo — camiseta preta com gola/detalhe amarelo (base #e0b341).
+    // Ombros escuros (não dourados) pra separar a cabeça loira do corpo —
+    // senão cabelo+ombros+sapatos dourados fundem num borrão (UAT Fase 3).
+    [3, 0, C.ROUPA_PRETA],  [3, 1, C.ROUPA_PRETA],  [3, 2, BASE.baterista],  [3, 3, C.ROUPA_PRETA], [3, 4, C.ROUPA_PRETA],
     [4, 0, C.ROUPA_PRETA],  [4, 1, C.ROUPA_PRETA],  [4, 2, PALETA.baterista.realce], [4, 3, C.ROUPA_PRETA], [4, 4, C.ROUPA_PRETA],
     [5, 0, C.ROUPA_PRETA],  [5, 1, C.ROUPA_PRETA],  [5, 2, C.ROUPA_PRETA],  [5, 3, C.ROUPA_PRETA], [5, 4, C.ROUPA_PRETA],
     // Baquetas (dois palitos)
@@ -214,6 +216,23 @@
   function desenharMembro(ctx, tipo, escala) {
     const sprite = SPRITES_MEMBRO[tipo] || SPRITE_GUITARRISTA;
     const esc = (tipo === "baixista") ? escala * 0.8 : escala;
+    desenharSprite(ctx, sprite, 0, 0, esc);
+  }
+
+  // Membro com contorno escuro + miolo preenchido (silhueta), pra destacar o
+  // sprite sobre o fundo escuro do palco no cartaz do menu (UAT Fase 3).
+  // Desenha cada célula expandida em PRETO atrás e o sprite real por cima.
+  function desenharMembroDestacado(ctx, tipo, escala) {
+    const sprite = SPRITES_MEMBRO[tipo] || SPRITE_GUITARRISTA;
+    const esc = (tipo === "baixista") ? escala * 0.8 : escala;
+    const out = Math.max(2, Math.round(esc * 0.34));   // espessura do contorno
+    ctx.save();
+    ctx.fillStyle = C.PRETO;
+    for (const cel of sprite) {
+      const r = cel[0], c = cel[1];
+      ctx.fillRect(c * esc - out, r * esc - out, esc + 2 * out, esc + 2 * out);
+    }
+    ctx.restore();
     desenharSprite(ctx, sprite, 0, 0, esc);
   }
 
@@ -953,9 +972,12 @@
       ctx.fillRect(0, f.y, largura, f.h);
     }
 
-    // Linha de chão/palco
-    ctx.fillStyle = "#2a1a3a";
-    ctx.fillRect(0, Math.floor(altura * 0.72), largura, 4);
+    // Borda do palco — âmbar sutil (tema), nada de rosa/roxo (UAT Fase 3).
+    const pisoY = Math.floor(altura * 0.78);
+    ctx.save();
+    ctx.fillStyle = "rgba(212,146,30,0.22)";
+    ctx.fillRect(0, pisoY, largura, 2);
+    ctx.restore();
 
     // Título pixel "DECIBÉIS" centralizado
     const titulo = "DECIBÉIS";
@@ -978,23 +1000,36 @@
     desenharTextoPixel(ctx, sub, xSub, ySub, escSub, "#ece6f5");
     ctx.restore();
 
-    // 4 membros enfileirados com idle senoidal (D-07: reuso padrão batalha.js:231)
+    // 4 membros enfileirados com idle senoidal (D-07: reuso padrão batalha.js:231).
+    // Maiores (esc 9), com sombra no piso + contorno escuro, pés fixos no piso e
+    // só o corpo balançando — legíveis sobre o palco escuro (UAT Fase 3).
     const tiposMembro = membros && membros.length === 4
       ? membros.map((m) => m.tipo)
       : ["guitarrista", "vocalista", "baterista", "baixista"];
     const nMembros = tiposMembro.length;
-    const SPRITE_ESC = 6;
+    const SPRITE_ESC = 9;
     const spriteW = 7 * SPRITE_ESC;
-    const espacoTotal = largura;
-    const gap = Math.floor((espacoTotal - nMembros * spriteW) / (nMembros + 1));
-    const yMembro = Math.floor(altura * 0.72) - 8 * SPRITE_ESC;
+    const gap = Math.floor((largura - nMembros * spriteW) / (nMembros + 1));
 
     for (let i = 0; i < nMembros; i++) {
+      const tipo = tiposMembro[i];
+      const esc = (tipo === "baixista") ? SPRITE_ESC * 0.8 : SPRITE_ESC;
+      const altSprite = 8 * esc;
       const mX = gap + i * (spriteW + gap);
-      const balanco = Math.sin(frame / 90 + i * 1.7) * 4;
+      const balanco = Math.sin(frame / 90 + i * 1.7) * 3;
+
+      // Sombra no piso — fixa (não acompanha o balanço), pra "ancorar" o membro.
       ctx.save();
-      ctx.translate(mX, yMembro + balanco);
-      desenharMembro(ctx, tiposMembro[i], SPRITE_ESC);
+      ctx.fillStyle = "rgba(0,0,0,0.45)";
+      ctx.beginPath();
+      ctx.ellipse(mX + spriteW / 2, pisoY + 3, spriteW * 0.42, 5, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+
+      // Membro: pés no piso (alinhados à sombra), corpo balança de leve.
+      ctx.save();
+      ctx.translate(mX, pisoY - altSprite + balanco);
+      desenharMembroDestacado(ctx, tipo, SPRITE_ESC);
       ctx.restore();
     }
 
@@ -1045,6 +1080,27 @@
     return { predios, larguraTile };
   })();
 
+  // Estrelas do céu — pré-computadas com seed (Pitfall 4: nada de Math.random no
+  // draw). Camada mais ao fundo: parallax bem lento (0.06×) e tile contínuo.
+  // syPct = fração da altura (só no céu alto), pra não cair na rua/prédios.
+  const ESTRELAS = (function () {
+    const estrelas = [];
+    let s = 0x9e3779b1;
+    function rand() { s = (Math.imul(s, 1664525) + 1013904223) >>> 0; return s / 0xFFFFFFFF; }
+    const larguraTile = JANELAS_SKYLINE.larguraTile;   // mesmo tile do skyline
+    const n = 64;
+    for (let i = 0; i < n; i++) {
+      const sx = Math.floor(rand() * larguraTile);
+      const syPct = 0.03 + rand() * 0.42;              // céu alto: 3%–45% da altura
+      const r = rand();
+      const tam = r > 0.9 ? 2 : 1;                     // maioria 1px, poucas 2px
+      const cor = r > 0.82 ? "#ffe9b0" : (r > 0.5 ? "#cdd2ff" : "#ece6f5"); // âmbar/azul/branco
+      const brilho = 0.45 + rand() * 0.5;              // alpha
+      estrelas.push({ sx, syPct, tam, cor, brilho });
+    }
+    return { estrelas, larguraTile };
+  })();
+
   // desenharFundo(ctx, largura, altura, scrollX)
   // Guard: se ctx for null/undefined, retorna imediatamente sem erro.
   function desenharFundo(ctx, largura, altura, scrollX) {
@@ -1068,6 +1124,24 @@
       ctx.fillStyle = f.cor;
       ctx.fillRect(0, f.y, largura, fh);
     }
+
+    // Camada 0.5: estrelas no céu — atrás do skyline, parallax bem lento (0.06×).
+    const ofsEstrelas = -((scrollX * 0.06) % ESTRELAS.larguraTile);
+    ctx.save();
+    for (let tile = 0; tile < 3; tile++) {
+      const tx = ofsEstrelas + tile * ESTRELAS.larguraTile;
+      for (const e of ESTRELAS.estrelas) {
+        const ex = e.sx + tx;
+        if (ex < -2 || ex > largura + 2) continue;
+        const ey = Math.floor(altura * e.syPct);
+        if (ey >= alturaCeu - 4) continue;   // nunca sobre a rua/calçada
+        ctx.globalAlpha = e.brilho;
+        ctx.fillStyle = e.cor;
+        ctx.fillRect(Math.floor(ex), ey, e.tam, e.tam);
+      }
+    }
+    ctx.globalAlpha = 1;
+    ctx.restore();
 
     // Camada 1: skyline — prédios com janelas âmbar, parallax 0.2× (tile seamless)
     const offsetX = -((scrollX * 0.2) % JANELAS_SKYLINE.larguraTile);
