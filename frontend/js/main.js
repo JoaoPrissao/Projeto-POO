@@ -718,17 +718,22 @@ async function abrirOverworld() {
 
 // Entrar numa venue → arma o show no backend e monta a arena de batalha.
 async function entrarNaVenue(venue) {
-  pararRegen();            // regen é só na estrada (nunca em batalha)
+  // Guarda a posição com o mapa AINDA VIVO, mas NÃO desliga o overworld antes de
+  // confirmar a entrada: se o backend recusar (gate de fama, venue bloqueada por
+  // derrota, id inválido), o jogador precisa continuar andando no mapa. Desligar
+  // cedo deixava o overworld na tela porém morto (sem loop nem teclado) — travava.
   if (owHandle) {
     await window.pywebview.api.registrar_posicao(owHandle.mundo.estado.banda.x);
-    owHandle.desligar();
   }
   venueAtual = venue;
   const estado = await window.pywebview.api.entrar_no_show(venue.id);
-  if (estado.ok === false) {            // venue bloqueada/ inválida → fica no mapa
+  if (estado.ok === false) {            // venue bloqueada/inválida → fica no mapa (loop segue vivo)
+    venueAtual = null;
     avisoOverworld(`⚠️ ${estado.erro.mensagem}`);
     return;
   }
+  pararRegen();            // regen é só na estrada (nunca em batalha)
+  if (owHandle) owHandle.desligar();   // só agora: o show está confirmado
   transicionar(() => { mostrarTela("tela-show"); });
   atualizarBadgeFama();    // VIS-03: badge da batalha reflete fama ao entrar no show
   $("#btn-voltar-mapa").hidden = true;
