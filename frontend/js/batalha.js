@@ -111,9 +111,14 @@
     });
   }
 
+  // ── Música no-op (fallback quando opts.musica não é injetado) ───────────────
+  function musicaNulo() {
+    return { tocarTema() {}, parar() {}, duck() {}, retoma() {}, aplicarMute() {} };
+  }
+
   // ── Núcleo (shell injetável) ────────────────────────────────────────────────
   // opts: { ctx, api, jogarRitmo, estado, corPorTipo, agora, agendarFrame,
-  //         aoAtualizar, aoFim, aoLog, aoPausar, aoLuta, aoSfx }
+  //         aoAtualizar, aoFim, aoLog, aoPausar, aoLuta, aoSfx, musica }
   function criarBatalha(opts) {
     const ctx = opts.ctx || null;
     const api = opts.api;
@@ -130,6 +135,8 @@
     // VIS-02: callback de SFX — aoSfx(nome) dispara audio[nome]().
     // Agnóstico do DOM/áudio: a batalha só chama o callback, main.js injeta.
     const aoSfx = opts.aoSfx || function () {};
+    // D-05/REQ3: instância de música injetável; fallback no-op garante zero throw
+    const musica = opts.musica || musicaNulo();
 
     let estado = opts.estado;
     let selecionado = 0;
@@ -404,6 +411,8 @@
       introT = INTRO_TOTAL_MS;
       turno = "banda";
       timerIdle = CONFIG.IDLE_MS;
+      // D-05/REQ3: toca o tema da venue 1× ao iniciar a luta (≤1 loop — REQ4)
+      musica.tocarTema(venueId);
       // D-13: intro dramática d'O Empresário na arena (~2s com input bloqueado)
       if (venueId === "arena") { introAtiva = true; introAtivaT = 0; }
       emitirLuta();
@@ -550,6 +559,8 @@
       if (encerrado) return;
       encerrado = true;
       fase = "fim";
+      // D-05: para o tema em vitória E derrota (antes dos SFX/partículas)
+      musica.parar();
       // VIS-02: SFX + partículas musicais na vitória
       if (resultado === "vitoria") {
         aoSfx("vitoria");
@@ -613,6 +624,7 @@
   // ── Entrada de produção: liga canvas + teclado + minigame real ──────────────
   function montar({ canvas, api, estado, corPorTipo,
                     venueId,  // D-10/D-11/D-12/D-13: venue para cenário, skin e intro
+                    musica,   // D-05: instância de RitmoMusica injetada por main.js
                     aoAtualizar, aoFim, aoLog, aoPausar, aoLuta, aoSelecionar, aoSfx } = {}) {
     const ctx = canvas ? canvas.getContext("2d") : null;
     if (canvas) { canvas.width = CONFIG.LARGURA; canvas.height = CONFIG.ALTURA; }
@@ -621,7 +633,7 @@
       : (() => Promise.resolve(null));
 
     const batalha = criarBatalha({
-      ctx, api, jogarRitmo, estado, corPorTipo, venueId,
+      ctx, api, jogarRitmo, estado, corPorTipo, venueId, musica,
       aoAtualizar, aoFim, aoLog, aoPausar, aoLuta, aoSelecionar, aoSfx,
     });
 
