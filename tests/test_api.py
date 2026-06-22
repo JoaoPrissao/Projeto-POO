@@ -143,6 +143,22 @@ def test_nova_campanha_zera_bloqueios_de_derrota():
     assert res.get("ok") is not False
 
 
+def test_entrar_arena_bloqueada_por_fama_vira_erro_dto():
+    # Gate de progressão (UAT Fase 3): banda recém-criada tem fama 0 < 3.
+    api = _api_com_banda()
+    res = api.entrar_no_show("arena")
+    assert res["ok"] is False
+    assert res["erro"]["tipo"] == "VenueFamaInsuficienteError"
+
+
+def test_entrar_arena_liberada_apos_vencer_bar_e_feira():
+    api = _api_com_banda()
+    api.concluir_venue("bar")        # +1 fama
+    api.concluir_venue("feira")      # +2 fama → fama 3 libera a Arena
+    res = api.entrar_no_show("arena")
+    assert res.get("ok") is not False
+
+
 # ── sair (menu principal → Sair) ──────────────────────────────────────────────
 
 def test_sair_sem_janela_retorna_erro_dto():

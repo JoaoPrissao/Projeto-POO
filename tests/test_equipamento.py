@@ -187,7 +187,7 @@ def test_equipar_move_do_inventario_pro_slot():
     assert [e["nome"] for e in m0["equipados"]] == ["Pedal de Efeito"]
     assert m0["inventario"] == []
     g0 = api._gerenciador.listar_jogadores()[0]
-    assert g0.bonus_equipamento("forca") == 5
+    assert g0.bonus_equipamento("forca") == 7   # pedal +7 (UAT Fase 3)
 
 
 def test_equipar_incompativel_vira_erro_dto_e_item_fica_no_inventario():
@@ -234,4 +234,4 @@ def test_save_load_preserva_equipados_via_api(tmp_path):
     res = api2.obter_equipamento()
     assert [e["nome"] for e in res["banda"][0]["equipados"]] == ["Pedal de Efeito"]
     g0 = api2._gerenciador.listar_jogadores()[0]
-    assert g0.bonus_equipamento("forca") == 5
+    assert g0.bonus_equipamento("forca") == 7   # pedal +7 (UAT Fase 3)

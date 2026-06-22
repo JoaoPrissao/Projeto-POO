@@ -292,6 +292,7 @@ class API:
         camp = self._garantir_campanha()
         if camp.venue_bloqueada(venue_id):           # cooldown após derrota
             raise VenueBloqueadaError(venue_id, camp.segundos_bloqueio(venue_id))
+        camp.checar_fama_venue(venue_id)             # gate de progressão → VenueFamaInsuficienteError
         venue = camp.get_venue(venue_id)             # VenueInvalidaError → ErroDTO
         capanga = venue["capanga"]
         boss = Empresario(capanga["nome"], hp=int(capanga["hp"]), dano=int(capanga["dano"]))

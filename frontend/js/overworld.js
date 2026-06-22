@@ -252,8 +252,15 @@
         ctx.font = "12px monospace";
         ctx.textAlign = "center";
         ctx.fillText(v.nome || "Venue", px, C.CHAO_Y - venueH - 8);
-        if (!v.concluida && venuePerto() && venuePerto().id === v.id) {
-          ctx.fillText("[W] entrar", px, C.CHAO_Y - venueH - 20);
+        if (!v.concluida) {
+          if (v.liberada === false) {
+            // Gate de progressão (UAT Fase 3): cadeado de fama visível de longe.
+            ctx.fillStyle = "#d4921e";
+            ctx.fillText(`🔒 fama ${v.fama_minima}`, px, C.CHAO_Y - venueH - 20);
+            ctx.fillStyle = "#ece6f5";
+          } else if (venuePerto() && venuePerto().id === v.id) {
+            ctx.fillText("[W] entrar", px, C.CHAO_Y - venueH - 20);
+          }
         }
       }
       // Loja (F3.8) — sprite pixel art (prédio azul com letreiro dourado).

@@ -157,6 +157,7 @@ def test_ataque_especial_indisponivel_vira_erro_dto():
 
 def test_ataque_especial_disponivel_danifica_o_boss():
     api = _api_com_banda()
+    api._garantir_campanha().ganhar_fama(3)       # gate de progressão: libera a Arena (UAT Fase 3)
     arena = api.obter_campanha()["venues"][-1]    # vilão mais resistente (aguenta 4 ataques)
     api.entrar_no_show(arena["id"])
     # 4 ataques perfeitos liberam o especial (cada perfeito também atordoa, então

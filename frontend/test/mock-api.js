@@ -30,9 +30,10 @@
     { id: "bar",   x: 420,  nome: "Bar do Zé", fama: 1, xp_recompensa: 70,  drop: "energetico",
       capanga: { nome: "Capanga do Bar", hp: 180, dano: 18 } },
     { id: "feira", x: 980,  nome: "Feira Punk", fama: 2, xp_recompensa: 130, drop: "pedal",
-      capanga: { nome: "Roadie Valentão", hp: 340, dano: 28 } },
+      capanga: { nome: "Roadie Valentão", hp: 400, dano: 28 } },
     { id: "arena", x: 1600, nome: "Arena — O Empresário", fama: 3, xp_recompensa: 240, drop: "amplificador",
-      capanga: { nome: "O Empresário", hp: 600, dano: 40 } },
+      fama_minima: 3,   // gate de progressão (UAT Fase 3)
+      capanga: { nome: "O Empresário", hp: 750, dano: 50 } },
   ];
   const ITENS = [
     { id: "i1", x: 250,  tipo: "energetico" },
@@ -71,6 +72,9 @@
         concluida: progresso.concluidas.has(v.id),
         bloqueada: progresso.bloqueios.has(v.id),
         bloqueada_seg: progresso.bloqueios.has(v.id) ? 30 * v.fama : 0,
+        // Gate de progressão (UAT Fase 3): espelha campanha.listar_venues().
+        fama_minima: v.fama_minima || 0,
+        liberada: progresso.fama_banda >= (v.fama_minima || 0),
       })),
       itens: ITENS.map((i) => ({ ...i, coletado: progresso.coletados.has(i.id) })),
       posicao: progresso.posicao,
@@ -143,6 +147,9 @@
         if (!v) return Promise.resolve({ ok: false, erro: { tipo: "VenueInvalidaError", mensagem: "venue inválida" } });
         if (progresso.bloqueios.has(venueId))
           return Promise.resolve({ ok: false, erro: { tipo: "VenueBloqueadaError", mensagem: "venue bloqueada" } });
+        if (progresso.fama_banda < (v.fama_minima || 0))   // gate de progressão (UAT Fase 3)
+          return Promise.resolve({ ok: false, erro: { tipo: "VenueFamaInsuficienteError",
+            mensagem: `A turnê ainda não chegou na Arena: exige fama >= ${v.fama_minima}. Vença os outros vilões primeiro!` } });
         batalha = { banda: bandaMock(), boss: { id: "empresario", nome: v.capanga.nome, hp: v.capanga.hp, hp_maximo: v.capanga.hp } };
         perfeitosSeguidos = 0; bossAtordoado = false;
         return Promise.resolve(estadoDaBatalha("banda", null));

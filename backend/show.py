@@ -109,7 +109,14 @@ class Show:
         if modo_refrao:
             mult *= 1.5
 
-        dano_final = max(1, int((dano_base + ego_bonus) * mult * mult_extra * self._mult_banda))
+        # Nível também reforça o ataque (UAT Fase 3): +10% de dano por nível acima
+        # de 1. Nível 1 ⇒ 1.0 (sem regressão). Progressão deixa a banda mais forte
+        # ofensivamente, não só em HP.
+        nivel = getattr(musico, "get_nivel", lambda: 1)()
+        nivel_mult = 1.0 + (max(1, nivel) - 1) * 0.10
+
+        dano_final = max(1, int((dano_base + ego_bonus) * mult * mult_extra
+                                * self._mult_banda * nivel_mult))
         critico = getattr(musico, 'foi_virada_de_bateria', lambda: False)()
         return {
             "dano": dano_final, "dano_base": dano_base, "critico": critico,

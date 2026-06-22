@@ -139,3 +139,16 @@ class FamaInsuficienteError(CampanhaError):
         self.bau_id = bau_id
         self.fama_minima = fama_minima
         self.fama_atual = fama_atual
+
+
+class VenueFamaInsuficienteError(CampanhaError):
+    """Gate de progressão: a venue exige uma fama mínima (vencer shows anteriores)
+    antes de poder ser encarada. A Arena (O Empresário) exige fama >= 3 = bar+feira."""
+    def __init__(self, venue_id, fama_minima: int, fama_atual: int):
+        super().__init__(
+            f"A turnê ainda não chegou em '{venue_id}': exige fama >= {fama_minima} "
+            f"(fama atual: {fama_atual}). Vença os outros vilões primeiro!"
+        )
+        self.venue_id = venue_id
+        self.fama_minima = fama_minima
+        self.fama_atual = fama_atual

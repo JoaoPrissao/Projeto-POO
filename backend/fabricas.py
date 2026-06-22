@@ -55,7 +55,7 @@ class ItemFactory:
             kw.get("nome", "Pedal de Efeito"),
             kw.get("descricao", "Turboalimenta o som da guitarra."),
             atributo="forca",
-            bonus=kw.get("bonus", 5),
+            bonus=kw.get("bonus", 7),   # UAT Fase 3: drop pesa mais (era 5)
             classes_permitidas=("Guitarrista", "Baixista"),
         ),
         "amplificador": lambda **kw: Equipavel(
@@ -107,14 +107,14 @@ class ItemFactory:
             kw.get("nome", "Partitura Mágica"),
             kw.get("descricao", "Anotações de um maestro louco. Aguça a inteligência do vocalista."),
             atributo="inteligencia",
-            bonus=kw.get("bonus", 6),
+            bonus=kw.get("bonus", 8),   # UAT Fase 3: drop pesa mais (era 6)
             classes_permitidas=("Vocalista",),   # específico para Vande
         ),
         "oculos_do_ritmo": lambda **kw: Equipavel(
             kw.get("nome", "Óculos do Ritmo"),
             kw.get("descricao", "Lentes calibradas no pulso perfeito. Amplifica a agilidade do baterista."),
             atributo="agilidade",
-            bonus=kw.get("bonus", 5),
+            bonus=kw.get("bonus", 7),   # UAT Fase 3: drop pesa mais (era 5)
             classes_permitidas=("Baterista",),   # específico para Ramiro
         ),
         "microfone_de_ouro": lambda **kw: Equipavel(

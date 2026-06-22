@@ -18,7 +18,8 @@ save/load — inclusive os bloqueios (guardados como timestamps absolutos).
 import math
 import time
 
-from excecoes import VenueInvalidaError, ItemMapaInvalidoError, NpcInvalidoError, BauInvalidoError, FamaInsuficienteError
+from excecoes import (VenueInvalidaError, ItemMapaInvalidoError, NpcInvalidoError,
+                      BauInvalidoError, FamaInsuficienteError, VenueFamaInsuficienteError)
 
 
 # Turnê padrão — vilões progressivamente mais duros (exigem evoluir nível/itens).
@@ -37,10 +38,13 @@ _VENUES_PADRAO = [
      "capanga": {"nome": "Capanga do Bar", "hp": 180, "dano": 18}},
     {"id": "feira", "x": 980,  "nome": "Feira Punk",
      "fama": 2, "xp_recompensa": 130, "cache_recompensa": 120, "drop": "oculos_do_ritmo",
-     "capanga": {"nome": "Roadie Valentão", "hp": 340, "dano": 28}},
+     "capanga": {"nome": "Roadie Valentão", "hp": 400, "dano": 28}},
     {"id": "arena", "x": 1600, "nome": "Arena — O Empresário",
      "fama": 3, "xp_recompensa": 240, "cache_recompensa": 250, "drop": "pedal",
-     "capanga": {"nome": "O Empresário", "hp": 600, "dano": 40}},
+     # Gate de progressão (UAT Fase 3): só dá pra encarar o Empresário com
+     # fama >= 3 (bar=1 + feira=2). Vilão mais duro pra exigir nível/equipamento.
+     "fama_minima": 3,
+     "capanga": {"nome": "O Empresário", "hp": 750, "dano": 50}},
 ]
 _ITENS_PADRAO = [
     {"id": "i1", "x": 250,  "tipo": "energetico"},
@@ -126,7 +130,10 @@ class Campanha:
         return [{**v,
                  "concluida": v["id"] in self._concluidas,
                  "bloqueada": self.venue_bloqueada(v["id"], agora),
-                 "bloqueada_seg": self.segundos_bloqueio(v["id"], agora)}
+                 "bloqueada_seg": self.segundos_bloqueio(v["id"], agora),
+                 # Gate de progressão (UAT Fase 3): fama mínima e se já está liberada.
+                 "fama_minima": v.get("fama_minima", 0),
+                 "liberada": self._fama_banda >= v.get("fama_minima", 0)}
                 for v in self._venues]
 
     def listar_itens(self) -> list:
@@ -163,6 +170,19 @@ class Campanha:
         v = self.get_venue(venue_id)        # valida (→ VenueInvalidaError)
         return {"xp": v.get("xp_recompensa", 0), "drop": v.get("drop"),
                 "cache": v.get("cache_recompensa", 0)}
+
+    def venue_liberada(self, venue_id: str) -> bool:
+        """Gate de progressão (UAT Fase 3): True se a fama da banda alcança a
+        fama_minima da venue (0/ausente = sempre liberada)."""
+        fama_min = self.get_venue(venue_id).get("fama_minima", 0)  # valida o id
+        return self._fama_banda >= fama_min
+
+    def checar_fama_venue(self, venue_id: str) -> None:
+        """Verifica o gate de fama da venue SEM efeitos colaterais. Levanta
+        VenueFamaInsuficienteError se a fama da banda for insuficiente."""
+        fama_min = self.get_venue(venue_id).get("fama_minima", 0)  # valida o id
+        if self._fama_banda < fama_min:
+            raise VenueFamaInsuficienteError(venue_id, fama_min, self._fama_banda)
 
     # ── Cachê (F3.7 — economia: dinheiro por show, gasto na loja) ────
 

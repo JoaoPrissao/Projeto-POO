@@ -109,5 +109,5 @@ def test_move_de_item_funciona_apos_equipar_via_api():
     assert any(mv["id"] == "solo_distorcido" for mv in m0["moves"])
     res = api.executar_acao({"indice": 0, "move_id": "solo_distorcido"})
     assert res["ok"] is True
-    # forca efetiva 15 → base 22; mult do move 1.6 → 35
-    assert res["dano"] == int(int((10 + 5) * 1.5) * 1.6)
+    # forca efetiva 17 (base 10 + pedal 7) → base 25; mult do move 1.6 → 40 (UAT Fase 3)
+    assert res["dano"] == int(int((10 + 7) * 1.5) * 1.6)
