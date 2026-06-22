@@ -111,16 +111,34 @@
     // venueId padrão = "bar" (não-arena): em produção criarBatalha SEMPRE recebe
     // venueId; sem ele, o default "arena" liga a intro dramática (D-13) e bloqueia
     // atacar(). Testes da arena podem passar venueId: "arena" explicitamente.
+    // o.musica: spy de música injetável (D-07/REQ3/REQ4 — Task 5).
     function mk(estado, o) {
       o = o || {};
       const b = B.criarBatalha({
         ctx: null, estado, api: o.api, jogarRitmo: o.jogarRitmo || ritmoOk,
         venueId: o.venueId || "bar",
+        musica: o.musica || undefined,
         aoFim: o.aoFim || function () {}, aoAtualizar: o.aoAtualizar || function () {},
         aoPausar: o.aoPausar, aoLuta: o.aoLuta, aoSelecionar: o.aoSelecionar,
       });
       if (!o.comIntro) b.pularIntro();
       return b;
+    }
+
+    // Spy de música: registra todas as chamadas (D-07/REQ3/REQ4).
+    function musicaSpy() {
+      const tocarTemaLog = [];
+      const pararLog = [];
+      const duckLog = [];
+      return {
+        tocarTema(id) { tocarTemaLog.push(id); },
+        parar()       { pararLog.push(true); },
+        duck()        { duckLog.push("duck"); },
+        retoma()      { duckLog.push("retoma"); },
+        aplicarMute() {},
+        // Expõe logs para inspeção nos testes
+        _logs: { tocarTemaLog, pararLog, duckLog },
+      };
     }
     // Ataca e deixa o vilão revidar (turno completo: banda → vilão → banda).
     async function atacarERevidar(b, moveIdx) {
@@ -466,6 +484,72 @@
       await b.atacar();
       checar("hud: aoAtualizar viu o boss com HP menor",
         vistos[vistos.length - 1] < 90, true);
+    }
+
+    // ── 21. Tema por venue — tocarTema/parar via spy de musica (REQ3/REQ4) ─────
+    {
+      // Caso 21a: tocarTema(venueId) chamado 1× ao montar, com a venue correta
+      {
+        const est = estadoBase();
+        const api = fakeApi(est);
+        const spy = musicaSpy();
+        mk(est, { api, musica: spy, venueId: "feira" });
+        checar("tema: tocarTema(venueId) 1× ao montar — venue correta",
+          spy._logs.tocarTemaLog, ["feira"]);
+      }
+
+      // Caso 21b: ≤ 1 loop (sem 2º tocarTema sem parar)
+      {
+        const est = estadoBase();
+        const api = fakeApi(est);
+        const spy = musicaSpy();
+        mk(est, { api, musica: spy, venueId: "bar" });
+        checar("tema: ≤ 1 loop (tocarTemaLog.length === 1 após montar)",
+          spy._logs.tocarTemaLog.length, 1);
+      }
+
+      // Caso 21c: vitória chama parar()
+      {
+        const est = estadoBase({ boss: { id: "capanga", nome: "Capanga", hp: 5, hp_maximo: 100 } });
+        const api = fakeApi(est, { danoBoss: 100 });
+        const spy = musicaSpy();
+        const aoFimLog = [];
+        const b = mk(est, { api, musica: spy, venueId: "bar", aoFim: (r) => aoFimLog.push(r) });
+        await b.atacar(0);
+        checar("tema: vitória chama parar()", spy._logs.pararLog.length >= 1, true);
+      }
+
+      // Caso 21d: derrota chama parar()
+      {
+        const est = estadoBase({
+          banda: [
+            membro(0, "guitarrista", "Aldric", 1),
+            membro(1, "vocalista", "Selene", 1),
+            membro(2, "baixista", "Paul", 1),
+          ],
+        });
+        const api = fakeApi(est, { danoMembro: 200, alvo: 0 });
+        const spy = musicaSpy();
+        const b = mk(est, { api, musica: spy, venueId: "arena" });
+        // O vilão age imediatamente via IDLE_MS → vamos forçar o turno do vilão
+        await b.atacar(0);
+        await b.passo(VDELAY);
+        // Após o vilão agir com danoMembro=200, todos morrem → derrota → parar()
+        checar("tema: derrota chama parar() (pararLog >= 1)",
+          spy._logs.pararLog.length >= 1, true);
+      }
+
+      // Caso 21e: sem musica injetada, harnesses existentes não quebram (musicaNulo)
+      {
+        const est = estadoBase();
+        const api = fakeApi(est);
+        let lançou = false;
+        try {
+          const b = mk(est, { api, venueId: "bar" });
+          await b.atacar(0);
+        } catch (e) { lançou = true; }
+        checar("tema: sem musica injetada → nenhum throw (musicaNulo)", lançou, false);
+      }
     }
 
     // ── Relatório ──────────────────────────────────────────────────────────────

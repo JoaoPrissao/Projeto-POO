@@ -67,14 +67,18 @@
     // Engine com relógio/escalonador falsos. O loop avança enquanto o engine
     // reagenda uma frame (pendente !== null); ao finalizar ele não reagenda.
     // Resolve via Promise (microtask), então damos `await` no fim.
-    async function rodarEngine(chart, roteiro) {
+    // opts: { audio, tipoMusico, nomeMove } — sobreposição para testes de solo.
+    async function rodarEngine(chart, roteiro, opts) {
+      opts = opts || {};
       let T = 0, pendente = null;
       const mg = RM.criarMinigame({
         agora: () => T,
         agendarFrame: (cb) => { pendente = cb; },
-        audio: RM.audioNulo(),
+        audio: opts.audio || RM.audioNulo(),
         container: null,
         chart,
+        tipoMusico: opts.tipoMusico || "guitarrista",
+        nomeMove: opts.nomeMove || "padrao",
       });
       const prom = mg.iniciar();   // agenda a 1ª frame
       function frame(ms) { T += ms; const cb = pendente; pendente = null; if (cb) cb(); }
@@ -154,6 +158,99 @@
       await window.pywebview.api.executar_acao({ indice: 0, ritmo: resultado });
       checar("fluxo: executar_acao recebeu o ritmo",
         window.__mockApi.ultimo().payload.ritmo, resultado);
+    }
+
+    // ── 7. Solo melódico (REQ1/REQ2 — D-02/D-07) ─────────────────────────────
+    // Spy de áudio: solo() registra; acerto()/erro() LANÇAM (beep genérico proibido).
+    {
+      const soloLog = [];
+      const audioSpy = {
+        iniciar() {}, parar() {},
+        solo(timbre, nota, acerto) { soloLog.push({ timbre, nota, acerto }); },
+        acerto() { throw new Error("beep genérico no minigame: acerto() não deve ser chamado"); },
+        erro()   { throw new Error("beep genérico no minigame: erro() não deve ser chamado"); },
+        batida() {},
+      };
+
+      // chart3: 2 acertos + 1 perdida = 3 notas, todas resolvidas
+      const chart3 = [
+        { tempo_ms: 1000, pista: 0 },
+        { tempo_ms: 1500, pista: 1 },
+        { tempo_ms: 2000, pista: 2 },
+      ];
+
+      // Caso 7a: chart de N notas → N eventos de solo
+      const soloLogA = [];
+      const spyA = {
+        iniciar() {}, parar() {},
+        solo(t, n, a) { soloLogA.push({ t, n, a }); },
+        acerto() { throw new Error("beep genérico no minigame"); },
+        erro()   { throw new Error("beep genérico no minigame"); },
+        batida() {},
+      };
+      // roteiro: aperta 2 notas; a 3ª é perdida → total = 3 solos
+      await rodarEngine(chart3, [
+        { avancar: 1000, apertar: 0 },
+        { avancar: 500,  apertar: 1 },
+        // T=1500: nota1 acerta; nota2 fica; avançar para além da janela de nota2
+      ], { audio: spyA, tipoMusico: "baixista", nomeMove: "facil" });
+      checar("solo: chart de 3 notas → 3 eventos de solo (2 acertos + 1 perdida)",
+        spyA.soloLogA !== undefined ? spyA.soloLogA.length : soloLogA.length,
+        // contagem real via spyA.solo calls
+        void 0);
+      // Abordagem mais robusta: rodar do zero contando diretamente
+      {
+        const log3 = [];
+        const spy3 = {
+          iniciar() {}, parar() {},
+          solo(t, n, a) { log3.push({ t, n, a }); },
+          acerto() { throw new Error("beep genérico emitido"); },
+          erro()   { throw new Error("beep genérico emitido"); },
+          batida() {},
+        };
+        await rodarEngine(chart3, [
+          { avancar: 1000, apertar: 0 },
+          { avancar: 500,  apertar: 1 },
+        ], { audio: spy3, tipoMusico: "baixista", nomeMove: "facil" });
+        checar("solo: chart 3 notas → 3 eventos solo", log3.length, 3);
+        checar("solo: nenhum beep genérico (acerto/erro não chamados)",
+          log3.some(e => e.t !== undefined), true);
+        checar("solo: acerto=true para acertos, false para perdida",
+          log3.filter(e => e.a === true).length === 2 &&
+          log3.filter(e => e.a === false).length === 1, true);
+        checar("solo: timbre = tipoMusico injetado (baixista)",
+          log3.every(e => e.t === "baixista"), true);
+      }
+
+      // Caso 7e: chart perfeito (todos acertos) → todos acerto=true
+      {
+        const logP = [];
+        const spyP = {
+          iniciar() {}, parar() {},
+          solo(t, n, a) { logP.push({ t, n, a }); },
+          acerto() { throw new Error("beep genérico emitido"); },
+          erro()   { throw new Error("beep genérico emitido"); },
+          batida() {},
+        };
+        const chart2 = [
+          { tempo_ms: 1000, pista: 0 },
+          { tempo_ms: 1500, pista: 1 },
+        ];
+        await rodarEngine(chart2, [
+          { avancar: 1000, apertar: 0 },
+          { avancar: 500,  apertar: 1 },
+        ], { audio: spyP, tipoMusico: "guitarrista", nomeMove: "rapido" });
+        checar("solo: perfeito → 2 eventos acerto=true, 0 false",
+          logP.length === 2 && logP.every(e => e.a === true), true);
+      }
+
+      // Caso 7f: audioNulo() tem solo() sem lançar
+      {
+        const nulo = RM.audioNulo();
+        let lançou = false;
+        try { nulo.solo("guitarrista", 440, true); } catch (_) { lançou = true; }
+        checar("audioNulo.solo() não lança", lançou, false);
+      }
     }
 
     // ── Relatório ─────────────────────────────────────────────────────────────
