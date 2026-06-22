@@ -274,6 +274,10 @@
       ? window.RitmoAudio.criar()
       : audioNulo();
 
+    // D-05: duck/retoma do tema via ponteiro compartilhado (contrato fixo: _instancia).
+    // Leitura defensiva — no-op se main.js não expôs a instância (harness/JSDOM).
+    const _musicaRef = (window.RitmoMusica && window.RitmoMusica._instancia) || null;
+
     const mg = criarMinigame({
       agora: () => performance.now(),
       agendarFrame: (cb) => requestAnimationFrame(cb),
@@ -301,10 +305,15 @@
     if (pistas) pistas.addEventListener("click", onClickPista);
     if (overlay) overlay.classList.add("aberto");
 
+    // D-05: duck do tema antes de abrir o minigame (no-op se sem música)
+    if (_musicaRef && _musicaRef.duck) _musicaRef.duck();
+
     return mg.iniciar().finally(() => {
       window.removeEventListener("keydown", onKey);
       if (pistas) pistas.removeEventListener("click", onClickPista);
       if (overlay) overlay.classList.remove("aberto");
+      // D-05: retoma o tema ao fechar o minigame (no-op se sem música)
+      if (_musicaRef && _musicaRef.retoma) _musicaRef.retoma();
     });
   }
 
