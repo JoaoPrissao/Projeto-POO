@@ -52,6 +52,21 @@
                              pistas: [2, 0, 3, 1, 1, 3, 0, 2, 3, 0] }),
   };
 
+  // ── Melodias por move (D-02) — escala pentatônica menor de Lá ────────────────
+  // Cada nota do chart toca MELODIAS[nomeMove][indice % seq.length] em Hz.
+  // Cicla com módulo: chart mais longo que a sequência volta ao início.
+  const MELODIAS = {
+    padrao:    [440, 494, 523, 440, 392, 440, 523, 494],
+    facil:     [330, 392, 440, 392],
+    constante: [440, 392, 349, 392, 440, 494, 523, 494, 440, 392, 330, 392, 440, 392],
+    rapido:    [523, 587, 659, 587, 523, 494, 440, 494, 523, 587, 659, 784, 659, 587, 523, 494, 440, 392],
+    pesado:    [220, 262, 294, 220, 220, 262, 294, 330, 294, 262, 220, 294, 262, 220, 294, 220],
+    denso:     [440, 523, 587, 659, 587, 523, 440, 392, 330, 294, 330, 392, 440, 523, 587, 659, 784, 659, 587, 523, 440, 392],
+    sincopado: [294, 440, 294, 523, 330, 494, 330, 587, 294, 440, 294, 523, 330, 494, 330, 587],
+    sustentada:[220, 294, 330, 392, 440, 392, 330, 294, 220, 262],
+    caotico:   [659, 294, 784, 330, 523, 220, 587, 440, 294, 659, 440, 523, 330, 784, 220, 587, 440, 330, 659, 523],
+  };
+
   // ── Pontuação pura (sem timing, sem DOM) ────────────────────────────────────
   function criarPlacar(totalNotas) {
     let acertos = 0;
@@ -78,7 +93,8 @@
   }
 
   // ── Engine (shell injetável) ────────────────────────────────────────────────
-  // opts: { agora, agendarFrame, audio, container, cor, chart, aoAtualizar }
+  // opts: { agora, agendarFrame, audio, container, cor, chart, aoAtualizar,
+  //         tipoMusico, nomeMove }
   function criarMinigame(opts) {
     const agora = opts.agora;
     const agendarFrame = opts.agendarFrame;
@@ -86,6 +102,8 @@
     const chart = opts.chart || CHART;
     const aoAtualizar = opts.aoAtualizar || function () {};
     const cor = opts.cor || "#e0457b";
+    const tipoMusico = opts.tipoMusico || "guitarrista";
+    const nomeMove = opts.nomeMove || "padrao";
 
     const placar = criarPlacar(chart.length);
     const notas = chart.map((n, i) => ({
@@ -96,6 +114,13 @@
       el: null,
     }));
     const ultimoTempo = notas.reduce((m, n) => Math.max(m, n.tempoAlvo), 0);
+
+    // ── Melodia por move (D-02): índice avança a cada nota (acerto E erro) ──
+    let _indiceMelodia = 0;
+    function _proximaNota() {
+      const seq = MELODIAS[nomeMove] || MELODIAS.padrao;
+      return seq[_indiceMelodia++ % seq.length];
+    }
 
     let t0 = null;
     let rodando = false;
@@ -158,7 +183,7 @@
       if (alvo) {
         alvo.resolvida = true;
         placar.acerto();
-        audio.acerto();
+        audio.solo(tipoMusico, _proximaNota(), true);
         marcar(alvo, "acerto");
         aoAtualizar(placar.estado);
       }
@@ -180,7 +205,7 @@
         if (t > nota.tempoAlvo + CONFIG.JANELA_MS) {
           nota.resolvida = true;
           placar.erro();
-          audio.erro();
+          audio.solo(tipoMusico, _proximaNota(), false);
           marcar(nota, "erro");
         }
       }
@@ -226,7 +251,7 @@
   // ── Áudio no-op (default e modo teste) ──────────────────────────────────────
   function audioNulo() {
     return {
-      iniciar() {}, parar() {}, acerto() {}, erro() {}, batida() {},
+      iniciar() {}, parar() {}, acerto() {}, erro() {}, batida() {}, solo() {},
     };
   }
 
@@ -257,6 +282,8 @@
       cor: cor || "#e0457b",
       chart: (chart && CHARTS[chart]) || CHART,   // F3.6b: chart do move escolhido
       aoAtualizar,
+      tipoMusico: tipoMusico || "guitarrista",     // D-02: timbre do músico ativo
+      nomeMove: (chart && CHARTS[chart]) ? chart : "padrao",  // D-02: melodia por move
     });
 
     // Entrada: teclado (D F J K / Esc) + clique nas pistas (acessibilidade).
