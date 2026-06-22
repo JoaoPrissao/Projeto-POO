@@ -38,6 +38,15 @@ const audio = (window.RitmoAudio && window.RitmoAudio.criar)
   : { golpe(){}, critico(){}, vitoria(){}, item(){}, acerto(){}, erro(){}, batida(){}, iniciar(){}, parar(){} };
 function aoSfx(nome) { try { if (audio[nome]) audio[nome](); } catch (_) {} }
 
+// D-05/D-06: instância de música (temas CC0 — RitmoMusica do Plan 01).
+// Fallback nulo garante zero throw quando AudioContext não existe (harness/JSDOM).
+const musica = (window.RitmoMusica && window.RitmoMusica.criar)
+  ? window.RitmoMusica.criar()
+  : { tocarTema(){}, parar(){}, duck(){}, retoma(){}, aplicarMute(){} };
+// Expõe o ponteiro compartilhado FIXO para ritmo.js (Task 1b duck/retoma).
+// Nome canônico: window.RitmoMusica._instancia (shared_contract do PLAN.md).
+if (window.RitmoMusica) window.RitmoMusica._instancia = musica;
+
 function pct(v, max) {
   if (!max) return 100;
   return Math.max(0, Math.min(100, (v / max) * 100));
@@ -305,9 +314,19 @@ async function fecharFimEVoltar() {
 // `pausaContexto` adapta os botões: "Reiniciar" só faz sentido em batalha.
 let pausaContexto = "batalha";
 
+// D-06: sincroniza o rótulo do btn-mute com o estado persistido do RitmoMuteGate.
+// Chamado ao abrir o overlay de pausa para refletir o estado que persiste entre sessões.
+function sincronizarBotaoMute() {
+  const btn = $("#btn-mute");
+  if (!btn) return;
+  const mutado = (window.RitmoMuteGate && window.RitmoMuteGate.mutado) || false;
+  btn.textContent = mutado ? "🔊 Som" : "🔇 Mudo";
+}
+
 function aoPausar() {                      // Esc dentro da batalha (batalha.js)
   pausaContexto = "batalha";
   $("#btn-pausa-reiniciar").hidden = false;
+  sincronizarBotaoMute();
   $("#pausa-overlay").classList.add("aberto");
 }
 function pausarMapa() {                    // Esc no overworld (bug F3.8)
@@ -315,6 +334,7 @@ function pausarMapa() {                    // Esc no overworld (bug F3.8)
   if (owHandle) owHandle.mundo.parar();    // congela o passeio…
   pararRegen();                            // …e a cura passiva
   $("#btn-pausa-reiniciar").hidden = true;
+  sincronizarBotaoMute();
   $("#pausa-overlay").classList.add("aberto");
 }
 function retomarPausa() {
@@ -747,6 +767,7 @@ async function entrarNaVenue(venue) {
     estado,
     corPorTipo: COR_POR_TIPO,
     venueId: venue.id,            // D-10/D-11/D-12/D-13: cenário, skin e intro por venue
+    musica,                       // D-05: instância de RitmoMusica para tocarTema/parar
     aoAtualizar: atualizarHud,
     aoLog: (html) => log(html),
     aoFim: (res) => aplicarFim(res, venue),
@@ -975,6 +996,16 @@ function bind() {
   $("#btn-pausa-voltar").addEventListener("click", retomarPausa);
   $("#btn-pausa-reiniciar").addEventListener("click", reiniciarBatalha);
   $("#btn-pausa-menu").addEventListener("click", sairProMenuPrincipal);
+  // D-06/REQ5: toggle de mute — aciona gate + aplicarMute + atualiza rótulo
+  const btnMute = $("#btn-mute");
+  if (btnMute) {
+    btnMute.addEventListener("click", () => {
+      if (window.RitmoMuteGate) window.RitmoMuteGate.toggle();
+      const mutado = (window.RitmoMuteGate && window.RitmoMuteGate.mutado) || false;
+      btnMute.textContent = mutado ? "🔊 Som" : "🔇 Mudo";
+      musica.aplicarMute(mutado);
+    });
+  }
   $("#btn-salvar").addEventListener("click", salvar);
   $("#btn-carregar").addEventListener("click", carregar);
   $("#btn-voltar-mapa").addEventListener("click", voltarAoMapa);
