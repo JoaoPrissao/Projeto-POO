@@ -52,19 +52,46 @@
                              pistas: [2, 0, 3, 1, 1, 3, 0, 2, 3, 0] }),
   };
 
-  // ── Melodias por move (D-02) — escala pentatônica menor de Lá ────────────────
-  // Cada nota do chart toca MELODIAS[nomeMove][indice % seq.length] em Hz.
-  // Cicla com módulo: chart mais longo que a sequência volta ao início.
+  // ── Melodias por move (D-02) — frases motívicas que resolvem na tônica ──────
+  // Escala pentatônica menor de Lá (A2=110, C3=131, D3=147, E3=165, G3=196,
+  // A3=220, C4=262, D4=294, E4=330, G4=392, A4=440, C5=523, D5=587, E5=659,
+  // G5=784, A5=880). Cada sequência: motivo (3-4 notas) + resposta (variação) +
+  // cadência na tônica Lá. Movimento por graus conjuntos predominante; no máximo
+  // um salto largo por frase (5ª/oitava consonante); NUNCA dois saltos largos
+  // seguidos. Última nota sempre na tônica (220/440/880/110) — resolve a cada ciclo.
   const MELODIAS = {
-    padrao:    [440, 494, 523, 440, 392, 440, 523, 494],
-    facil:     [330, 392, 440, 392],
-    constante: [440, 392, 349, 392, 440, 494, 523, 494, 440, 392, 330, 392, 440, 392],
-    rapido:    [523, 587, 659, 587, 523, 494, 440, 494, 523, 587, 659, 784, 659, 587, 523, 494, 440, 392],
-    pesado:    [220, 262, 294, 220, 220, 262, 294, 330, 294, 262, 220, 294, 262, 220, 294, 220],
-    denso:     [440, 523, 587, 659, 587, 523, 440, 392, 330, 294, 330, 392, 440, 523, 587, 659, 784, 659, 587, 523, 440, 392],
-    sincopado: [294, 440, 294, 523, 330, 494, 330, 587, 294, 440, 294, 523, 330, 494, 330, 587],
-    sustentada:[220, 294, 330, 392, 440, 392, 330, 294, 220, 262],
-    caotico:   [659, 294, 784, 330, 523, 220, 587, 440, 294, 659, 440, 523, 330, 784, 220, 587, 440, 330, 659, 523],
+    // Register médio — riff ascendente, retorno por graus, cadência em A4
+    padrao:    [440, 523, 587, 523, 659, 587, 523, 440],
+
+    // Register grave-médio — walking bass, graus conjuntos, cadência em A3
+    facil:     [220, 294, 330, 294, 220, 262, 294, 330, 294, 262, 220],
+
+    // Register médio — frase mais longa em arco, ápice em G5, resolução em A4
+    constante: [440, 523, 587, 659, 587, 523, 440, 392, 330, 392, 440, 523, 587, 440],
+
+    // Register agudo — frase ascendente com ápice A5, descida por graus até A4
+    rapido:    [659, 784, 880, 784, 659, 587, 523, 587, 659, 784, 880, 784,
+                659, 587, 523, 659, 587, 440],
+
+    // Register grave — graus conjuntos entre A2 e A3, ancoragem no grave
+    pesado:    [220, 196, 165, 147, 165, 196, 220, 165, 196, 220,
+                196, 165, 147, 165, 196, 220],
+
+    // Register médio-agudo — escada dupla com variação rítmica, resolução A4
+    denso:     [440, 523, 587, 659, 587, 523, 440, 523, 587, 784,
+                659, 587, 523, 440, 392, 440, 523, 587, 523, 392, 330, 440],
+
+    // Register médio — síncopa entre E4/G4/A4, resolução em A4
+    sincopado: [330, 392, 440, 392, 330, 440, 392, 330,
+                440, 523, 440, 392, 330, 392, 330, 440],
+
+    // Register médio-grave — frase lenta ascendente/descendente, cadência A3
+    sustentada:[220, 294, 330, 392, 440, 392, 330, 294, 330, 220],
+
+    // Register agudo — drive em E5/G5, único salto G3→E5, resolução A4
+    caotico:   [659, 784, 659, 523, 659, 784, 659, 523,
+                659, 523, 440, 523, 659, 784, 659, 523,
+                587, 523, 587, 440],
   };
 
   // ── Pontuação pura (sem timing, sem DOM) ────────────────────────────────────
