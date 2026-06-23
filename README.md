@@ -10,6 +10,6 @@ Jogo RPG de turnos com minigame de ritmo, desenvolvido em Python (POO) com front
 
 Os temas de batalha são CC0 (domínio público) — sem obrigação de atribuição, mas por boa prática:
 
-- **bar.ogg:** "Tavern" por yd — https://opengameart.org/content/tavern-0 (CC0)
-- **feira.ogg:** "8-Bit Battle Loop" por Theodore Kerr (Wolfgang_) — https://opengameart.org/content/8-bit-battle-loop (CC0)
+- **bar.ogg:** "Groovy Goblins" (do Rock Music Pack) por Ragnar Random — https://opengameart.org/content/rock-music-pack (CC0)
+- **feira.ogg:** "Anarchy in the Toadstool Kingdom" (do Rock Music Pack) por Ragnar Random — https://opengameart.org/content/rock-music-pack (CC0)
 - **arena.ogg:** "Battle RPG Theme" por Cleyton Kauffman (CleytonRX) — https://opengameart.org/content/boss-battle-theme (CC0)
