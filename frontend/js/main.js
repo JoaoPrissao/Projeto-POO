@@ -35,16 +35,23 @@ let campanhaAtual = null;       // último DTO de campanha lido do backend
 // Usa nulo() como fallback automático dentro de criar() quando não há AudioContext.
 const audio = (window.RitmoAudio && window.RitmoAudio.criar)
   ? window.RitmoAudio.criar()
-  : { golpe(){}, critico(){}, vitoria(){}, item(){}, acerto(){}, erro(){}, batida(){}, iniciar(){}, parar(){} };
+  : { golpe(){}, critico(){}, vitoria(){}, item(){}, acerto(){}, erro(){}, batida(){}, iniciar(){}, parar(){}, aplicarVolume(){} };
 function aoSfx(nome) { try { if (audio[nome]) audio[nome](); } catch (_) {} }
 
 // D-05/D-06: instância de música (temas CC0 — RitmoMusica do Plan 01).
 // Fallback nulo garante zero throw quando AudioContext não existe (harness/JSDOM).
 const musica = (window.RitmoMusica && window.RitmoMusica.criar)
   ? window.RitmoMusica.criar()
-  : { tocarTema(){}, parar(){}, duck(){}, retoma(){}, aplicarMute(){} };
+  : { tocarTema(){}, parar(){}, duck(){}, retoma(){}, aplicarMute(){}, aplicarVolume(){} };
 // Expõe o ponteiro compartilhado FIXO para ritmo.js (Task 1b duck/retoma).
 // Nome canônico: window.RitmoMusica._instancia (shared_contract do PLAN.md).
+
+// Aplica um volume 0–1: grava no gate e reaplica em música + SFX ao vivo (menu de Opções).
+function _aplicarVolumeGlobal(valor01) {
+  if (window.RitmoMuteGate) window.RitmoMuteGate.setVolume(valor01);
+  musica.aplicarVolume();
+  audio.aplicarVolume();
+}
 if (window.RitmoMusica) window.RitmoMusica._instancia = musica;
 
 function pct(v, max) {
@@ -1008,6 +1015,37 @@ function bind() {
       const mutado = (window.RitmoMuteGate && window.RitmoMuteGate.mutado) || false;
       btnMute.textContent = mutado ? "🔊 Som" : "🔇 Mudo";
       musica.aplicarMute(mutado);
+      audio.aplicarVolume();
+    });
+  }
+
+  // Menu de Opções (volume + mute) — abre do menu principal e da pausa
+  const opcoesOverlay = $("#opcoes-overlay");
+  const abrirOpcoes = () => {
+    if (!opcoesOverlay) return;
+    const vol = (window.RitmoMuteGate ? window.RitmoMuteGate.volume : 0.35);
+    const range = $("#opcoes-volume-range");
+    const lbl = $("#opcoes-volume-label");
+    if (range) range.value = String(Math.round(vol * 100));
+    if (lbl) lbl.textContent = Math.round(vol * 100) + "%";
+    const mutado = (window.RitmoMuteGate && window.RitmoMuteGate.mutado) || false;
+    if (btnMute) btnMute.textContent = mutado ? "🔊 Som" : "🔇 Mudo";
+    opcoesOverlay.classList.add("aberto");
+  };
+  const fecharOpcoes = () => { if (opcoesOverlay) opcoesOverlay.classList.remove("aberto"); };
+  const btnOpcoesMenu = $("#btn-opcoes-menu");
+  if (btnOpcoesMenu) btnOpcoesMenu.addEventListener("click", abrirOpcoes);
+  const btnOpcoesPausa = $("#btn-opcoes-pausa");
+  if (btnOpcoesPausa) btnOpcoesPausa.addEventListener("click", abrirOpcoes);
+  const btnOpcoesFechar = $("#btn-opcoes-fechar");
+  if (btnOpcoesFechar) btnOpcoesFechar.addEventListener("click", fecharOpcoes);
+  const rangeVol = $("#opcoes-volume-range");
+  if (rangeVol) {
+    rangeVol.addEventListener("input", () => {
+      const v = Number(rangeVol.value) / 100;
+      const lbl = $("#opcoes-volume-label");
+      if (lbl) lbl.textContent = Math.round(v * 100) + "%";
+      _aplicarVolumeGlobal(v);
     });
   }
   $("#btn-salvar").addEventListener("click", salvar);

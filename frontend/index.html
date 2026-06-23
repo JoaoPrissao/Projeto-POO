@@ -21,6 +21,7 @@
           <button id="btn-novo-jogo">▶ Novo jogo</button>
           <button id="btn-continuar">📂 Continuar</button>
           <button id="btn-sair">✖ Sair</button>
+          <button id="btn-opcoes-menu">⚙ Opções</button>
         </div>
         <p id="menu-aviso" class="ow-aviso"></p>
       </div>
@@ -85,7 +86,22 @@
         <button id="btn-pausa-voltar">▶ Voltar</button>
         <button id="btn-pausa-reiniciar">↺ Reiniciar a luta</button>
         <button id="btn-pausa-menu">🏠 Menu principal</button>
+        <button id="btn-opcoes-pausa">⚙ Opções</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Overlay de Opções: volume + mute (aberto do menu e da pausa) -->
+  <div id="opcoes-overlay" class="overlay-modal">
+    <div class="modal-caixa painel">
+      <h2>⚙ Opções</h2>
+      <div class="opcoes-volume">
+        <label for="opcoes-volume-range">Volume <span id="opcoes-volume-label">35%</span></label>
+        <input id="opcoes-volume-range" type="range" min="0" max="100" value="35">
+      </div>
+      <div class="menu-opcoes">
         <button id="btn-mute">🔇 Mudo</button>
+        <button id="btn-opcoes-fechar">✖ Fechar</button>
       </div>
     </div>
   </div>
