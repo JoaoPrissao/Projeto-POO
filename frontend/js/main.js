@@ -982,8 +982,14 @@ function mostrarTela(id) {
   _aplicarTela(id);
   if (id === "tela-menu") {
     _iniciarLoopMenu();
+    musica.parar();                 // overworld off no menu
   } else {
     _pararLoopMenu();
+  }
+  // D-08: trilha de estrada ao entrar/voltar ao mapa. tela-show é tratada
+  // por batalha.js (tocarTema(venueId)); o ≤1 source garante a troca.
+  if (id === "tela-overworld") {
+    musica.tocarTema("overworld");
   }
 }
 
