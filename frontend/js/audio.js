@@ -60,7 +60,7 @@
   // ── Noise burst percussivo (baterista) ──────────────────────────────────────
   // Math.random() aqui é seguro: solo() é chamado em callback de evento (acerto/erro),
   // NUNCA dentro de passo(dt)/desenhar() — não viola o determinismo do draw (REQ6).
-  function bateristaHit(ac, acerto) {
+  function bateristaHit(ac, destino, acerto) {
     try {
       const durSeg = acerto ? 0.08 : 0.04;
       const tamBuffer = Math.ceil(ac.sampleRate * durSeg);
@@ -81,7 +81,7 @@
       gain.gain.setValueAtTime(acerto ? 0.35 : 0.10, t);
       gain.gain.exponentialRampToValueAtTime(0.0001, t + durSeg);
 
-      src.connect(filtro).connect(gain).connect(ac.destination);
+      src.connect(filtro).connect(gain).connect(destino);
       src.start(t);
       src.stop(t + durSeg + 0.01);
     } catch (_) {
@@ -101,6 +101,19 @@
       return ctx;
     }
 
+    // Gain master de SFX: todos os efeitos roteiam por aqui para o volume global.
+    // O mute continua via early-return em cada SFX; este master carrega o VOLUME.
+    let gainMaster = null;
+    function garantirGainMaster() {
+      const ac = garantirContexto();
+      if (!gainMaster) {
+        gainMaster = ac.createGain();
+        gainMaster.connect(ac.destination);
+        gainMaster.gain.value = (window.RitmoMuteGate ? window.RitmoMuteGate.volume : 1);
+      }
+      return gainMaster;
+    }
+
     function bipe(freq, duracao, tipo, ganhoPico) {
       if (window.RitmoMuteGate && window.RitmoMuteGate.mutado) return;
       try {
@@ -113,7 +126,7 @@
         gain.gain.setValueAtTime(0.0001, t);
         gain.gain.exponentialRampToValueAtTime(ganhoPico, t + 0.01);
         gain.gain.exponentialRampToValueAtTime(0.0001, t + duracao);
-        osc.connect(gain).connect(ac.destination);
+        osc.connect(gain).connect(garantirGainMaster());
         osc.start(t);
         osc.stop(t + duracao + 0.02);
       } catch (_) {
@@ -124,6 +137,10 @@
     return {
       iniciar() { garantirContexto(); },
       parar() { /* osciladores são one-shot; nada a manter vivo */ },
+      // Reaplica o volume master de SFX ao vivo — usado pelo slider de Opções.
+      aplicarVolume() {
+        try { garantirGainMaster().gain.value = (window.RitmoMuteGate ? window.RitmoMuteGate.volume : 1); } catch (_) {}
+      },
       acerto() {
         if (window.RitmoMuteGate && window.RitmoMuteGate.mutado) return;
         bipe(880, 0.09, "triangle", 0.25);
@@ -158,7 +175,7 @@
         if (window.RitmoMuteGate && window.RitmoMuteGate.mutado) return;
         const cfg = TIMBRES[timbre] || TIMBRES.guitarrista;
         // Baterista usa noise buffer — sem pitch melódico
-        if (cfg.wave === "noise") { bateristaHit(garantirContexto(), acerto); return; }
+        if (cfg.wave === "noise") { bateristaHit(garantirContexto(), garantirGainMaster(), acerto); return; }
         try {
           const ac = garantirContexto();
           const osc = ac.createOscillator();
@@ -171,7 +188,7 @@
           gain.gain.setValueAtTime(0.0001, t);
           gain.gain.exponentialRampToValueAtTime(pico, t + cfg.attack);
           gain.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-          osc.connect(gain).connect(ac.destination);
+          osc.connect(gain).connect(garantirGainMaster());
           osc.start(t);
           osc.stop(t + dur + 0.02);
         } catch (_) {
@@ -184,7 +201,7 @@
   function nulo() {
     return { iniciar() {}, parar() {}, acerto() {}, erro() {}, batida() {},
              golpe() {}, critico() {}, vitoria() {}, item() {},
-             solo() {} };
+             solo() {}, aplicarVolume() {} };
   }
 
   window.RitmoAudio = { criar, nulo };
