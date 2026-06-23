@@ -10,18 +10,31 @@
   "use strict";
 
   const KEY = "ritmo_muted";
+  const VOL_KEY = "ritmo_volume";
+  const VOL_DEFAULT = 0.35;
   let _mutado = false;
+  let _volume = VOL_DEFAULT;
+
+  function _clamp(v) { return v < 0 ? 0 : v > 1 ? 1 : v; }
 
   // Inicialização: lê o estado persistido sem lançar em ambientes sem localStorage.
   try {
     _mutado = localStorage.getItem(KEY) === "1";
+    const v = parseFloat(localStorage.getItem(VOL_KEY));
+    if (isFinite(v)) _volume = _clamp(v);
   } catch (_) {
-    /* sem localStorage (ex.: harness/JSDOM com bloqueio de storage) — padrão: som ativo */
+    /* sem localStorage (ex.: harness/JSDOM com bloqueio de storage) — padrões em memória */
   }
 
   window.RitmoMuteGate = {
     /** Retorna true se o áudio está globalmente mutado. */
     get mutado() { return _mutado; },
+
+    /** Volume master 0–1 (independente do mute). */
+    get volume() { return _volume; },
+
+    /** Nível de saída efetivo: 0 se mutado, senão o volume. */
+    get nivelEfetivo() { return _mutado ? 0 : _volume; },
 
     /** Inverte o estado de mute e persiste em localStorage. */
     toggle() {
@@ -33,10 +46,22 @@
       }
     },
 
-    /** Relê o estado do localStorage e retorna o booleano. */
+    /** Define o volume (clampado 0–1) e persiste em localStorage. */
+    setVolume(v) {
+      _volume = _clamp(Number(v));
+      try {
+        localStorage.setItem(VOL_KEY, String(_volume));
+      } catch (_) {
+        /* sem localStorage — estado só vive na sessão atual */
+      }
+    },
+
+    /** Relê mute + volume do localStorage e retorna o booleano de mute. */
     carregar() {
       try {
         _mutado = localStorage.getItem(KEY) === "1";
+        const v = parseFloat(localStorage.getItem(VOL_KEY));
+        if (isFinite(v)) _volume = _clamp(v);
       } catch (_) {
         /* sem localStorage — mantém estado em memória */
       }
