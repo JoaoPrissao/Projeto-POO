@@ -13,3 +13,4 @@ Os temas de batalha são CC0 (domínio público) — sem obrigação de atribui�
 - **bar.ogg:** "Groovy Goblins" (do Rock Music Pack) por Ragnar Random — https://opengameart.org/content/rock-music-pack (CC0)
 - **feira.ogg:** "Anarchy in the Toadstool Kingdom" (do Rock Music Pack) por Ragnar Random — https://opengameart.org/content/rock-music-pack (CC0)
 - **arena.ogg:** "Battle RPG Theme" por Cleyton Kauffman (CleytonRX) — https://opengameart.org/content/boss-battle-theme (CC0)
+- **overworld.ogg:** "Dinosaur Spirit Guide" (do Rock Music Pack) por Ragnar Random — https://opengameart.org/content/rock-music-pack (CC0)
