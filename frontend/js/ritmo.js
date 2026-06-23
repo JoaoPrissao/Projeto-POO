@@ -128,6 +128,10 @@
     const audio = opts.audio || audioNulo();
     const chart = opts.chart || CHART;
     const aoAtualizar = opts.aoAtualizar || function () {};
+    // HU4: callbacks OPCIONAIS de reação (animação do instrumento). No-op por
+    // default — preserva o harness de ritmo e os *.node.test.cjs (API inalterada).
+    const aoAcerto = opts.aoAcerto || null;
+    const aoErro = opts.aoErro || null;
     const cor = opts.cor || "#e0457b";
     const tipoMusico = opts.tipoMusico || "guitarrista";
     const nomeMove = opts.nomeMove || "padrao";
@@ -213,6 +217,7 @@
         audio.solo(tipoMusico, _proximaNota(), true);
         marcar(alvo, "acerto");
         aoAtualizar(placar.estado);
+        if (aoAcerto) aoAcerto();   // HU4: pulso reativo do instrumento
       }
       // Tecla sem nota na janela: ignorada (não quebra combo) — pontuação fica
       // determinística e dependente só das notas do chart.
@@ -234,6 +239,7 @@
           placar.erro();
           audio.solo(tipoMusico, _proximaNota(), false);
           marcar(nota, "erro");
+          if (aoErro) aoErro();   // HU4: recuo reativo do instrumento
         }
       }
 
@@ -292,6 +298,34 @@
     const titulo = document.getElementById("ritmo-titulo");
     if (titulo) titulo.textContent = nomeMove ? `${nomeMove}` : `Ritmo — ${tipoMusico || "banda"}`;
 
+    // ── HU4: instrumento do músico ativo, reativo a acerto/erro ───────────────
+    // Tudo GUARDADO: sem canvas/contexto/Sprites (ex.: harness JSDOM/Playwright que
+    // não inclui #ritmo-instrumento) → no-op silencioso. O loop é PRÓPRIO do overlay
+    // (event-driven, fora de criarMinigame.frame/score) e é cancelado no finally.
+    const INSTR_POR_MUSICO = {
+      guitarrista: "guitarra", baixista: "baixo", baterista: "bateria", vocalista: "microfone",
+    };
+    const tipoInstr = INSTR_POR_MUSICO[tipoMusico] || "guitarra";
+    const cvInstr = document.getElementById("ritmo-instrumento");
+    let ctxInstr = null;
+    try { ctxInstr = (cvInstr && cvInstr.getContext) ? cvInstr.getContext("2d") : null; }
+    catch (_) { ctxInstr = null; }
+    const podeAnimar = !!(ctxInstr && window.Sprites && window.Sprites.desenharInstrumento);
+    let faseInstr = 0, alvoFase = 0, rafInstr = null;
+    const ESC_INSTR = 8;
+    function pulsoInstr(forte) { alvoFase = forte ? Math.PI / 2 : -Math.PI / 2; }
+    function desenharFrameInstr() {
+      if (!podeAnimar) return;
+      faseInstr += (alvoFase - faseInstr) * 0.25;   // ease p/ o alvo
+      alvoFase  *= 0.85;                             // alvo decai p/ idle
+      ctxInstr.clearRect(0, 0, cvInstr.width, cvInstr.height);
+      ctxInstr.save();
+      ctxInstr.translate(8, 6);
+      window.Sprites.desenharInstrumento(ctxInstr, tipoInstr, ESC_INSTR, faseInstr);
+      ctxInstr.restore();
+      rafInstr = requestAnimationFrame(desenharFrameInstr);
+    }
+
     function aoAtualizar(estado) {
       if (hudCombo) hudCombo.textContent = `Combo ${estado.combo}`;
       if (hudAcertos) hudAcertos.textContent = `${estado.acertos}/${estado.total_notas}`;
@@ -315,6 +349,8 @@
       aoAtualizar,
       tipoMusico: tipoMusico || "guitarrista",     // D-02: timbre do músico ativo
       nomeMove: (chart && CHARTS[chart]) ? chart : "padrao",  // D-02: melodia por move
+      aoAcerto: () => pulsoInstr(true),            // HU4: pulso reativo (strum/baqueta/pulso)
+      aoErro: () => pulsoInstr(false),             // HU4: recuo reativo
     });
 
     // Entrada: teclado (D F J K / Esc) + clique nas pistas (acessibilidade).
@@ -331,6 +367,7 @@
     window.addEventListener("keydown", onKey);
     if (pistas) pistas.addEventListener("click", onClickPista);
     if (overlay) overlay.classList.add("aberto");
+    if (podeAnimar) desenharFrameInstr();   // HU4: inicia o loop do instrumento (idle até o 1º acerto/erro)
 
     // D-05: duck do tema antes de abrir o minigame (no-op se sem música)
     if (_musicaRef && _musicaRef.duck) _musicaRef.duck();
@@ -339,6 +376,7 @@
       window.removeEventListener("keydown", onKey);
       if (pistas) pistas.removeEventListener("click", onClickPista);
       if (overlay) overlay.classList.remove("aberto");
+      if (rafInstr) cancelAnimationFrame(rafInstr);   // HU4: limpa o loop do instrumento
       // D-05: retoma o tema ao fechar o minigame (no-op se sem música)
       if (_musicaRef && _musicaRef.retoma) _musicaRef.retoma();
     });

@@ -237,12 +237,14 @@
       const pos = layoutBanda(ms);
       ms.map((m, i) => i).sort((a, b) => pos[a].y - pos[b].y).forEach((i) => {
         const m = ms[i], p = pos[i];
-        const balanco = naIntro ? Math.sin(introT / 90 + i * 1.7) * 4 : 0;
+        const faseAnim = naIntro ? (introT / 90 + i * 1.7) : 0;
+        const balanco = naIntro ? Math.sin(faseAnim) * 4 : 0;
         ctx.save();
         ctx.translate(p.x, p.y + balanco);
         ctx.globalAlpha = m.vivo ? 1 : 0.3;
         // D-08: baixista (Marivaldo) menor — escala * 0.8 aplicada internamente
-        Sprites.desenharMembro(ctx, m.tipo, SPRITE_ESC);
+        // HU4: faseAnim faz o instrumento embutido balançar de leve na intro
+        Sprites.desenharMembro(ctx, m.tipo, SPRITE_ESC, faseAnim);
         ctx.globalAlpha = 1;
         ctx.restore();
         if (naIntro && tBanda > 120) {

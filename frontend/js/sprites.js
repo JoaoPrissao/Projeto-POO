@@ -121,8 +121,13 @@
     [3, 0, C.COURO_PRETO],  [3, 1, C.COURO_PRETO],  [3, 2, BASE.guitarrista],[3, 3, C.COURO_PRETO], [3, 4, C.COURO_PRETO],
     [4, 0, C.COURO_PRETO],  [4, 1, PALETA.guitarrista.sombra], [4, 2, BASE.guitarrista], [4, 3, PALETA.guitarrista.sombra], [4, 4, C.COURO_PRETO],
     [5, 0, C.COURO_PRETO],  [5, 1, C.COURO_PRETO],  [5, 2, C.COURO_PRETO],  [5, 3, C.COURO_PRETO], [5, 4, C.COURO_PRETO],
-    // Guitarra (haste à direita)
-    [4, 5, C.MADEIRA], [5, 5, C.MADEIRA], [4, 6, C.METAL], [5, 6, C.METAL],
+    // Guitarra elétrica (HU4): braço diagonal p/ cima-direita + corpo vermelho na mão
+    [1, 7, C.METAL],                                                       // tarraxa
+    [1, 6, C.MADEIRA], [2, 6, C.MADEIRA], [2, 5, C.MADEIRA], [3, 5, C.MADEIRA], // braço
+    [4, 5, BASE.guitarrista],        [4, 6, PALETA.guitarrista.realce],   // corpo
+    [5, 5, BASE.guitarrista],        [5, 6, BASE.guitarrista],
+    [6, 5, PALETA.guitarrista.sombra], [6, 6, BASE.guitarrista],
+    [5, 6, C.METAL],                                                      // ponte
     // Pernas
     [6, 1, C.PRETO],         [6, 2, C.PRETO],         [6, 3, C.PRETO],
     [7, 1, C.PRETO],         [7, 3, C.PRETO],
@@ -144,8 +149,13 @@
     [3, 0, C.ROUPA_PRETA],  [3, 1, C.ROUPA_PRETA],  [3, 2, BASE.baterista],  [3, 3, C.ROUPA_PRETA], [3, 4, C.ROUPA_PRETA],
     [4, 0, C.ROUPA_PRETA],  [4, 1, C.ROUPA_PRETA],  [4, 2, PALETA.baterista.realce], [4, 3, C.ROUPA_PRETA], [4, 4, C.ROUPA_PRETA],
     [5, 0, C.ROUPA_PRETA],  [5, 1, C.ROUPA_PRETA],  [5, 2, C.ROUPA_PRETA],  [5, 3, C.ROUPA_PRETA], [5, 4, C.ROUPA_PRETA],
-    // Baquetas (dois palitos)
-    [3, 5, C.MADEIRA], [3, 6, C.MADEIRA], [4, 5, C.MADEIRA], [5, 5, C.MADEIRA],
+    // Baquetas + kit de bateria ao lado (HU4): prato (haste) + caixa + bumbo.
+    // Kit fica em rows 5-7 (longe do cabelo loiro — evita o borrão dourado documentado).
+    [3, 5, C.MADEIRA], [4, 5, C.MADEIRA],                          // baquetas
+    [2, 7, C.METAL], [3, 7, C.CINZA_ESC], [4, 7, C.CINZA_ESC],     // prato + haste
+    [5, 5, C.BRANCO], [5, 6, C.BRANCO],                            // caixa (pele branca)
+    [6, 5, BASE.baterista], [6, 6, BASE.baterista],                // bumbo (casco âmbar)
+    [7, 5, PALETA.baterista.sombra], [7, 6, PALETA.baterista.sombra], // base/sombra do bumbo
     // Pernas
     [6, 1, C.ROUPA_PRETA],  [6, 2, C.ROUPA_PRETA],  [6, 3, C.ROUPA_PRETA],
     [7, 1, C.ROUPA_PRETA],  [7, 3, C.ROUPA_PRETA],
@@ -167,10 +177,11 @@
     [3, 0, C.COURO_PRETO],  [3, 1, BASE.vocalista], [3, 2, C.COURO_PRETO], [3, 3, BASE.vocalista], [3, 4, C.COURO_PRETO],
     [4, 0, C.COURO_PRETO],  [4, 1, C.COURO_PRETO],  [4, 2, PALETA.vocalista.sombra], [4, 3, C.COURO_PRETO], [4, 4, C.COURO_PRETO],
     [5, 0, C.COURO_PRETO],  [5, 1, C.COURO_PRETO],  [5, 2, C.COURO_PRETO],  [5, 3, C.COURO_PRETO], [5, 4, C.COURO_PRETO],
-    // Braço confiante estendido (pose)
-    [4, 5, C.COURO_PRETO], [4, 6, C.PELE_CLARA],
-    // Microfone na mão (col 6-7)
-    [3, 5, C.CINZA_ESC], [3, 6, C.CINZA],
+    // Braço confiante estendido (pose) + microfone erguido na mão (HU4)
+    [4, 5, C.COURO_PRETO], [4, 6, C.PELE_CLARA],   // braço + mão segurando
+    [1, 6, C.CINZA], [1, 7, C.CINZA],              // cabeça do mic (grelha)
+    [2, 6, C.METAL], [2, 7, C.METAL],
+    [3, 6, BASE.vocalista],                        // banda roxa (cor-assinatura)
     // Pernas
     [6, 1, C.PRETO],       [6, 2, C.PRETO],       [6, 3, C.PRETO],
     [7, 1, C.PRETO],       [7, 3, C.PRETO],
@@ -193,8 +204,14 @@
     [3, 0, C.CAMISA_ESC],   [3, 1, C.CAMISA_ESC],   [3, 2, BASE.baixista],   [3, 3, C.CAMISA_ESC],  [3, 4, C.CAMISA_ESC],
     [4, 0, C.CAMISA_ESC],   [4, 1, BASE.baixista],   [4, 2, PALETA.baixista.realce], [4, 3, BASE.baixista], [4, 4, C.CAMISA_ESC],
     [5, 0, C.CAMISA_ESC],   [5, 1, C.CAMISA_ESC],   [5, 2, C.CAMISA_ESC],   [5, 3, C.CAMISA_ESC],  [5, 4, C.CAMISA_ESC],
-    // Baixo (instrumento — contrabaixo mais comprido)
-    [3, 5, C.MADEIRA], [4, 5, C.MADEIRA], [5, 5, C.MADEIRA], [3, 6, C.METAL], [4, 6, C.METAL],
+    // Baixo (HU4): corpo azul encorpado + braço comprido na mão direita
+    [1, 7, C.METAL],                                                     // tarraxa
+    [1, 6, C.MADEIRA], [2, 6, C.MADEIRA], [2, 5, C.MADEIRA],
+    [3, 5, C.MADEIRA], [3, 6, C.MADEIRA],                               // braço comprido
+    [4, 5, BASE.baixista],        [4, 6, PALETA.baixista.realce],       // corpo
+    [5, 5, BASE.baixista],        [5, 6, BASE.baixista],
+    [6, 5, PALETA.baixista.sombra], [6, 6, BASE.baixista],
+    [5, 6, C.METAL],                                                    // ponte
     // Pernas
     [6, 1, C.PRETO],         [6, 2, C.PRETO],         [6, 3, C.PRETO],
     [7, 1, C.PRETO],         [7, 3, C.PRETO],
@@ -213,10 +230,20 @@
   // desenharMembro(ctx, tipo, escala)
   // Assume que ctx.translate() já foi feito pelo chamador (posicionar na origin).
   // D-08: quando tipo === "baixista" aplica escala * 0.8 internamente (Marivaldo menor).
-  function desenharMembro(ctx, tipo, escala) {
+  // HU4: faseAnim (number, opcional) faz o INSTRUMENTO embutido (células col>=5)
+  // balançar de leve junto do membro. Default ausente/0 → render idêntico ao antigo
+  // (chamadas de 3 args inalteradas — invariante 1). Determinístico: a fonte da fase
+  // vem de FORA (introT da batalha); zero Math.random/Date.now aqui.
+  function desenharMembro(ctx, tipo, escala, faseAnim) {
     const sprite = SPRITES_MEMBRO[tipo] || SPRITE_GUITARRISTA;
     const esc = (tipo === "baixista") ? escala * 0.8 : escala;
-    desenharSprite(ctx, sprite, 0, 0, esc);
+    if (!faseAnim) { desenharSprite(ctx, sprite, 0, 0, esc); return; }
+    const dy = Math.sin(faseAnim) * esc * 0.35;   // bob sutil do instrumento (px)
+    for (const [r, c, cor] of sprite) {
+      ctx.fillStyle = cor;
+      const y = c >= 5 ? r * esc + dy : r * esc;
+      ctx.fillRect(c * esc, y, esc, esc);
+    }
   }
 
   // Membro com contorno escuro + miolo preenchido (silhueta), pra destacar o
@@ -234,6 +261,108 @@
     }
     ctx.restore();
     desenharSprite(ctx, sprite, 0, 0, esc);
+  }
+
+  // ── Instrumentos avulsos (HU4) ────────────────────────────────────────────
+  // Sprites de instrumento reutilizáveis: showcase no cartaz do menu (idle) E
+  // animação reativa do minigame (strum/baqueta/pulso no acerto/erro). Mesmo
+  // formato das demais matrizes ([linha, coluna, cor], render por desenharSprite).
+  // Cada instrumento separa células ESTÁTICAS (base) de poucas células ANIMÁVEIS
+  // (anim) cujo offset inteiro vem de faseAnim — determinístico, zero Math.random.
+  // Paleta derivada SÓ de PALETA[tipo].{base,sombra,realce} + C.* (sem cor solta).
+  const _IG = PALETA.guitarrista, _IB = PALETA.baixista,
+        _IV = PALETA.vocalista,   _ID = PALETA.baterista;
+
+  const INSTRUMENTOS = {
+    // Guitarra elétrica: corpo sólido vermelho (canto inf-esq), braço de madeira
+    // diagonal p/ cima-direita + tarraxas de metal. Anim: palheta desliza (eixo x).
+    guitarra: {
+      eixo: "x",
+      base: [
+        [0, 5, C.MADEIRA], [0, 6, C.MADEIRA], [1, 6, C.METAL],   // headstock + tarraxa
+        [1, 4, C.MADEIRA], [1, 5, C.MADEIRA],                    // braço diagonal
+        [2, 3, C.MADEIRA], [2, 4, C.MADEIRA],
+        [3, 2, C.MADEIRA], [3, 3, C.MADEIRA],
+        [4, 2, C.MADEIRA],
+        [4, 0, _IG.sombra], [4, 1, _IG.base],                    // corpo (blob vermelho)
+        [5, 0, _IG.base],   [5, 1, _IG.base],  [5, 2, _IG.realce],
+        [6, 0, _IG.sombra], [6, 2, _IG.base],  [6, 3, _IG.realce],
+        [7, 1, _IG.sombra], [7, 2, _IG.base],
+        [6, 1, C.PRETO],                                         // captador/ponte
+      ],
+      anim: [ [5, 3, C.METAL], [4, 3, C.BRANCO] ],
+    },
+    // Baixo: corpo azul maior, braço mais comprido (instrumento grave). Anim: pluck (eixo x).
+    baixo: {
+      eixo: "x",
+      base: [
+        [0, 4, C.MADEIRA], [0, 5, C.MADEIRA], [1, 5, C.METAL],
+        [1, 4, C.MADEIRA],
+        [2, 3, C.MADEIRA], [2, 4, C.MADEIRA],
+        [3, 3, C.MADEIRA],
+        [4, 2, C.MADEIRA], [4, 3, C.MADEIRA],
+        [5, 2, C.MADEIRA],
+        [5, 0, _IB.sombra], [5, 1, _IB.base],
+        [6, 0, _IB.base],   [6, 2, _IB.realce],
+        [7, 0, _IB.sombra], [7, 1, _IB.base], [7, 2, _IB.base], [7, 3, _IB.realce],
+        [8, 1, _IB.sombra], [8, 2, _IB.base],
+        [6, 1, C.METAL],                                         // ponte
+      ],
+      anim: [ [6, 3, C.METAL] ],
+    },
+    // Bateria: bumbo (pele branca) ao centro, caixa à direita, prato em haste.
+    // Anim: baqueta bate (eixo y).
+    bateria: {
+      eixo: "y",
+      base: [
+        [4, 2, _ID.base], [4, 3, _ID.base],                      // bumbo
+        [5, 1, _ID.base], [5, 2, C.BRANCO], [5, 3, C.BRANCO], [5, 4, _ID.base],
+        [6, 1, _ID.base], [6, 2, C.BRANCO], [6, 3, C.BRANCO], [6, 4, _ID.base],
+        [7, 1, _ID.sombra], [7, 2, _ID.base], [7, 3, _ID.base], [7, 4, _ID.sombra],
+        [5, 5, C.BRANCO], [5, 6, C.BRANCO], [6, 5, C.CINZA], [6, 6, C.CINZA], // caixa
+        [2, 5, C.METAL], [2, 6, C.METAL], [2, 7, C.METAL],       // prato
+        [3, 6, C.CINZA_ESC], [4, 6, C.CINZA_ESC],                // haste do prato
+      ],
+      anim: [ [2, 2, C.MADEIRA], [3, 3, C.MADEIRA] ],
+    },
+    // Microfone: cabeça (grelha) em cima, banda roxa, haste e tripé. Anim: cabeça pulsa (eixo y).
+    microfone: {
+      eixo: "y",
+      base: [
+        [2, 1, _IV.base], [2, 2, _IV.base],                      // banda (cor vocalista)
+        [3, 2, C.CINZA_ESC], [4, 2, C.CINZA_ESC], [5, 2, C.CINZA_ESC], [6, 2, C.CINZA_ESC], // haste
+        [4, 1, C.PRETO], [5, 1, C.PRETO],                        // cabo
+        [7, 0, C.PRETO], [7, 1, C.PRETO], [7, 2, C.PRETO], [7, 3, C.PRETO], // tripé/base
+      ],
+      anim: [ [0, 1, C.CINZA], [0, 2, C.CINZA], [1, 1, C.METAL], [1, 2, C.METAL] ],
+    },
+  };
+
+  const SPRITE_INSTR_GUITARRA  = INSTRUMENTOS.guitarra.base.concat(INSTRUMENTOS.guitarra.anim);
+  const SPRITE_INSTR_BAIXO     = INSTRUMENTOS.baixo.base.concat(INSTRUMENTOS.baixo.anim);
+  const SPRITE_INSTR_BATERIA   = INSTRUMENTOS.bateria.base.concat(INSTRUMENTOS.bateria.anim);
+  const SPRITE_INSTR_MICROFONE = INSTRUMENTOS.microfone.base.concat(INSTRUMENTOS.microfone.anim);
+
+  // desenharInstrumento(ctx, tipo, escala, faseAnim)
+  // tipo: "guitarra" | "baixo" | "bateria" | "microfone" (default guitarra).
+  // faseAnim (number, default 0): modula SÓ a posição de poucas células animáveis,
+  // de forma determinística (mesma fase → mesmo desenho). Sem Math.random/Date.now.
+  // ctx nulo/ausente → no-op (mesma guarda das outras funções de draw).
+  function desenharInstrumento(ctx, tipo, escala, faseAnim) {
+    if (!ctx) return;
+    const def  = INSTRUMENTOS[tipo] || INSTRUMENTOS.guitarra;
+    const fase = faseAnim || 0;
+    const off  = Math.round(Math.sin(fase));   // -1, 0 ou 1
+    for (const [r, c, cor] of def.base) {
+      ctx.fillStyle = cor;
+      ctx.fillRect(c * escala, r * escala, escala, escala);
+    }
+    for (const [r, c, cor] of def.anim) {
+      ctx.fillStyle = cor;
+      const rr = def.eixo === "y" ? r + off : r;
+      const cc = def.eixo === "x" ? c + off : c;
+      ctx.fillRect(cc * escala, rr * escala, escala, escala);
+    }
   }
 
   // ── Van por estágio (D-05 prioridade 2) ──────────────────────────────────
@@ -1033,6 +1162,22 @@
       ctx.restore();
     }
 
+    // HU4: showcase dos 4 instrumentos avulsos — fileira no rodapé do palco, idle
+    // senoidal derivado de `frame` (determinístico, sem Math.random). É a MESMA peça
+    // reusada na animação reativa do minigame (desenharInstrumento).
+    const showInstr = ["guitarra", "baixo", "bateria", "microfone"];
+    const escI = Math.max(2, Math.floor((altura - pisoY) / 10));
+    const wI = 8 * escI;
+    const gapI = Math.floor((largura - showInstr.length * wI) / (showInstr.length + 1));
+    const yI = pisoY + Math.max(4, Math.floor((altura - pisoY - 9 * escI) / 2));
+    for (let i = 0; i < showInstr.length; i++) {
+      const xI = gapI + i * (wI + gapI);
+      ctx.save();
+      ctx.translate(xI, yI);
+      desenharInstrumento(ctx, showInstr[i], escI, frame / 60 + i);
+      ctx.restore();
+    }
+
     ctx.restore();
   }
 
@@ -1310,6 +1455,12 @@
     PALETA,
     desenharSprite,
     desenharMembro,
+    // HU4 — instrumentos avulsos (showcase no cartaz + animação reativa do minigame)
+    desenharInstrumento,
+    SPRITE_INSTR_GUITARRA,
+    SPRITE_INSTR_BAIXO,
+    SPRITE_INSTR_BATERIA,
+    SPRITE_INSTR_MICROFONE,
     desenharVan,
     desenharBoss,
     desenharNpc,
