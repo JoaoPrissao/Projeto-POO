@@ -13,7 +13,7 @@
   "use strict";
 
   // Venues válidos — allowlist de path traversal (T-03.1-01 / ASVS V5)
-  const VENUES_VALIDOS = new Set(["bar", "feira", "arena"]);
+  const VENUES_VALIDOS = new Set(["bar", "feira", "arena", "overworld"]);
 
   // Duck: abaixar para 15% em 0.3s; retomar para 100% em 0.5s (Padrão 2, Claude's Discretion)
   const DUCK_VOLUME = 0.15;
