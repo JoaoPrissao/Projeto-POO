@@ -42,10 +42,8 @@
         const ac = garantirContexto();
         gainMaster = ac.createGain();
         gainMaster.connect(ac.destination);
-        // Respeita o estado de mute já ativo ao criar a instância
-        if (window.RitmoMuteGate && window.RitmoMuteGate.mutado) {
-          gainMaster.gain.value = 0;
-        }
+        // Respeita mute E volume já ativos ao criar a instância
+        gainMaster.gain.value = (window.RitmoMuteGate ? window.RitmoMuteGate.nivelEfetivo : 1);
       }
       return gainMaster;
     }
@@ -116,7 +114,9 @@
           const t = ac.currentTime;
           gm.gain.cancelScheduledValues(t);
           gm.gain.setValueAtTime(gm.gain.value, t);
-          gm.gain.linearRampToValueAtTime(DUCK_VOLUME, t + RAMP_DOWN);
+          // Duck relativo ao volume atual (mute × volume), não absoluto
+          const base = (window.RitmoMuteGate ? window.RitmoMuteGate.nivelEfetivo : 1);
+          gm.gain.linearRampToValueAtTime(base * DUCK_VOLUME, t + RAMP_DOWN);
         } catch (_) {}
       },
 
@@ -125,8 +125,8 @@
         try {
           const gm = garantirGain();
           const ac = garantirContexto();
-          // Se mutado, NÃO subir acima de 0
-          const alvo = (window.RitmoMuteGate && window.RitmoMuteGate.mutado) ? 0 : 1.0;
+          // Sobe até o nível efetivo (0 se mutado; senão o volume atual)
+          const alvo = (window.RitmoMuteGate ? window.RitmoMuteGate.nivelEfetivo : 1.0);
           const t = ac.currentTime;
           gm.gain.cancelScheduledValues(t);
           gm.gain.setValueAtTime(gm.gain.value, t);
@@ -134,11 +134,19 @@
         } catch (_) {}
       },
 
-      // Zera ou restaura o gainMaster conforme o gate de mute (D-06).
-      aplicarMute(mutado) {
+      // Aplica o nível efetivo (mute × volume) ao gainMaster (D-06).
+      aplicarMute() {
         try {
           const gm = garantirGain();
-          gm.gain.value = mutado ? 0 : 1;
+          gm.gain.value = (window.RitmoMuteGate ? window.RitmoMuteGate.nivelEfetivo : 1);
+        } catch (_) {}
+      },
+
+      // Reaplica o nível efetivo (mute × volume) ao vivo — usado pelo slider de Opções.
+      aplicarVolume() {
+        try {
+          const gm = garantirGain();
+          gm.gain.value = (window.RitmoMuteGate ? window.RitmoMuteGate.nivelEfetivo : 1);
         } catch (_) {}
       },
     };
@@ -151,6 +159,7 @@
       duck() {},
       retoma() {},
       aplicarMute() {},
+      aplicarVolume() {},
     };
   }
 
