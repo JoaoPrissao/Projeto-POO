@@ -7,63 +7,233 @@
 // (guitarrista/vocalista/baixista/baterista). Todos os emissores checam
 // window.RitmoMuteGate antes de emitir (D-01b/D-06).
 //
+// GF2: cadeias de síntese ricas por timbre (waveshaper/lowpass/formantes/vibrato/thump).
+//
 // Pendurado em window.RitmoAudio (sem ES modules).
 
 (function () {
   "use strict";
 
   // ── Tabela de timbres (D-03) ────────────────────────────────────────────────
-  // 4 assinaturas perceptualmente distintas: waveform + região de frequência + duração.
+  // Campos lidos por solo(): gainAcerto/gainErro/durAcerto/durErro/attack/freqMult/wave.
   const TIMBRES = {
-    // Guitarrista (Geraldo Muleta): square agudo, som distorcido
+    // Guitarrista (Geraldo Muleta): sawtooth → waveshaper dist → lowpass → pluck
     guitarrista: {
-      wave: "square",    // distorção natural do square
-      freqMult: 1.0,     // pitch direto (região 400–1200 Hz no solo)
-      attack: 0.008,     // ataque rápido — pick de guitarra
-      gainAcerto: 0.22,  // volume de acerto (limpo, acentuado)
-      gainErro: 0.10,    // volume de erro (abafado)
-      durAcerto: 0.14,   // duração do acerto em segundos
-      durErro: 0.08,     // duração do erro (mais curto, abafado)
+      wave: "sawtooth",
+      freqMult: 1.0,
+      attack: 0.005,
+      gainAcerto: 0.30,
+      gainErro: 0.12,
+      durAcerto: 0.16,
+      durErro: 0.08,
     },
-    // Vocalista (Vande Bicuda): triangle médio, timbre vocal suave
+    // Vocalista (Vande Bicuda): sawtooth → formantes bandpass → vibrato LFO → onset gradual
     vocalista: {
-      wave: "triangle",  // harmônicos suaves, parecido com voz
-      freqMult: 0.5,     // oitava abaixo do guitarrista → região 200–600 Hz
-      attack: 0.020,     // ataque mais lento — voz tem onset gradual
-      gainAcerto: 0.30,  // voz mais presente no mix
+      wave: "sawtooth",
+      freqMult: 0.5,
+      attack: 0.025,
+      gainAcerto: 0.28,
       gainErro: 0.08,
-      durAcerto: 0.20,   // sustentado — nota vocal tem mais duração
+      durAcerto: 0.22,
       durErro: 0.10,
     },
-    // Baixista (Marivaldo): sine grave, profundidade sem harmônicos
+    // Baixista (Marivaldo): sine + 2º harmônico suave → lowpass grave → punch
     baixista: {
-      wave: "sine",      // sub-grave puro, sem harmônicos superiores
-      freqMult: 0.25,    // duas oitavas abaixo do guitarrista → 80–300 Hz
-      attack: 0.015,
-      gainAcerto: 0.40,  // grave requer mais gain para parecer igual em volume
+      wave: "sine",
+      freqMult: 0.25,
+      attack: 0.010,
+      gainAcerto: 0.38,
       gainErro: 0.12,
-      durAcerto: 0.18,
+      durAcerto: 0.20,
       durErro: 0.09,
     },
-    // Baterista (Ramiro Paulada): noise burst percussivo, sem pitch melódico
+    // Baterista (Ramiro Paulada): noise burst (snap) + corpo pitched (thump)
     baterista: {
-      wave: "noise",     // tag especial — implementação via noise buffer (bateristaHit)
-      freqMult: 1.0,     // ignorado no noise; controla o highpass filter
-      attack: 0.002,     // ataque mínimo — percussão é imediata
+      wave: "noise",     // tag especial — implementação via bateristaHit()
+      freqMult: 1.0,
+      attack: 0.002,
       gainAcerto: 0.35,
       gainErro: 0.10,
-      durAcerto: 0.08,   // muito curto — snap percussivo
-      durErro: 0.04,
+      durAcerto: 0.10,
+      durErro: 0.05,
     },
   };
 
-  // ── Noise burst percussivo (baterista) ──────────────────────────────────────
+  // ── Curva de saturação (WaveShaper) ─────────────────────────────────────────
+  // Gerada uma vez por quantidade de pontos e cacheada — evita realocar por nota.
+  const _curvasDistorcao = {};
+  function curvaDistorcao(pontos, quantidade) {
+    const k = pontos + "_" + quantidade;
+    if (_curvasDistorcao[k]) return _curvasDistorcao[k];
+    const curva = new Float32Array(pontos);
+    for (let i = 0; i < pontos; i++) {
+      const x = (i * 2) / pontos - 1;
+      curva[i] = ((Math.PI + quantidade) * x) / (Math.PI + quantidade * Math.abs(x));
+    }
+    _curvasDistorcao[k] = curva;
+    return curva;
+  }
+
+  // ── Síntese: guitarrista — sawtooth → waveshaper → lowpass → pluck env ──────
+  // Opcional: 2º osc detunado em quinta (ganho leve) para encorpar power-chord.
+  function guitarristaHit(ac, destino, pitchHz, cfg, acerto) {
+    try {
+      const t = ac.currentTime;
+      const pico = acerto ? cfg.gainAcerto : cfg.gainErro;
+      const dur  = acerto ? cfg.durAcerto  : cfg.durErro;
+      const freq = pitchHz * cfg.freqMult;
+
+      // Fonte principal: sawtooth
+      const osc = ac.createOscillator();
+      osc.type = "sawtooth";
+      osc.frequency.value = freq;
+
+      // 2º osc em quinta (freq*1.5), ganho menor — body/power-chord
+      const osc2 = ac.createOscillator();
+      osc2.type = "sawtooth";
+      osc2.frequency.value = freq * 1.5;
+
+      const gainMix = ac.createGain();
+      gainMix.gain.value = 1.0;
+      const gainOsc2 = ac.createGain();
+      gainOsc2.gain.value = 0.3;
+
+      // WaveShaper: saturação forte (guitarra distorcida)
+      const shaper = ac.createWaveShaper();
+      shaper.curve = curvaDistorcao(256, 200);
+      shaper.oversample = "2x";
+
+      // Lowpass: doma os harmônicos superiores (~3000 Hz)
+      const lpf = ac.createBiquadFilter();
+      lpf.type = "lowpass";
+      lpf.frequency.value = 3000;
+
+      // Envelope de pluck: attack curto, decay rápido
+      const gainEnv = ac.createGain();
+      gainEnv.gain.setValueAtTime(0.0001, t);
+      gainEnv.gain.exponentialRampToValueAtTime(pico, t + cfg.attack);
+      gainEnv.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+
+      // Grafo: osc → mixGain → shaper → lpf → gainEnv → destino
+      //        osc2 → gainOsc2 → mixGain
+      osc.connect(gainMix);
+      osc2.connect(gainOsc2).connect(gainMix);
+      gainMix.connect(shaper).connect(lpf).connect(gainEnv).connect(destino);
+
+      osc.start(t);  osc.stop(t + dur + 0.02);
+      osc2.start(t); osc2.stop(t + dur + 0.02);
+    } catch (_) { /* áudio é cosmético */ }
+  }
+
+  // ── Síntese: vocalista — sawtooth → formantes bandpass → vibrato → onset ────
+  // 3 filtros bandpass em paralelo modelam a vogal "ah" (~700/1220/2600 Hz).
+  // LFO (~5.5 Hz) modula a frequência da fonte para vibrato.
+  function vocalistaHit(ac, destino, pitchHz, cfg, acerto) {
+    try {
+      const t = ac.currentTime;
+      const pico = acerto ? cfg.gainAcerto : cfg.gainErro;
+      const dur  = acerto ? cfg.durAcerto  : cfg.durErro;
+      const freq = pitchHz * cfg.freqMult;
+
+      // Fonte: sawtooth
+      const osc = ac.createOscillator();
+      osc.type = "sawtooth";
+      osc.frequency.value = freq;
+
+      // LFO de vibrato (~5.5 Hz, profundidade ~8 Hz)
+      const lfo = ac.createOscillator();
+      lfo.type = "sine";
+      lfo.frequency.value = 5.5;
+      const lfoGain = ac.createGain();
+      lfoGain.gain.value = 8;
+      lfo.connect(lfoGain).connect(osc.frequency);
+
+      // 3 filtros bandpass (formantes "ah")
+      const formantes = [700, 1220, 2600];
+      const Q = 8;
+      const gainFormantes = ac.createGain();
+      gainFormantes.gain.value = 1.0;
+
+      formantes.forEach((f) => {
+        const bp = ac.createBiquadFilter();
+        bp.type = "bandpass";
+        bp.frequency.value = f;
+        bp.Q.value = Q;
+        osc.connect(bp).connect(gainFormantes);
+      });
+
+      // Envelope vocal: onset gradual
+      const gainEnv = ac.createGain();
+      gainEnv.gain.setValueAtTime(0.0001, t);
+      gainEnv.gain.exponentialRampToValueAtTime(pico, t + cfg.attack);
+      gainEnv.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+
+      gainFormantes.connect(gainEnv).connect(destino);
+
+      osc.start(t);  osc.stop(t + dur + 0.02);
+      lfo.start(t);  lfo.stop(t + dur + 0.02);
+    } catch (_) { /* áudio é cosmético */ }
+  }
+
+  // ── Síntese: baixista — sine fundamental + 2º harmônico → lowpass grave ─────
+  function baixistaHit(ac, destino, pitchHz, cfg, acerto) {
+    try {
+      const t = ac.currentTime;
+      const pico = acerto ? cfg.gainAcerto : cfg.gainErro;
+      const dur  = acerto ? cfg.durAcerto  : cfg.durErro;
+      const freq = pitchHz * cfg.freqMult;
+
+      // Fundamental sine grave
+      const osc = ac.createOscillator();
+      osc.type = "sine";
+      osc.frequency.value = freq;
+
+      // 2º harmônico (oitava acima) em ganho baixo — leve saturação orgânica
+      const osc2 = ac.createOscillator();
+      osc2.type = "sine";
+      osc2.frequency.value = freq * 2;
+      const gainHarm = ac.createGain();
+      gainHarm.gain.value = 0.18;
+
+      const gainMix = ac.createGain();
+      gainMix.gain.value = 1.0;
+
+      // WaveShaper suave (saturação leve, quantidade pequena)
+      const shaper = ac.createWaveShaper();
+      shaper.curve = curvaDistorcao(128, 30);
+      shaper.oversample = "none";
+
+      // Lowpass grave (~300 Hz) — corta harmônicos superiores, mantém corpo
+      const lpf = ac.createBiquadFilter();
+      lpf.type = "lowpass";
+      lpf.frequency.value = 300;
+
+      // Envelope punchy: ataque rápido, decay moderado
+      const gainEnv = ac.createGain();
+      gainEnv.gain.setValueAtTime(0.0001, t);
+      gainEnv.gain.exponentialRampToValueAtTime(pico, t + cfg.attack);
+      gainEnv.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+
+      osc.connect(gainMix);
+      osc2.connect(gainHarm).connect(gainMix);
+      gainMix.connect(shaper).connect(lpf).connect(gainEnv).connect(destino);
+
+      osc.start(t);  osc.stop(t + dur + 0.02);
+      osc2.start(t); osc2.stop(t + dur + 0.02);
+    } catch (_) { /* áudio é cosmético */ }
+  }
+
+  // ── Síntese: baterista — noise (snap) + corpo pitched (thump) ───────────────
   // Math.random() aqui é seguro: solo() é chamado em callback de evento (acerto/erro),
   // NUNCA dentro de passo(dt)/desenhar() — não viola o determinismo do draw (REQ6).
   function bateristaHit(ac, destino, acerto) {
     try {
-      const durSeg = acerto ? 0.08 : 0.04;
-      const tamBuffer = Math.ceil(ac.sampleRate * durSeg);
+      const t = ac.currentTime;
+      const durNoise = acerto ? 0.10 : 0.05;
+      const durCorpo = acerto ? 0.12 : 0.06;
+
+      // ── Noise burst (snap de snare/chapéu) ──
+      const tamBuffer = Math.ceil(ac.sampleRate * durNoise);
       const buf = ac.createBuffer(1, tamBuffer, ac.sampleRate);
       const data = buf.getChannelData(0);
       for (let i = 0; i < tamBuffer; i++) data[i] = Math.random() * 2 - 1;
@@ -71,19 +241,33 @@
       const src = ac.createBufferSource();
       src.buffer = buf;
 
-      // Highpass para cortar sub-grave e dar caráter de snare/chapéu
-      const filtro = ac.createBiquadFilter();
-      filtro.type = "highpass";
-      filtro.frequency.value = acerto ? 2000 : 800; // acerto = mais brilho
+      const hpf = ac.createBiquadFilter();
+      hpf.type = "highpass";
+      hpf.frequency.value = acerto ? 2500 : 900; // acerto = mais brilho
 
-      const gain = ac.createGain();
-      const t = ac.currentTime;
-      gain.gain.setValueAtTime(acerto ? 0.35 : 0.10, t);
-      gain.gain.exponentialRampToValueAtTime(0.0001, t + durSeg);
+      const gainNoise = ac.createGain();
+      gainNoise.gain.setValueAtTime(acerto ? 0.32 : 0.10, t);
+      gainNoise.gain.exponentialRampToValueAtTime(0.0001, t + durNoise);
 
-      src.connect(filtro).connect(gain).connect(destino);
+      src.connect(hpf).connect(gainNoise).connect(destino);
       src.start(t);
-      src.stop(t + durSeg + 0.01);
+      src.stop(t + durNoise + 0.01);
+
+      // ── Corpo pitched (thump tipo kick/tom) ──
+      const oscCorpo = ac.createOscillator();
+      oscCorpo.type = "sine";
+      oscCorpo.frequency.value = acerto ? 180 : 120;
+      // Pitch descendente: 180→50 Hz (kick/tom)
+      oscCorpo.frequency.setValueAtTime(acerto ? 180 : 120, t);
+      oscCorpo.frequency.exponentialRampToValueAtTime(50, t + durCorpo * 0.7);
+
+      const gainCorpo = ac.createGain();
+      gainCorpo.gain.setValueAtTime(acerto ? 0.45 : 0.20, t);
+      gainCorpo.gain.exponentialRampToValueAtTime(0.0001, t + durCorpo);
+
+      oscCorpo.connect(gainCorpo).connect(destino);
+      oscCorpo.start(t);
+      oscCorpo.stop(t + durCorpo + 0.01);
     } catch (_) {
       /* áudio é cosmético — nunca derruba o jogo */
     }
@@ -170,29 +354,23 @@
         if (window.RitmoMuteGate && window.RitmoMuteGate.mutado) return;
         bipe(1046, 0.06, "sine", 0.2);
       },
-      // D-03: solo melódico por timbre de instrumento
+      // D-03 / GF2: solo melódico por timbre de instrumento (cadeia de síntese rica)
       solo(timbre, pitchHz, acerto) {
         if (window.RitmoMuteGate && window.RitmoMuteGate.mutado) return;
         const cfg = TIMBRES[timbre] || TIMBRES.guitarrista;
-        // Baterista usa noise buffer — sem pitch melódico
-        if (cfg.wave === "noise") { bateristaHit(garantirContexto(), garantirGainMaster(), acerto); return; }
-        try {
-          const ac = garantirContexto();
-          const osc = ac.createOscillator();
-          const gain = ac.createGain();
-          osc.type = cfg.wave;
-          osc.frequency.value = pitchHz * cfg.freqMult;
-          const t = ac.currentTime;
-          const pico = acerto ? cfg.gainAcerto : cfg.gainErro;
-          const dur  = acerto ? cfg.durAcerto  : cfg.durErro;
-          gain.gain.setValueAtTime(0.0001, t);
-          gain.gain.exponentialRampToValueAtTime(pico, t + cfg.attack);
-          gain.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-          osc.connect(gain).connect(garantirGainMaster());
-          osc.start(t);
-          osc.stop(t + dur + 0.02);
-        } catch (_) {
-          /* áudio é cosmético — nunca derruba o jogo */
+        const ac  = garantirContexto();
+        const mst = garantirGainMaster();
+        if (cfg.wave === "noise") {
+          bateristaHit(ac, mst, acerto);
+          return;
+        }
+        if (timbre === "guitarrista") {
+          guitarristaHit(ac, mst, pitchHz, cfg, acerto);
+        } else if (timbre === "vocalista") {
+          vocalistaHit(ac, mst, pitchHz, cfg, acerto);
+        } else {
+          // baixista (e fallback genérico)
+          baixistaHit(ac, mst, pitchHz, cfg, acerto);
         }
       },
     };
