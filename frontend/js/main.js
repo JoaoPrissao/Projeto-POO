@@ -252,14 +252,12 @@ function _iniciarCanvasVitoria() {
     // "VITÓRIA!" em pixel art âmbar centrado — usa Sprites.desenharTextoPixel
     if (window.Sprites && window.Sprites.desenharTextoPixel) {
       const escala = 4;
-      // Cada glifo 5×7 + 1 espaço = 6 cols; "VITÓRIA!" = 8 chars
-      const largTexto = window.Sprites.desenharTextoPixel(ctx, "VITORIA!", 0, 0, escala, "#d4921e");
-      // Calcular x centralizado (desenharTextoPixel retorna largura total)
+      // Largura é determinística (N glifos × 6 cols × escala) — calcular sem
+      // desenhar. Medir via uma chamada extra de desenharTextoPixel pintava um
+      // "VITÓRIA!" fantasma no canto (0,0) além do centralizado (bug de duplicação).
+      const largTexto = "VITORIA!".length * 6 * escala;
       const xCentro = Math.floor((W - largTexto) / 2);
       const yCentro = Math.floor(H / 2 - 20);
-      ctx.clearRect(0, yCentro - 4, W, escala * 7 + 8);  // limpa só a área do texto
-      ctx.fillStyle = "#14111c";
-      ctx.fillRect(0, yCentro - 4, W, escala * 7 + 8);
       window.Sprites.desenharTextoPixel(ctx, "VITORIA!", xCentro, yCentro, escala, "#d4921e");
     }
 
