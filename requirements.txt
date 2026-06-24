@@ -1,3 +1,8 @@
 pytest==8.3.4
 pywebview==6.2.1
 Pillow
+
+# Dependências de desenvolvimento/QA — o corretor precisa delas para
+# reproduzir a medição de cobertura (pytest-cov) e o empacotamento (pyinstaller).
+pytest-cov
+pyinstaller
