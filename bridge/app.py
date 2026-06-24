@@ -4,13 +4,19 @@ Rodar com:  python bridge/app.py
 O JS chama os métodos via  window.pywebview.api.<metodo>(...)  → Promise.
 """
 import os
+import sys
 import tempfile
 
 import webview
 
 from api import API
 
-FRONTEND = os.path.join(os.path.dirname(__file__), "..", "frontend", "index.html")
+# Compatível com PyInstaller: quando empacotado, sys._MEIPASS aponta para o
+# diretório temporário do bundle (onde --add-data "frontend;frontend" extrai
+# os arquivos). Rodando do fonte, cai no fallback: sobe um nível a partir de
+# bridge/app.py para a raiz do projeto, preservando o comportamento atual.
+_BASE = getattr(sys, "_MEIPASS", os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
+FRONTEND = os.path.join(_BASE, "frontend", "index.html")
 
 
 def _gerar_icone_temp() -> str | None:
