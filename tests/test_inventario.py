@@ -158,3 +158,40 @@ def test_consumivel_round_trip_dict():
     assert copia.nome == "Energético"
     assert copia.efeito == "cura"
     assert copia.valor == 40
+
+
+# ── Inventario: __contains__ ──────────────────────────────────────
+
+def test_contains_retorna_true_para_item_presente():
+    inv = Inventario(capacidade=3)
+    inv.adicionar(Item("Pedal de Efeito"))
+    assert "Pedal de Efeito" in inv
+
+
+def test_contains_retorna_false_para_item_ausente():
+    inv = Inventario(capacidade=3)
+    inv.adicionar(Item("Pedal de Efeito"))
+    assert "Guitarra Quebrada" not in inv
+
+
+def test_contains_inventario_vazio_retorna_false():
+    inv = Inventario(capacidade=3)
+    assert "Qualquer Coisa" not in inv
+
+
+# ── Inventario: __repr__ ──────────────────────────────────────────
+
+def test_repr_inclui_quantidade_e_capacidade():
+    inv = Inventario(capacidade=4)
+    inv.adicionar(Item("Pedra"))
+    inv.adicionar(Item("Pena"))
+    resultado = repr(inv)
+    assert "2" in resultado
+    assert "4" in resultado
+
+
+def test_repr_inventario_vazio():
+    inv = Inventario(capacidade=5)
+    resultado = repr(inv)
+    assert "0" in resultado
+    assert "5" in resultado
