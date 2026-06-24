@@ -7,7 +7,9 @@ __pycache__/
 dist/
 build/
 gerar_uml.py
-docs/
+docs/superpowers/
+docs/design/
+docs/*.pdf
 saves/
 
 # Claude Code
