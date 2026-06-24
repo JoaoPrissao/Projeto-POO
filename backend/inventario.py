@@ -11,6 +11,13 @@ class Inventario:
     def __len__(self) -> int:
         return len(self._itens)
 
+    def __contains__(self, nome_item: str) -> bool:
+        """Permite o idioma Pythônico: 'Pedal de Efeito' in inventario."""
+        return self._buscar(nome_item) is not None
+
+    def __repr__(self) -> str:
+        return f"Inventario({len(self._itens)}/{self.capacidade} itens)"
+
     def _buscar(self, item_id):
         for item in self._itens:
             if item.nome == item_id:
