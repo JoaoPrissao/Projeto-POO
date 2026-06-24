@@ -267,7 +267,7 @@ qual move foi escolhido — é o padrão Strategy: o algoritmo de ataque é sele
 **Categoria GoF:** Estrutural (hierarquia Composite)
 **Arquivo:** `backend/excecoes.py`
 
-Toda exceção do jogo deriva de `JogoError`, formando uma **árvore tipada de 15 classes**. Isso
+Toda exceção do jogo deriva de `JogoError`, formando uma **árvore tipada de 26 classes** (1 raiz + 25 subclasses). Isso
 permite capturar erros no nível certo: `except JogoError` para tudo, `except InventarioError`
 só para erros de inventário.
 
@@ -280,7 +280,7 @@ class PersistenciaError(JogoError): pass
 class SaveNaoEncontradoError(PersistenciaError): pass
 class CampanhaError(JogoError): pass
 class VenueBloqueadaError(CampanhaError): pass
-# ... 15 classes no total
+# ... 26 classes no total (1 raiz + 25 subclasses)
 ```
 
 Testado em `tests/test_excecoes.py`.
@@ -314,7 +314,7 @@ Nenhuma exceção crua cruza a ponte — o frontend recebe sempre `{ok, dados}` 
 | 2 | Factory Method | Criacional | `backend/fabricas.py` | `MusicoFactory.criar()` + `registrar()` |
 | 3 | Template Method | Comportamental | `backend/musico.py` + subclasses | `ABC` + `@abstractmethod atacar()` |
 | 4 | Strategy | Comportamental | `backend/moves.py` + `show.py` | `MOVES_BASE` + move escolhido em runtime |
-| 5 | Hierarquia de Exceções | Estrutural | `backend/excecoes.py` | `JogoError` raiz de 15 classes |
+| 5 | Hierarquia de Exceções | Estrutural | `backend/excecoes.py` | `JogoError` raiz de 26 classes (1 raiz + 25 subclasses) |
 | 6 | Bridge | Estrutural | `bridge/api.py` | `@_ponte` — separa API JS do domínio Python |
 
 ---

@@ -116,7 +116,7 @@ Projeto_POO/
 │   ├── moves.py     # Catálogo de golpes (moveset system)
 │   ├── fabricas.py  # MusicoFactory e ItemFactory (Factory Method)
 │   ├── gerenciador.py # GerenciadorJogo (Singleton)
-│   ├── excecoes.py  # Hierarquia de exceções (JogoError + 14 subclasses)
+│   ├── excecoes.py  # Hierarquia de exceções (JogoError + 25 subclasses)
 │   └── persistencia.py # Save/load JSON por slot
 │
 ├── bridge/           # Camada de adaptação (JS ↔ Python)
@@ -132,8 +132,10 @@ Projeto_POO/
 │   └── test_*.py    # Cobertura: musico, inventário, combate, campanha, API...
 │
 ├── docs/             # Documentação da entrega
-│   ├── uml_classes.md    # Diagrama UML em Mermaid (DEL-04)
-│   └── relatorio.md      # Relatório técnico em Markdown (DEL-05)
+│   ├── uml_classes.md          # Diagrama UML em Mermaid (DEL-04)
+│   ├── relatorio.md            # Relatório técnico em Markdown (DEL-05)
+│   ├── empacotamento.md        # Distribuição: rodar do zero + .exe (DEL-03)
+│   └── roteiro_apresentacao.md # Roteiro de apresentação 15 min (DEL-08)
 │
 ├── saves/            # Saves do jogador (JSON, gerado em runtime)
 ├── requirements.txt  # Dependências Python
@@ -173,7 +175,7 @@ Item
 | Factory Method | Criacional | `backend/fabricas.py` | Criação de músicos/itens por tipo-string; extensível via `registrar()` |
 | Template Method | Comportamental | `backend/musico.py` | `Musico` define o esqueleto (HP, XP, level-up); subclasses implementam `atacar()` |
 | Strategy | Comportamental | `backend/moves.py` | Golpe escolhido em runtime; `Show` não sabe qual move foi escolhido |
-| Hierarquia de Exceções | Estrutural | `backend/excecoes.py` | `JogoError` é a raiz de 15 classes; captura no nível certo |
+| Hierarquia de Exceções | Estrutural | `backend/excecoes.py` | `JogoError` é a raiz de 26 classes (1 raiz + 25 subclasses); captura no nível certo |
 | Bridge | Estrutural | `bridge/api.py` | `@_ponte` separa API JS-friendly do domínio Python puro |
 
 ### Sobrecarga de Operadores
