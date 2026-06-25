@@ -285,6 +285,15 @@ class API:
         return {"ok": True}
 
     @_ponte
+    def alternar_tela_cheia(self) -> dict:
+        """F11: alterna entre tela cheia e janela. Garante uma saída do
+        fullscreen pelo teclado (o app abre em fullscreen via app.py). Sem
+        janela aberta (testes/browser), o IndexError vira ErroDTO pelo _ponte."""
+        import webview
+        webview.windows[0].toggle_fullscreen()
+        return {"ok": True}
+
+    @_ponte
     def entrar_no_show(self, venue_id: str) -> dict:
         """Modo história: entrar numa venue (por id) arma a capanga definida na
         campanha e religa o Show à banda. A capanga reusa `Empresario`; nada do

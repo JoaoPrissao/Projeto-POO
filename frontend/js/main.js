@@ -1058,6 +1058,15 @@ function bind() {
   // Quando um overlay está aberto, WASD/setas navegam DENTRO do overlay e NÃO
   // chegam ao handler de movimento do overworld.js (stopPropagation + preventDefault).
   window.addEventListener("keydown", (e) => {
+    // F11: alterna tela cheia ⇄ janela em qualquer tela/overlay. Tratado antes
+    // de tudo para nunca ser engolido por um overlay aberto. (Escape continua
+    // reservado para fechar menus, daí o atalho dedicado.)
+    if (e.key === "F11") {
+      e.preventDefault();
+      window.pywebview?.api?.alternar_tela_cheia?.();
+      return;
+    }
+
     const t = e.key.toLowerCase();
     const isNav = ["a", "d", "w", "s", "arrowleft", "arrowright", "arrowup", "arrowdown"].includes(t);
     const isActivate = t === "enter" || t === " ";

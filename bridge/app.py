@@ -58,10 +58,10 @@ def main() -> None:
     # D-15: ícone gerado em runtime via Pillow (fallback gracioso se ausente)
     icone = _gerar_icone_temp()
 
-    # Ajuste 3: MAXIMIZADO (não fullscreen) — preserva os controles de janela
-    # (barra de título, fechar, minimizar). fullscreen=True prendia o usuário
-    # sem forma de sair pelo sistema operacional. maximized=True preenche a
-    # tela mantendo a barra de título e o botão de fechar nativo.
+    # TELA CHEIA: abre em fullscreen real (sem barra de título nem barra de
+    # tarefas). O risco antigo de "prender o usuário sem saída" é coberto por
+    # F11 (alterna fullscreen ⇄ janela, via API.alternar_tela_cheia) e pelo
+    # botão Sair do menu. width/height/min_size valem ao sair do fullscreen.
     webview.create_window(
         title="Decibéis",
         url=os.path.abspath(FRONTEND),
@@ -69,7 +69,7 @@ def main() -> None:
         width=960,
         height=640,
         min_size=(720, 520),
-        maximized=True,
+        fullscreen=True,
     )
     # D-15: o ícone da aplicação é passado a start(), não a create_window()
     # — nesta versão do pywebview o parâmetro `icon` só existe em start().
