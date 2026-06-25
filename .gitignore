@@ -12,6 +12,7 @@ gerar_uml.py
 docs/superpowers/
 docs/design/
 docs/*.pdf
+!docs/relatorio.pdf
 saves/
 
 # Claude Code
