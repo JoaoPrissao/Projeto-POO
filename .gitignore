@@ -22,3 +22,8 @@ CLAUDE.md
 # Artefatos do Playwright MCP (testes de browser)
 .playwright-mcp/
 .planning
+
+# Removidos da entrega (mantidos só localmente)
+PROGRESS.md
+docs/apresentacao.pptx
+docs/roteiro_apresentacao.md
