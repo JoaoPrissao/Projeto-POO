@@ -9,7 +9,7 @@ Este documento descreve como distribuir e executar o jogo **Decibéis** em duas 
 
 ## Parte 1 — Caminho Garantido: rodar do zero
 
-> **Este é o método de distribuição recomendado e suficiente para a entrega (DEL-03).**
+> **Este é o método de distribuição recomendado e suficiente para a entrega.**
 > Funciona em qualquer Windows 10/11 com Python instalado; não depende de pré-compilação.
 
 ### Pré-requisitos
@@ -23,8 +23,8 @@ Este documento descreve como distribuir e executar o jogo **Decibéis** em duas 
 
 ```bash
 # 1. Clone ou descompacte o projeto
-git clone <url-do-repositorio>
-cd Projeto_POO
+git clone https://github.com/JoaoPrissao/Projeto-POO.git
+cd Projeto-POO
 
 # 2. Criar ambiente virtual
 python -m venv .venv
@@ -54,7 +54,7 @@ python -m pytest -q
 
 ## Parte 2 — Bônus Best-Effort: `.exe` via PyInstaller
 
-> **AVISO: esta seção é best-effort (D-06).** A entrega válida é a Parte 1.
+> **AVISO: esta seção é best-effort.** A entrega válida é a Parte 1.
 > Se o `.exe` não abrir (causa provável: WebView2 ausente ou hidden import faltando — veja
 > Armadilhas abaixo), documente o sintoma e utilize a Parte 1 como caminho de distribuição.
 

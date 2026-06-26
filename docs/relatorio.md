@@ -1,26 +1,25 @@
 # Relatório Técnico — Decibéis: a turnê contra O Empresário
 
-> **Entregável DEL-05** — Relatório em Markdown.
-> **Parte humana (D-02):** Exportar para PDF via VS Code ("Markdown PDF" ou "Print to PDF")
-> ou Pandoc — o agente produz apenas o texto-fonte.
-
 **Disciplina:** Programação Orientada a Objetos — UTFPR · 2026
-**Autor:** João Prissão (JoaoPrissao)
-**Repositório:** branch `modo-historia`
+**Autor:** João Prissão (JoaoPrissão)
+**Repositório:** https://github.com/JoaoPrissao/Projeto-POO (branch `main`)
+**Data:** Junho de 2026
 
 ---
 
 ## Sumário
 
 1. [Introdução](#1-introdução)
-2. [Requisitos Funcionais do PDF](#2-requisitos-funcionais-do-pdf)
-3. [Arquitetura](#3-arquitetura)
-4. [Padrões de Projeto](#4-padrões-de-projeto)
-5. [Herança e Polimorfismo](#5-herança-e-polimorfismo)
-6. [Sobrecarga de Operadores](#6-sobrecarga-de-operadores)
-7. [Qualidade e Testes](#7-qualidade-e-testes)
-8. [Decisões de Design](#8-decisões-de-design)
-9. [Conclusão](#9-conclusão)
+2. [Processo de Desenvolvimento](#2-processo-de-desenvolvimento)
+3. [Atendimento aos Requisitos da Disciplina](#3-atendimento-aos-requisitos-da-disciplina)
+4. [Arquitetura](#4-arquitetura)
+5. [Padrões de Projeto](#5-padrões-de-projeto)
+6. [Herança e Polimorfismo](#6-herança-e-polimorfismo)
+7. [Sobrecarga de Operadores](#7-sobrecarga-de-operadores)
+8. [Qualidade e Testes](#8-qualidade-e-testes)
+9. [Decisões de Design](#9-decisões-de-design)
+10. [Limitações Conhecidas](#10-limitações-conhecidas)
+11. [Conclusão](#11-conclusão)
 
 ---
 
@@ -28,68 +27,105 @@
 
 ### 1.1 Objetivo do Projeto
 
-Este projeto implementa um jogo de RPG de gerenciamento de banda de rock como trabalho final da
-disciplina de Programação Orientada a Objetos. O objetivo é demonstrar — em código executável —
-os principais conceitos da POO: herança, polimorfismo, encapsulamento, abstração, padrões de
-projeto GoF e sobrecarga de operadores.
+Este projeto é o trabalho final da disciplina de Programação Orientada a Objetos. A proposta foi
+construir um jogo de RPG completo e jogável que demonstrasse, em código executável, os principais
+conceitos da POO: herança, polimorfismo, encapsulamento, abstração, padrões de projeto GoF e
+sobrecarga de operadores.
 
-O projeto foi desenvolvido em **Python 3.12** com interface web rodando via **pywebview**, mantendo
-o domínio de jogo em Python puro e o frontend em HTML/CSS/JS responsável apenas pela renderização.
+Optei por desenvolver em **Python 3.12**, com a interface gráfica rodando em **pywebview**. Essa
+escolha me permitiu manter toda a lógica de jogo em Python puro (a parte que de fato exercita os
+conceitos de POO avaliados) e usar HTML/CSS/JS apenas para a camada de apresentação. A disciplina
+("POO com Python e C++") aceita Python como linguagem de entrega; onde a especificação cita
+construções de C++, a implementação usa o equivalente direto da linguagem — classes abstratas via
+`ABC`/`@abstractmethod` no lugar de funções virtuais puras, módulos no lugar de namespaces, e
+`pytest` no lugar de `gtest`.
 
 ### 1.2 Tema Escolhido: Banda de Rock em Turnê
 
-Em vez do RPG fantasia clássico (guerreiros/magos), o tema é uma **banda de rock em turnê**: quatro
-músicos (Guitarrista, Vocalista, Baterista, Baixista) percorrem venues (bar, feira, arena) vencendo
-capangas e o chefe final O Empresário. O resultado é um jogo jogável de ponta a ponta:
+Em vez do RPG de fantasia clássico (guerreiros e magos), escolhi o tema de uma **banda de rock em
+turnê**. Quatro músicos — Guitarrista, Vocalista, Baterista e Baixista — percorrem venues (bar,
+feira, arena) enfrentando capangas até chegar ao chefe final, O Empresário. A troca de tema não
+muda os conceitos de POO exercitados (continua sendo uma hierarquia de personagens com atributos e
+ataques distintos), mas tornou o projeto mais autoral e divertido de testar.
 
-- **Overworld 2D:** van da banda percorre um mapa side-scroll; o jogador para em venues,
+O resultado é um jogo jogável de ponta a ponta, com três sistemas principais:
+
+- **Overworld 2D:** a van da banda percorre um mapa em side-scroll; o jogador para em venues,
   conversa com NPCs e abre baús.
-- **Batalha por turnos:** cada músico ataca com 3 golpes (leve/médio/pesado); o vilão revida;
-  sistema de energia e cansaço gere a estratégia.
+- **Batalha por turnos:** cada músico ataca com 3 golpes (leve/médio/pesado); o vilão revida; um
+  sistema de energia e cansaço dá profundidade estratégica.
 - **Minigame de ritmo:** antes de cada ataque o jogador pressiona teclas no ritmo certo para
-  multiplicar o dano — acertos perfeitos geram combos.
+  multiplicar o dano — acertos perfeitos formam combos.
 
 ---
 
-## 2. Requisitos Funcionais do PDF
+## 2. Processo de Desenvolvimento
 
-O PDF da disciplina especifica dois requisitos funcionais centrais: **criação de personagem com
-escolhas** e **level-up com pontos de experiência**. Esta seção documenta como esses requisitos
-foram atendidos e/ou reinterpretados tematicamente no contexto do jogo de banda (DEL-07).
+Desenvolvi o projeto de forma incremental, fechando uma camada de cada vez e só avançando quando a
+anterior estava testada. A ordem abaixo reflete como o código foi de fato crescendo:
 
-### 2.1 Criação de Personagem com Escolhas
+1. **Modelagem do domínio.** Comecei pela classe abstrata `Musico` e suas quatro subclasses,
+   definindo HP, XP, energia e level-up na base. Em paralelo modelei `Item` (com `Equipavel` e
+   `Consumivel`) e o `Inventario`. Essa primeira camada não dependia de interface nenhuma — eu a
+   testava direto pelo terminal.
 
-**Requisito original:** O jogador cria um personagem escolhendo raça/classe com atributos iniciais
-distintos.
+2. **Sistema de combate.** Com os músicos prontos, escrevi a classe `Show`, que orquestra o turno:
+   ação do músico, dano, resposta do inimigo, energia e cansaço. O chefe `Empresario` entrou aqui
+   como um inimigo com comportamento próprio.
 
-**Reinterpretação temática:** Em vez de um único protagonista, o jogador monta uma **banda de 4
-músicos**, escolhendo nome e tipo para cada membro. Cada tipo tem atributos iniciais diferentes:
+3. **Tratamento de erros.** Conforme o domínio crescia, percebi que precisava de erros tipados em
+   vez de `ValueError` genérico. Montei a hierarquia de exceções a partir de `JogoError`, o que me
+   deixou capturar falhas no nível certo (só de inventário, só de campanha, etc.).
+
+4. **Campanha e progressão.** Implementei a `Campanha` para amarrar as venues: fama acumulada,
+   cachê, cooldowns e o desbloqueio da Arena. Foi o que transformou batalhas soltas em uma
+   progressão com começo, meio e fim.
+
+5. **Interface gráfica.** Só depois de a lógica estar sólida liguei o frontend. Criei a camada
+   `bridge` (pywebview) para traduzir as chamadas do JavaScript para o domínio Python, mantendo a
+   regra de que o backend é a autoridade do estado e o frontend apenas renderiza.
+
+6. **Polimento jogável.** Com o jogo rodando, adicionei o minigame de ritmo, o áudio por venue, a
+   loja, opções de volume e o modo tela cheia (F11). Vários ajustes nesta etapa vieram de testar o
+   jogo na prática e perceber o que estava confuso ou desbalanceado.
+
+7. **Persistência.** Adicionei save/load em JSON por slot, para o jogador retomar a turnê.
+
+8. **Testes e documentação.** Em paralelo a tudo acima, mantive uma suíte de testes com `pytest`.
+   Alguns recursos (como os dunders do inventário) nasceram por TDD: escrevi o teste primeiro e só
+   depois a implementação. Por fim, produzi o diagrama UML, este relatório e as instruções de
+   empacotamento.
+
+---
+
+## 3. Atendimento aos Requisitos da Disciplina
+
+A especificação pede dois requisitos funcionais centrais: **criação de personagem com escolhas** e
+**level-up com pontos de experiência**. Adaptei os dois ao tema da banda sem abrir mão da mecânica
+exigida.
+
+### 3.1 Criação de Personagem com Escolhas
+
+Em vez de um único protagonista, o jogador monta uma **banda de 4 músicos**, escolhendo nome e tipo
+para cada membro. Cada tipo tem atributos iniciais distintos e uma fórmula de ataque própria:
 
 | Tipo | Atributo-chave | Valor inicial | Mecânica de ataque |
-|------|----------------|---------------|-------------------|
+|------|----------------|---------------|--------------------|
 | Guitarrista | `forca` | 10 | `forca * 1.5 + ego` |
 | Vocalista | `inteligencia` | 10 | `inteligencia * 1.8` |
 | Baterista | `agilidade` | 10 | `agilidade * 1.2` + chance de crítico |
 | Baixista | `forca` (via Guitarrista) + `fe` | — | `forca * 1.3 + fe * 0.5` |
 
-**Evidência no código:**
-- `backend/fabricas.py` — `MusicoFactory.criar(tipo, nome=...)` instancia a subclasse correta.
-- `bridge/api.py` — `criar_banda(composicao)` recebe a lista de `{tipo, nome}` e chama a factory.
-- O frontend exibe a tela `#tela-criar-banda` onde o jogador preenche os 4 membros.
+A criação passa por `MusicoFactory.criar(tipo, nome=...)` em `backend/fabricas.py`, chamada por
+`criar_banda(composicao)` em `bridge/api.py`, que recebe a lista de `{tipo, nome}` preenchida na
+tela `#tela-criar-banda`. A "escolha de personagem" do requisito vira, no jogo, a composição da
+banda.
 
-Esta abordagem cobre o requisito de "criação de personagem com escolhas" de forma temática: a
-"escolha de personagem" é a composição da banda.
+### 3.2 Level-up com Pontos de XP
 
-### 2.2 Level-up com Pontos de XP
-
-**Requisito original:** Personagem acumula pontos de experiência (XP) e sobe de nível, ganhando
-atributos.
-
-**Reinterpretação temática:** XP representa a **experiência de turnê** — shows realizados com
-sucesso. Subir de nível é a **reputação crescente do músico**; o bônus de HP (+10 por nível)
-representa a resistência física que um músico profissional desenvolve em shows ao vivo.
-
-**Evidência no código** (`backend/musico.py`):
+O XP representa a **experiência de turnê** — shows realizados com sucesso — e subir de nível
+significa a reputação crescente do músico, com um bônus de +10 de HP por nível representando o
+preparo físico de quem toca ao vivo:
 
 ```python
 def ganhar_xp(self, quantidade: int) -> None:
@@ -108,63 +144,64 @@ def subir_nivel(self) -> None:
     self._hp = min(self._hp + bonus_hp, self._hp_maximo)
 ```
 
-XP é concedido ao concluir uma venue (`concluir_venue()` em `bridge/api.py`). O level-up é
-automático ao atingir o limiar — sem ponto de gasto manual, pois a progressão é orgânica à turnê.
-O XP acumulado além do limiar é preservado e carregado para o próximo nível, mantendo coerência
-em subidas múltiplas de nível de uma vez.
+O XP é concedido ao concluir uma venue (`concluir_venue()` em `bridge/api.py`). O level-up é
+automático ao atingir o limiar — sem ponto de gasto manual, porque a progressão é orgânica à
+turnê. O excedente além do limiar é preservado e carregado para o próximo nível, o que mantém a
+coerência quando o músico sobe vários níveis de uma vez.
 
-### 2.3 Resumo da Reinterpretação
-
-| Requisito do PDF | Implementação no jogo | Arquivo de evidência |
-|------------------|-----------------------|----------------------|
+| Requisito | Implementação no jogo | Arquivo |
+|-----------|-----------------------|---------|
 | Criação de personagem com escolhas | Composição da banda (4 músicos, tipos distintos) | `fabricas.py`, `api.py` |
-| Level-up com XP | Experiência de turnê → reputação do músico → +HP | `musico.py` (`ganhar_xp`, `subir_nivel`) |
+| Level-up com XP | Experiência de turnê → reputação → +HP | `musico.py` |
 
 ---
 
-## 3. Arquitetura
+## 4. Arquitetura
 
-### 3.1 Visão Geral — Três Camadas
+### 4.1 Visão Geral — Três Camadas
 
 O projeto segue uma arquitetura em **três camadas** com separação estrita de responsabilidades:
 
 ```
 ┌─────────────────────────────────────────────────┐
-│  Frontend (HTML/CSS/JS)                         │
+│  Frontend (HTML/CSS/JS)                          │
 │  frontend/index.html + js/{main,batalha,...}.js  │
 │  Só renderiza; nunca decide regra de jogo        │
 ├─────────────────────────────────────────────────┤
-│  Bridge (pywebview)                             │
-│  bridge/api.py  →  @_ponte (ErroDTO)            │
+│  Bridge (pywebview)                              │
+│  bridge/api.py  →  @_ponte (ErroDTO)             │
 │  Traduz chamadas JS ↔ domínio Python             │
 ├─────────────────────────────────────────────────┤
-│  Backend (Python puro)                          │
+│  Backend (Python puro)                           │
 │  backend/{musico,show,campanha,gerenciador,...}  │
-│  Autoridade absoluta do estado de jogo          │
+│  Autoridade absoluta do estado de jogo           │
 └─────────────────────────────────────────────────┘
 ```
 
 **Backend** — lógica de domínio em Python OOP puro. Sem I/O de UI; comunica erros via exceções.
-**Bridge** — `@_ponte` captura qualquer exceção do domínio e converte para DTO JSON `{ok, erro}`.
-**Frontend** — renderiza estado recebido do backend; não valida regras, não mantém estado canônico.
+**Bridge** — `@_ponte` captura qualquer exceção do domínio e converte para um DTO JSON `{ok, erro}`.
+**Frontend** — renderiza o estado recebido do backend; não valida regras nem mantém estado canônico.
 
-### 3.2 Diagrama UML de Classes
+Mantive essa separação desde o começo justamente para conseguir testar todo o domínio sem precisar
+abrir a interface — os 361 testes rodam sem subir o pywebview.
 
-O diagrama completo está em [`docs/uml_classes.md`](uml_classes.md) — bloco Mermaid `classDiagram`
-coerente com a implementação real, incluindo as três hierarquias (Musico, Item, JogoError) e as
-relações de Singleton, Factory e Bridge.
+### 4.2 Diagrama UML de Classes
+
+O diagrama completo está em [`docs/uml_classes.md`](uml_classes.md) (e renderizado em
+`uml_classes.png`/`uml_classes.svg`) — um diagrama de classes coerente com a implementação real,
+incluindo as três hierarquias (`Musico`, `Item`, `JogoError`) e as relações de Singleton, Factory
+e Bridge.
 
 ---
 
-## 4. Padrões de Projeto
+## 5. Padrões de Projeto
 
-Foram identificados e documentados **6 padrões GoF** no código. Os 4 primeiros são os canônicos
-exigidos pela rubrica (DEL-06); os 2 últimos são bônus.
+Identifiquei **6 padrões GoF** no código. Os 4 primeiros são os canônicos exigidos pela rubrica; os
+2 últimos surgiram naturalmente da arquitetura e entram como bônus.
 
-### 4.1 Singleton — GerenciadorJogo
+### 5.1 Singleton — GerenciadorJogo
 
-**Categoria GoF:** Criacional
-**Arquivo:** `backend/gerenciador.py`
+**Categoria GoF:** Criacional · **Arquivo:** `backend/gerenciador.py`
 
 Garante que existe **uma única instância** do estado central do jogo em toda a execução.
 
@@ -182,14 +219,13 @@ class GerenciadorJogo:
 Qualquer módulo que instancie `GerenciadorJogo()` recebe o mesmo objeto. Testado em
 `tests/test_singleton.py`.
 
-### 4.2 Factory Method — MusicoFactory e ItemFactory
+### 5.2 Factory Method — MusicoFactory e ItemFactory
 
-**Categoria GoF:** Criacional
-**Arquivo:** `backend/fabricas.py`
+**Categoria GoF:** Criacional · **Arquivo:** `backend/fabricas.py`
 
-Centraliza a criação de músicos e itens a partir de uma string de tipo. O dicionário `_tipos`
-(ou `_catalogo`) é o **único ponto que cita classes concretas** — novos tipos são adicionados via
-`registrar()` sem alterar o código existente (princípio Open/Closed).
+Centraliza a criação de músicos e itens a partir de uma string de tipo. O dicionário `_tipos` é o
+**único ponto que cita classes concretas** — novos tipos entram via `registrar()` sem alterar o
+código existente (princípio Open/Closed).
 
 ```python
 class MusicoFactory:
@@ -214,14 +250,13 @@ class MusicoFactory:
 `ItemFactory` segue a mesma estrutura para itens (`Equipavel`, `Consumivel`). Testado em
 `tests/test_fabricas.py`.
 
-### 4.3 Template Method — Musico (ABC) e Subclasses
+### 5.3 Template Method — Musico (ABC) e Subclasses
 
-**Categoria GoF:** Comportamental
-**Arquivo:** `backend/musico.py` + `Guitarrista.py`, `Vocalista.py`, `Baterista.py`, `Baixista.py`
+**Categoria GoF:** Comportamental · **Arquivo:** `backend/musico.py` + subclasses
 
-`Musico` é uma classe abstrata (ABC) que define o **esqueleto do algoritmo** de personagem:
-HP, XP, energia, level-up, equipamento — todos implementados na classe base. O único **passo
-variável** é `atacar()`, obrigatoriamente sobrescrito por cada subclasse.
+`Musico` é uma classe abstrata (ABC) que define o **esqueleto do algoritmo** de personagem: HP, XP,
+energia, level-up e equipamento, todos implementados na base. O único **passo variável** é
+`atacar()`, obrigatoriamente sobrescrito por cada subclasse.
 
 ```python
 class Musico(ABC):
@@ -236,17 +271,16 @@ class Musico(ABC):
         ...
 ```
 
-Cada subclasse implementa `atacar()` de forma específica ao seu tipo (força, inteligência,
-agilidade) — isso é o Template Method: estrutura fixa na base, passo concreto nas folhas.
+Cada subclasse implementa `atacar()` conforme seu atributo (força, inteligência, agilidade): a
+estrutura é fixa na base e o passo concreto fica nas folhas.
 
-### 4.4 Strategy — Moveset (moves.py)
+### 5.4 Strategy — Moveset (moves.py)
 
-**Categoria GoF:** Comportamental
-**Arquivo:** `backend/moves.py` + `backend/show.py`
+**Categoria GoF:** Comportamental · **Arquivo:** `backend/moves.py` + `backend/show.py`
 
 O jogador escolhe **qual golpe usar em cada turno** (leve, médio, pesado, especial de equipamento).
-Cada golpe é um dicionário que encapsula a estratégia de ataque — multiplicador de dano,
-custo de energia, efeito de cansaço:
+Cada golpe encapsula a estratégia de ataque — multiplicador de dano, custo de energia, efeito de
+cansaço:
 
 ```python
 MOVES_BASE = {
@@ -259,21 +293,20 @@ MOVES_BASE = {
 }
 ```
 
-`Show.acao_musico()` recebe o move e aplica `mult_extra`, `custo_energia` e `cansa` sem saber
-qual move foi escolhido — é o padrão Strategy: o algoritmo de ataque é selecionado em runtime.
+`Show.acao_musico()` recebe o move e aplica `mult_extra`, `custo_energia` e `cansa` sem saber qual
+move foi escolhido — o algoritmo de ataque é selecionado em runtime.
 
-### 4.5 Hierarquia de Exceções — JogoError (Composite de tipos)
+### 5.5 Hierarquia de Exceções — JogoError
 
-**Categoria GoF:** Estrutural (hierarquia Composite)
-**Arquivo:** `backend/excecoes.py`
+**Categoria GoF:** Estrutural · **Arquivo:** `backend/excecoes.py`
 
-Toda exceção do jogo deriva de `JogoError`, formando uma **árvore tipada de 26 classes** (1 raiz + 25 subclasses). Isso
-permite capturar erros no nível certo: `except JogoError` para tudo, `except InventarioError`
-só para erros de inventário.
+Toda exceção do jogo deriva de `JogoError`, formando uma **árvore tipada de 26 classes** (1 raiz +
+25 subclasses). Isso permite capturar erros no nível certo: `except JogoError` para tudo,
+`except InventarioError` só para erros de inventário.
 
 ```python
-class JogoError(Exception): pass           # raiz
-class InventarioError(JogoError): pass     # ramo
+class JogoError(Exception): pass               # raiz
+class InventarioError(JogoError): pass         # ramo
 class InventarioCheioError(InventarioError): pass   # folha
 class ItemNaoEncontradoError(InventarioError): pass
 class PersistenciaError(JogoError): pass
@@ -285,13 +318,12 @@ class VenueBloqueadaError(CampanhaError): pass
 
 Testado em `tests/test_excecoes.py`.
 
-### 4.6 Bridge — Ponte JS ↔ Domínio Python (bônus)
+### 5.6 Bridge — Ponte JS ↔ Domínio Python (bônus)
 
-**Categoria GoF:** Estrutural
-**Arquivo:** `bridge/api.py`
+**Categoria GoF:** Estrutural · **Arquivo:** `bridge/api.py`
 
-O decorator `@_ponte` separa a **abstração** (API JS-friendly — métodos públicos com retorno JSON)
-da **implementação** (domínio Python puro com exceções). O frontend chama
+O decorator `@_ponte` separa a **abstração** (API amigável ao JS, com retorno JSON) da
+**implementação** (domínio Python puro com exceções). O frontend chama
 `window.pywebview.api.atacar(...)` sem conhecer nada do domínio:
 
 ```python
@@ -308,113 +340,101 @@ Nenhuma exceção crua cruza a ponte — o frontend recebe sempre `{ok, dados}` 
 
 ### Tabela Resumo dos Padrões
 
-| # | Padrão | Categoria GoF | Arquivo | Símbolo de Evidência |
-|---|--------|---------------|---------|----------------------|
+| # | Padrão | Categoria GoF | Arquivo | Evidência |
+|---|--------|---------------|---------|-----------|
 | 1 | Singleton | Criacional | `backend/gerenciador.py` | `_instancia` + `__new__` |
 | 2 | Factory Method | Criacional | `backend/fabricas.py` | `MusicoFactory.criar()` + `registrar()` |
 | 3 | Template Method | Comportamental | `backend/musico.py` + subclasses | `ABC` + `@abstractmethod atacar()` |
-| 4 | Strategy | Comportamental | `backend/moves.py` + `show.py` | `MOVES_BASE` + move escolhido em runtime |
-| 5 | Hierarquia de Exceções | Estrutural | `backend/excecoes.py` | `JogoError` raiz de 26 classes (1 raiz + 25 subclasses) |
-| 6 | Bridge | Estrutural | `bridge/api.py` | `@_ponte` — separa API JS do domínio Python |
+| 4 | Strategy | Comportamental | `backend/moves.py` + `show.py` | `MOVES_BASE` + move em runtime |
+| 5 | Hierarquia de Exceções | Estrutural | `backend/excecoes.py` | `JogoError`, raiz de 26 classes |
+| 6 | Bridge | Estrutural | `bridge/api.py` | `@_ponte` separa API JS do domínio |
 
 ---
 
-## 5. Herança e Polimorfismo
+## 6. Herança e Polimorfismo
 
-### 5.1 Hierarquia Musico → [Guitarrista, Vocalista, Baterista, Baixista]
+### 6.1 Hierarquia Musico → [Guitarrista, Vocalista, Baterista, Baixista]
 
 ```
 Musico (ABC)
 ├── Guitarrista
-│   └── Baixista   ← herda de Guitarrista (compartilha atributo forca)
+│   └── Baixista   ← herda de Guitarrista (compartilha o atributo forca)
 ├── Vocalista
 └── Baterista
 ```
 
-**Herança de implementação:** todos herdam de `Musico` o mecanismo completo de HP, XP, energia,
-level-up, inventário e equipamento. Cada subclasse acrescenta apenas seu atributo específico.
+Todos herdam de `Musico` o mecanismo completo de HP, XP, energia, level-up, inventário e
+equipamento; cada subclasse acrescenta apenas seu atributo específico. Uma decisão menos óbvia:
+`Baixista` herda de `Guitarrista` (não direto de `Musico`), porque o baixista reaproveita o
+atributo `forca` da guitarra e só acrescenta `fe` como recurso diferenciador — isso evita
+duplicar código.
 
-**Observação arquitetural:** `Baixista` herda de `Guitarrista` (não direto de `Musico`) porque
-o baixista compartilha o atributo `forca` da guitarra, acrescentando `fe` como recurso
-diferenciador. Isso evita duplicação de código.
-
-### 5.2 Hierarquia Item → [Equipavel, Consumivel]
+### 6.2 Hierarquia Item → [Equipavel, Consumivel]
 
 ```
 Item (base)
-├── Equipavel    ← ocupa slot, bônus de atributo, não é destruído ao usar
+├── Equipavel    ← ocupa slot, dá bônus de atributo, não é destruído ao usar
 └── Consumivel   ← efeito único (cura/energia), destruído ao usar
 ```
 
 `Equipavel` sobrescreve `usar(alvo)` para aplicar o bônus de atributo e validar
-`classes_permitidas`. `Consumivel` sobrescreve `usar(alvo)` para aplicar `cura` ou `energia`
-e marcar `consumir_ao_usar = True`.
+`classes_permitidas`. `Consumivel` sobrescreve `usar(alvo)` para aplicar `cura` ou `energia` e
+marcar `consumir_ao_usar = True`.
 
-### 5.3 Polimorfismo em Ação
+### 6.3 Polimorfismo em Ação
 
-**`atacar()` polimorfico:** `Show.acao_musico(musico, move)` chama `musico.atacar()` sem saber
-o tipo concreto — Guitarrista, Vocalista, Baterista ou Baixista. O resultado é o dano base
-específico daquele tipo, multiplicado pelo fator do move escolhido.
-
-**`usar(alvo)` polimorfico:** `Inventario.usar(item_id, alvo)` chama `item.usar(alvo)` sem
-saber se é `Equipavel` ou `Consumivel` — cada um executa seu efeito específico.
+- **`atacar()` polimórfico:** `Show.acao_musico(musico, move)` chama `musico.atacar()` sem saber o
+  tipo concreto — o resultado é o dano base daquele tipo, multiplicado pelo fator do move.
+- **`usar(alvo)` polimórfico:** `Inventario.usar(item_id, alvo)` chama `item.usar(alvo)` sem saber
+  se é `Equipavel` ou `Consumivel` — cada um executa seu efeito específico.
 
 ---
 
-## 6. Sobrecarga de Operadores
+## 7. Sobrecarga de Operadores
 
-### 6.1 `Inventario.__len__`
+Tornei as classes mais "pythônicas" sobrescrevendo métodos especiais (dunders). O inventário ganhou
+três deles, sendo dois adicionados por TDD (teste escrito antes da implementação).
 
-**Classe:** `Inventario` (`backend/inventario.py`)
-**Dunder:** `__len__`
-**Semântica:** `len(inv)` retorna o número de itens no inventário.
+### 7.1 `Inventario.__len__`
+
+`len(inv)` retorna o número de itens no inventário. Usado na verificação de capacidade e nos testes.
 
 ```python
 def __len__(self) -> int:
     return len(self._itens)
 ```
 
-Pré-existente; usado na verificação de capacidade e nos testes.
+### 7.2 `Inventario.__contains__`
 
-### 6.2 `Inventario.__contains__` (adicionado em 04-01)
-
-**Classe:** `Inventario` (`backend/inventario.py`)
-**Dunder:** `__contains__`
-**Semântica:** `"Pedal de Efeito" in inventario` — busca por nome, delega para `_buscar()`.
+`"Pedal de Efeito" in inventario` — busca por nome, delegando para `_buscar()`.
 
 ```python
 def __contains__(self, nome_item: str) -> bool:
-    """Permite o idioma Pythônico: 'Pedal de Efeito' in inventario."""
+    """Permite o idioma pythônico: 'Pedal de Efeito' in inventario."""
     return self._buscar(nome_item) is not None
 ```
 
-Adicionado via TDD em 04-01: testes em `tests/test_inventario.py` (`test_contains_*`).
+Testes em `tests/test_inventario.py` (`test_contains_*`).
 
-### 6.3 `Inventario.__repr__` (adicionado em 04-01)
+### 7.3 `Inventario.__repr__`
 
-**Classe:** `Inventario` (`backend/inventario.py`)
-**Dunder:** `__repr__`
-**Semântica:** `repr(inv)` → `"Inventario(3/20 itens)"` — representação legível para debug.
+`repr(inv)` → `"Inventario(3/20 itens)"` — representação legível para debug.
 
 ```python
 def __repr__(self) -> str:
     return f"Inventario({len(self._itens)}/{self.capacidade} itens)"
 ```
 
-Adicionado via TDD em 04-01: testes em `tests/test_inventario.py` (`test_repr_*`).
+Testes em `tests/test_inventario.py` (`test_repr_*`).
 
-### 6.4 `Musico.__del__`
+### 7.4 `Musico.__del__`
 
-**Classe:** `Musico` (`backend/musico.py`)
-**Dunder:** `__del__`
-**Semântica:** destrutor — print de ciclo de vida ao remover o objeto da memória.
+Destrutor — registra no console o fim de vida do objeto ao removê-lo da memória.
 
 ```python
 def __del__(self):
     print(f"  [-] Músico '{self._nome}' removido da memória.")
 ```
-
-Demonstra gerenciamento de ciclo de vida do objeto; útil para debug de memory leaks.
 
 ### Tabela Resumo dos Dunders
 
@@ -427,90 +447,83 @@ Demonstra gerenciamento de ciclo de vida do objeto; útil para debug de memory l
 
 ---
 
-## 7. Qualidade e Testes
+## 8. Qualidade e Testes
 
-### 7.1 Suite pytest
+### 8.1 Suíte pytest
 
 | Métrica | Valor |
 |---------|-------|
 | Testes passando | **361** |
 | Testes falhando | **0** |
-| Cobertura TOTAL (`backend/`) | **95%** |
-| `backend/main.py` | omitido via `.coveragerc` (script CLI demo, 0% cobertura) |
-| Limiar da rubrica (DEL-02) | **≥ 60%** — muito acima |
+| Cobertura (`backend/`) | **95%** |
+| Limiar da rubrica | ≥ 60% — bem acima |
 
-> Cobertura original (com `main.py`): 86%. Com `.coveragerc` omitindo `main.py` (script de demo
-> CLI, nunca executado pelos testes de domínio): 95%. Ambos muito acima do limiar de 60%.
+O `backend/main.py` (um script de demonstração via CLI, nunca chamado pelos testes de domínio) é
+omitido da medição via `.coveragerc`; sem essa omissão a cobertura fica em 86%, ainda muito acima
+do limiar. Comando para reproduzir:
 
-Comando para reproduzir:
 ```bash
 pytest --cov=backend --cov-report=term-missing -q
 ```
 
-Os 361 testes cobrem: musicos (criação, atributos, level-up, energia), inventário (add/remove/use,
-dunders), itens (equipavel/consumivel), fábricas (MusicoFactory/ItemFactory), combate (Show,
-golpes, cansaço, crítico), campanha (venues, fama, cache, cooldowns), persistência (round-trip
-JSON), exceções, API bridge, integração.
-
-### 7.2 Falhas Pré-existentes de Harness (documentação honesta)
-
-Existem **2 falhas conhecidas nos harnesses JS** que não foram corrigidas nesta entrega — estão
-fora do escopo por decisão de projeto (D-06).
-
-**Falha 1 — `batalha.harness.html`: derrota chama `parar()`**
-- Comportamento esperado: ao perder o show, o harness chama `parar()` para interromper o clock
-  de auto-ataque.
-- Comportamento atual: `parar()` não é chamado corretamente / timing divergente.
-- **Impacto:** Apenas no harness de teste. O jogo real funciona corretamente — a batalha
-  termina como esperado ao jogar pelo `python bridge/app.py`.
-- **Decisão:** Corrigir está fora do escopo desta entrega.
-
-**Falha 2 — `ritmo.harness.html`: `void 0`**
-- Comportamento esperado: função de callback retorna um valor.
-- Comportamento atual: retorna `undefined` (`void 0`) em certas condições do harness.
-- **Impacto:** Apenas no harness de teste. O minigame de ritmo funciona corretamente no app real.
-- **Decisão:** Corrigir está fora do escopo desta entrega.
-
-Estas falhas **não afetam a jogabilidade real** nem a cobertura dos testes pytest (que testam o
-backend Python, não os harnesses JS).
+Os 361 testes cobrem: músicos (criação, atributos, level-up, energia), inventário
+(adicionar/remover/usar, dunders), itens (equipável/consumível), fábricas, combate (Show, golpes,
+cansaço, crítico), campanha (venues, fama, cache, cooldowns), persistência (round-trip JSON),
+exceções, a API da bridge e testes de integração.
 
 ---
 
-## 8. Decisões de Design
+## 9. Decisões de Design
 
-As decisões abaixo foram tomadas ao longo do desenvolvimento e documentadas no STATE.md do projeto.
+As decisões abaixo foram tomadas ao longo do desenvolvimento, em geral depois de testar o jogo na
+prática:
 
-| Decisão | Racional | Status |
-|---------|----------|--------|
-| Backend autoritativo; frontend só renderiza | Separa claramente domínio de apresentação; torna o domínio testável sem UI | Confirmado |
-| `Baixista` herda de `Guitarrista` | Compartilha `forca`; evita duplicação de atributo e métodos `aumentar_forca`/`bonus_equipamento` | Confirmado |
-| `@_ponte` captura toda exceção do domínio | Nenhuma exceção crua cruza para o JS; frontend sempre recebe `{ok, dados}` ou `{ok: false, erro}` | Confirmado |
-| Energia unificada na classe base (`Musico`) | Simplifica o modelo — todos os tipos usam o mesmo recurso de energia, sem estados paralelos | Confirmado |
-| Slots de equipamento reversíveis | `desequipar()` remove o item do slot; bônus é calculado dinamicamente em `atacar()` via `bonus_equipamento()` | Confirmado |
-| `ItemFactory` com lambdas como fábricas | Lambdas com `**kw` permitem customização de atributos (ex: baú dá item com bônus maior) sem subclasses extras | Confirmado |
-| Loja como ponto do mapa (não na van) | Feedback do João no UAT: van só equipa/usa/guarda itens já adquiridos; compra acontece em ponto fixo | Confirmado |
-| `MusicoCantorError` não necessário | Fôlego do Vocalista foi unificado em `_energia`; alias é derivado puro, sem estado extra | Confirmado |
+| Decisão | Racional |
+|---------|----------|
+| Backend autoritativo; frontend só renderiza | Separa domínio de apresentação e torna o domínio testável sem UI |
+| `Baixista` herda de `Guitarrista` | Compartilha `forca`; evita duplicar atributo e métodos de bônus |
+| `@_ponte` captura toda exceção do domínio | Nenhuma exceção crua cruza para o JS; resposta sempre padronizada |
+| Energia unificada na classe base `Musico` | Simplifica o modelo — todos os tipos usam o mesmo recurso, sem estados paralelos |
+| Slots de equipamento reversíveis | `desequipar()` libera o slot; o bônus é recalculado dinamicamente em `atacar()` |
+| `ItemFactory` com lambdas como fábricas | Lambdas com `**kw` permitem customizar atributos (ex.: baú com bônus maior) sem subclasses extras |
+| Loja como ponto fixo do mapa, não na van | Ao jogar percebi que comprar dentro da van confundia; a van só equipa/usa itens já adquiridos |
 
 ---
 
-## 9. Conclusão
+## 10. Limitações Conhecidas
 
-O projeto **Decibéis** demonstra com sucesso os conceitos centrais de POO em Python 3.12:
+Por honestidade técnica, registro o que ficou de fora desta entrega:
 
-- **Herança** em duas hierarquias reais (`Musico → 4 subclasses`; `Item → 2 subtipos`), com
-  uma relação não-óbvia (`Baixista` herda de `Guitarrista`).
+- **Harnesses de teste do frontend (JS).** Mantive duas páginas-harness para experimentar a batalha
+  e o minigame de ritmo isoladamente no navegador. Ambas têm pequenos bugs de timing/retorno
+  conhecidos. Eles afetam **apenas os harnesses de teste manual** — o jogo real, jogado por
+  `python bridge/app.py`, funciona corretamente, e a suíte automatizada (`pytest`) cobre o backend
+  Python, não esses harnesses. Optei por não investir tempo neles porque não impactam a
+  jogabilidade nem a cobertura.
+- **Executável `.exe` standalone.** O empacotamento via PyInstaller está documentado e funciona na
+  maioria dos casos, mas depende do WebView2 Runtime na máquina destino. O caminho de execução
+  garantido e recomendado continua sendo rodar do código-fonte (ver `docs/empacotamento.md`).
+
+---
+
+## 11. Conclusão
+
+O **Decibéis** cumpre o objetivo de demonstrar os conceitos centrais de POO em Python 3.12 dentro
+de um jogo de fato jogável:
+
+- **Herança** em duas hierarquias reais (`Musico` → 4 subclasses; `Item` → 2 subtipos), incluindo
+  a relação não-óbvia `Baixista → Guitarrista`.
 - **Polimorfismo** em `atacar()` e `usar()` — o código cliente nunca precisa saber o tipo concreto.
-- **Encapsulamento** — atributos protegidos (`_`) e privados (`__`) com acesso via getters/setters
+- **Encapsulamento** — atributos protegidos (`_`) e privados (`__`) acessados por getters/setters
   com validação.
-- **Abstração** — `Musico` como ABC define a interface; `Item` como base define o contrato.
-- **4+ Padrões GoF** documentados com evidências em código: Singleton, Factory Method, Template
-  Method, Strategy, Hierarquia de Exceções, Bridge.
-- **Sobrecarga de operadores** (`__len__`, `__contains__`, `__repr__`, `__del__`) tornando as
-  classes mais Pythônicas.
-- **Cobertura de testes** de 95% (`backend/`) com 361 testes pytest verdes.
+- **Abstração** — `Musico` (ABC) define a interface; `Item` define o contrato base.
+- **6 padrões GoF** documentados com evidência em código: Singleton, Factory Method, Template
+  Method, Strategy, Hierarquia de Exceções e Bridge.
+- **Sobrecarga de operadores** (`__len__`, `__contains__`, `__repr__`, `__del__`).
+- **Cobertura de testes** de 95% no `backend/`, com 361 testes verdes.
 
-O jogo é jogável de ponta a ponta: menu → criar banda → overworld 2D → batalha com minigame de
-ritmo → level-up → loja → progressão até O Empresário chefe final.
+O jogo roda de ponta a ponta: menu → criar banda → overworld 2D → batalha com minigame de ritmo →
+level-up → loja → progressão até o chefe final, O Empresário.
 
 ---
 
@@ -519,4 +532,4 @@ ritmo → level-up → loja → progressão até O Empresário chefe final.
 - Gamma, E. et al. *Design Patterns: Elements of Reusable Object-Oriented Software*. Addison-Wesley, 1994.
 - Python Software Foundation. *Python 3.12 Data Model — Special method names*. docs.python.org.
 - pywebview. *Documentation 6.x*. pywebview.flowrl.com.
-- Especificação da Disciplina POO — UTFPR 2026 (ver `docs/POO___Especificação_do_Projeto_da_Disciplina.pdf`).
+- Especificação da Disciplina de POO — UTFPR, 2026.

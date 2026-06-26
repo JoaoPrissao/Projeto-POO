@@ -6,6 +6,8 @@
 [![Testes](https://img.shields.io/badge/testes-361%20passando-brightgreen)]()
 [![Cobertura](https://img.shields.io/badge/cobertura-95%25-brightgreen)]()
 
+**Repositório:** https://github.com/JoaoPrissao/Projeto-POO
+
 ---
 
 ## Sobre o Jogo
@@ -76,8 +78,8 @@ combos perfeitos do minigame de ritmo.
 
 ```bash
 # 1. Clone ou descompacte o projeto
-git clone <url-do-repositorio>
-cd Projeto_POO
+git clone https://github.com/JoaoPrissao/Projeto-POO.git
+cd Projeto-POO
 
 # 2. Criar ambiente virtual
 python -m venv .venv
@@ -98,7 +100,7 @@ A janela do jogo abrirá automaticamente via pywebview.
 ### Executável standalone (best-effort)
 
 Para criar um `.exe` sem precisar de Python instalado, veja as instruções em
-[docs/empacotamento.md](docs/empacotamento.md) (gerado pelo Plano 03 desta fase de entrega).
+[docs/empacotamento.md](docs/empacotamento.md).
 
 ---
 
@@ -132,10 +134,9 @@ Projeto_POO/
 │   └── test_*.py    # Cobertura: musico, inventário, combate, campanha, API...
 │
 ├── docs/             # Documentação da entrega
-│   ├── uml_classes.md          # Diagrama UML em Mermaid (DEL-04)
-│   ├── relatorio.md            # Relatório técnico em Markdown (DEL-05)
-│   ├── empacotamento.md        # Distribuição: rodar do zero + .exe (DEL-03)
-│   └── roteiro_apresentacao.md # Roteiro de apresentação 15 min (DEL-08)
+│   ├── uml_classes.md          # Diagrama UML em Mermaid (+ .png/.svg renderizados)
+│   ├── relatorio.md            # Relatório técnico (+ relatorio.pdf)
+│   └── empacotamento.md        # Distribuição: rodar do zero + .exe
 │
 ├── saves/            # Saves do jogador (JSON, gerado em runtime)
 ├── requirements.txt  # Dependências Python

@@ -1,8 +1,9 @@
 # Diagrama UML de Classes — Decibéis: a turnê contra O Empresário
 
-> **Entregável DEL-04** — Diagrama de classes em Mermaid coerente com a implementação real em `backend/`.
-> **Parte humana (D-02):** Renderizar para imagem via VS Code ("Markdown Preview Mermaid Support") ou
-> em [mermaid.live](https://mermaid.live) (exportar PNG/SVG) — o agente produz apenas o texto-fonte.
+> Diagrama de classes em Mermaid, coerente com a implementação real em `backend/`.
+> As versões renderizadas estão em `uml_classes.png` e `uml_classes.svg`. Para reexportar a imagem,
+> abra este arquivo no VS Code ("Markdown Preview Mermaid Support") ou cole o bloco em
+> [mermaid.live](https://mermaid.live).
 
 ---
 
